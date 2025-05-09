@@ -31,6 +31,7 @@
         <testcontainers.version>1.20.6</testcontainers.version>
 
         <docker.namespace>more-project</docker.namespace>
+        <docker.localArch>${os.arch}</docker.localArch>
 
         <start-class>io.redlink.more.data.MoreDataGatewayApplication</start-class>
     </properties>
@@ -267,6 +268,16 @@
                         <id>jib-install</id>
                         <phase>install</phase>
                         <goals><goal>dockerBuild</goal></goals>
+                        <configuration>
+                            <from>
+                                <platforms>
+                                    <platform>
+                                        <architecture>${docker.localArch}</architecture>
+                                        <os>linux</os>
+                                    </platform>
+                                </platforms>
+                            </from>
+                        </configuration>
                     </execution>
                     <execution>
                         <id>jib-package</id>
@@ -595,7 +606,18 @@
                 <skipTests>true</skipTests>
                 <skipITs>true</skipITs>
             </properties>
-
+        </profile>
+        <profile>
+            <id>apple-silicon</id>
+            <activation>
+                <property>
+                    <name>os.arch</name>
+                    <value>aarch64</value>
+                </property>
+            </activation>
+            <properties>
+                <docker.localArch>arm64</docker.localArch>
+            </properties>
         </profile>
     </profiles>
 
