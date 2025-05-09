@@ -29,7 +29,7 @@ security:
 paths:
   /signup:
     get:
-      operationId: signupInfo
+      operationId: getSignupInfo
       description: Returns simple HTML study information identified by the required participant registration token
       tags:
         - Signup
@@ -52,7 +52,9 @@ paths:
         '400':
           description: bad request, token missing or invalid
         '404':
-          description: not found
+          $ref: '#/components/responses/NoSuchRegistrationToken'
+        '410':
+          $ref: '#/components/responses/RegistrationTokenExpired'
 
   /registration:
     get:
