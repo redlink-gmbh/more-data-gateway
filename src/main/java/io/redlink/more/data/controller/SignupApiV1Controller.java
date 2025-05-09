@@ -8,11 +8,13 @@
  */
 package io.redlink.more.data.controller;
 
+import io.redlink.more.data.api.app.v1.webservices.SignupApi;
 import io.redlink.more.data.configuration.AuthenticationFacade;
 import io.redlink.more.data.properties.MoreProperties;
 import io.redlink.more.data.service.RegistrationService;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -30,5 +32,10 @@ public class SignupApiV1Controller implements SignupApi {
         this.moreProperties = moreProperties;
         this.registrationService = registrationService;
         this.authenticationFacade = authenticationFacade;
+    }
+
+    @Override
+    public ResponseEntity<String> signupInfo(String token) {
+        return null;
     }
 }

@@ -16,6 +16,9 @@ tags:
   - name: Data
     description: |
       Endpoints to **send** observation-data
+  - name: Signup
+    description: |
+      Provides information about the study singup
 
 externalDocs:
   url: https://github.com/MORE-Platform
@@ -24,6 +27,33 @@ security:
   - apiKey: [ ]
 
 paths:
+  /signup:
+    get:
+      operationId: signupInfo
+      description: Returns simple HTML study information identified by the required participant registration token
+      tags:
+        - Signup
+      parameters:
+        - $ref: '#/components/parameters/RegistrationTokenQuery'
+      responses:
+        '200':
+          description: Simple study information in HTML
+          content:
+            text/html:
+              schema:
+                type: string
+                example:
+                  '<h1>Study Xyz</h1>
+                  <h2>Contact</h2>
+                  <address>
+                     <a href="mailto:jim@example.com">jim@example.com</a><br />
+                     <a href="tel:+14155550132">+1 (415) 555‑0132</a>
+                  </address>'
+        '400':
+          description: bad request, token missing or invalid
+        '404':
+          description: not found
+
   /registration:
     get:
       operationId: getStudyRegistrationInfo
@@ -201,23 +231,6 @@ paths:
                   $ref: '#/components/schemas/Id'
         '401':
           $ref: '#/components/responses/UnauthorizedApiKey'
-/signup:
-  get:
-    operationId: signupInfo
-    description: Returns simple HTML study information identified by the required participant registration token
-    tags:
-      - Signup
-    parameters:
-      - $ref: '#/components/parameters/RegistrationTokenQuery'
-    responses:
-      '200':
-        description: Simple study information in HTML
-        content:
-          text/html
-      '400':
-        description: bad request, token missing or invalid
-      '404':
-        description: not found
 components:
   schemas:
     Study:
