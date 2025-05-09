@@ -103,11 +103,6 @@
         </dependency>
 
         <dependency>
-            <groupId>io.swagger.core.v3</groupId>
-            <artifactId>swagger-annotations</artifactId>
-            <version>2.2.29</version>
-        </dependency>
-        <dependency>
             <groupId>jakarta.validation</groupId>
             <artifactId>jakarta.validation-api</artifactId>
         </dependency>
@@ -141,7 +136,7 @@
         <dependency>
             <groupId>net.logstash.logback</groupId>
             <artifactId>logstash-logback-encoder</artifactId>
-            <version>8.0</version>
+            <version>8.1</version>
             <scope>runtime</scope>
         </dependency>
 
@@ -326,7 +321,7 @@
             <plugin>
                 <groupId>org.openapitools</groupId>
                 <artifactId>openapi-generator-maven-plugin</artifactId>
-                <version>7.7.0</version>
+                <version>7.13.0</version>
                 <executions>
                     <execution>
                         <id>data-api</id>
@@ -391,6 +386,7 @@
                         <interfaceOnly>true</interfaceOnly>
                         <useTags>true</useTags>
                         <openApiNullable>false</openApiNullable>
+                        <annotationLibrary>none</annotationLibrary>
                         <skipDefaultInterface>true</skipDefaultInterface>
                         <requestMappingMode>api_interface</requestMappingMode>
                     </configOptions>
