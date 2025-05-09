@@ -201,7 +201,23 @@ paths:
                   $ref: '#/components/schemas/Id'
         '401':
           $ref: '#/components/responses/UnauthorizedApiKey'
-
+/signup:
+  get:
+    operationId: signupInfo
+    description: Returns simple HTML study information identified by the required participant registration token
+    tags:
+      - Signup
+    parameters:
+      - $ref: '#/components/parameters/RegistrationTokenQuery'
+    responses:
+      '200':
+        description: Simple study information in HTML
+        content:
+          text/html
+      '400':
+        description: bad request, token missing or invalid
+      '404':
+        description: not found
 components:
   schemas:
     Study:
@@ -532,6 +548,13 @@ components:
       schema:
         type: string
       description: The token to register for a study
+    RegistrationTokenQuery:
+      name: token
+      in: query
+      required: true
+      schema:
+        type: string
+      description: The registration token of a participant
 
   responses:
     StudyInfoResponse:
