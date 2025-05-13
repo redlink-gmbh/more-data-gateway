@@ -1,0 +1,52 @@
+#* @vtlvariable name="esc" type="org.apache.velocity.tools.generic.EscapeTool" *#
+#* @vtlvariable name="study" type="io.redlink.more.data.model.Study" *#
+#* @vtlvariable name="registrationUrl" type="java.lang.String" *#
+#* @vtlvariable name="token" type="java.lang.String" *#
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>$esc.html($study.title())</title>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.js"></script>
+    </head>
+<body>
+<h1>Sign-Up to $esc.html($study.title())</h1>
+<div>
+    <div>Scan the QR-Code to join the Study</div>
+    <div id="qrcode"></div>
+    <div>
+        <a href="$registrationUrl" target="_blank">$registrationUrl</a>
+    </div>
+</div>
+<div>
+    <div>Don't have the App yet? Get it here:</div>
+    <div>
+        <div>
+            <a href="https://play.google.com/store/apps/details?id=ac.at.lbg.dhp.more" target="_blank">
+                <img src="https://example.com/play-store.png" alt="Get it from Play Store" />
+            </a>
+        </div>
+        <div>
+            <a href="https://apps.apple.com/us/app/more-app/id6450769124" target="_blank">
+                <img src="https://example.com/app-store.png" alt="Get it from App Store" />
+            </a>
+        </div>
+    </div>
+</div>
+<script type="text/javascript">
+    function generate(content) {
+        let qrCodeContainer = document.getElementById('qrcode');
+        qrCodeContainer.innerHTML = '';
+        new QRCode(qrCodeContainer, {
+            text: content,
+            width: 180, //128
+            height: 180,
+            colorDark: "#000000",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.H
+        });
+    }
+    generate("$esc.javascript($registrationUrl)");
+</script>
+</body>
+</html>

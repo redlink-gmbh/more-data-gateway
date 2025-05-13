@@ -118,6 +118,17 @@
         </dependency>
 
         <dependency>
+            <groupId>org.apache.velocity</groupId>
+            <artifactId>velocity-engine-core</artifactId>
+            <version>2.3</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.velocity.tools</groupId>
+            <artifactId>velocity-tools-generic</artifactId>
+            <version>3.1</version>
+        </dependency>
+
+        <dependency>
             <groupId>co.elastic.clients</groupId>
             <artifactId>elasticsearch-java</artifactId>
             <version>8.14.3</version>
@@ -373,6 +384,7 @@
                     <schemaMappings>
                         <schemaMapping>Instant=java.time.Instant</schemaMapping>
                         <schemaMapping>LocalTime=java.time.LocalTime</schemaMapping>
+                        <schemaMapping>HtmlPage=org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody</schemaMapping>
                     </schemaMappings>
                     <importMappings>
                         <importMapping>Instant=java.time.Instant</importMapping>
