@@ -9,8 +9,6 @@
 package io.redlink.more.data.configuration;
 
 import io.redlink.more.data.service.GatewayUserDetailService;
-import java.util.HashMap;
-import java.util.Map;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
@@ -31,6 +29,9 @@ import org.springframework.security.web.firewall.RequestRejectedHandler;
 import org.springframework.security.web.util.matcher.AndRequestMatcher;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.security.web.util.matcher.IpAddressMatcher;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @Configuration
 @EnableWebSecurity
@@ -54,6 +55,8 @@ public class SecurityConfig {
                             .permitAll();
                     // registration-endpoints needs to be open
                     req.requestMatchers("/api/v1/registration")
+                            .permitAll();
+                    req.requestMatchers("/api/v1/signup")
                             .permitAll();
                     //External Data Gateway
                     req.requestMatchers("/api/v1/external/bulk")

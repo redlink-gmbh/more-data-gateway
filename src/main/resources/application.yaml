@@ -8,8 +8,8 @@ spring:
     enabled: false
   datasource:
     url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DBNAME:more}
-    username: ${POSTGRES_USER:postgres}
-    password: ${POSTGRES_PASSWORD:123}
+    username: ${POSTGRES_USER:more}
+    password: ${POSTGRES_PASSWORD:more}
     name: ${POSTGRES_DBNAME:more}
 
   session:
