@@ -96,6 +96,16 @@
                 }
             }
 
+            .flash {
+                animation: flashFade 0.6s ease;
+            }
+
+            @keyframes flashFade {
+                0% { background-color: #b7c7d6 }
+                50% { background-color: transparent; }
+                100% { background-color: #b7c7d6 }
+            }
+
             @media (max-width: 480px) {
                 h1 {
                     font-size: 1.5rem;
@@ -196,8 +206,18 @@
     function copyToClipboard(type) {
         const copyValue = type === 'token' ? token : endpoint;
         navigator.clipboard.writeText(copyValue)
-                .then(() => alert(`Copied ${type} to clipboard: ${copyValue}`))
+                .then(() => {
+                    const el = document.getElementById(type);
+                    flashElement(el);
+                })
                 .catch(err => console.error("Copy failed: ", err));
+    }
+
+    function flashElement(element) {
+        element.classList.add("flash");
+        setTimeout(() => {
+            element.classList.remove("flash");
+        }, 600);
     }
 
     getTokenAndEndpoint("$esc.javascript($registrationUrl)");
