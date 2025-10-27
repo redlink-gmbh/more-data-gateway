@@ -16,6 +16,8 @@ tags:
   - name: Data
     description: |
       Endpoints to **send** observation-data
+  - name: GarminRegistration
+    description: Endpoints to register for Garmin Connect using OAuth
 
 externalDocs:
   url: https://github.com/MORE-Platform
@@ -79,6 +81,39 @@ paths:
       responses:
         '204':
           description: Participant left the study.
+
+  /registration/garmin/oauth:
+    get:
+      operationId: getGarminOauthUrl
+      description: get the url to start the Garmin OAuth process
+      tags:
+        - GarminRegistration
+      responses:
+        '200':
+          description: the url to start the Garmin OAuth process
+          content:
+            text/plain:
+              schema:
+                type: string
+        '401':
+          $ref: '#/components/responses/UnauthorizedApiKey'
+
+  /registration/garmin/redirect:
+    post:
+      operationId: handleGarminRedirect
+      description: handle the Garmin OAuth redirect
+      tags:
+        - GarminRegistration
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GarminRedirect'
+      responses:
+        '201':
+          description: ok
+        '401':
+          $ref: '#/components/responses/UnauthorizedApiKey'
 
   /config/study:
     get:
@@ -511,6 +546,17 @@ components:
         - observationType
         - dataValue
         - timestamp
+
+    GarminRedirect:
+      type: object
+      properties:
+        code:
+          type: string
+        state:
+          type: string
+      required:
+        - code
+        - state
 
     Id:
       type: string

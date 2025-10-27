@@ -1,0 +1,103 @@
+openapi: 3.1.1
+info:
+  title: Garmin API
+  description: |
+    API for the Garmin Connect API to send data to the MORE platform
+    **Security:** Controller need to implement CORS, to limit the requests to `api.garmin.com`
+  version: '1'
+
+servers:
+  - url: /api/v1
+
+tags:
+  - name: GarminUserManagement
+    description: Endpoints to receive user information from Garmin Connect
+
+paths:
+  /garmin/user:
+    delete:
+      operationId: deleteGarminUser
+      description: Delete a Garmin user
+      tags:
+        - GarminUserManagement
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeregistrationRequest'
+      responses:
+        '200':
+          description: User deleted successfully
+        '400':
+          description: Invalid request
+
+  /garmin/user/permissions:
+    post:
+      operationId: updateGarminUserPermissions
+      description: Update permissions of a Garmin user
+      tags:
+        - GarminUserManagement
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePermissionsRequest'
+      responses:
+        '200':
+          description: Permissions updated successfully
+        '400':
+          description: Invalid request
+
+
+components:
+  schemas:
+    DeregistrationRequest:
+      description: Deregistration of a Garmin user
+      type: object
+      properties:
+        deregistration:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeregistrationItem'
+
+    DeregistrationItem:
+      type: object
+      properties:
+        userId:
+          type: string
+          description: The unique identifier of the user to be deregistered
+      required:
+        - userId
+
+    UpdatePermissionsRequest:
+      description: Updated permissions of a Garmin user
+      type: object
+      properties:
+        userPermissionsChange:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserPermissionChange'
+
+    UserPermissionChange:
+      type: object
+      properties:
+        userId:
+          type: string
+          description: The unique identifier of the user
+        summaryId:
+          type: string
+          description: Summary identifier
+        permissions:
+          type: array
+          items:
+            type: string
+          description: List of permission types
+        changeTimeInSeconds:
+          type: integer
+          format: int64
+          description: Timestamp of when the permissions changed
+      required:
+        - userId
+        - summaryId
+        - permissions
+        - changeTimeInSeconds
