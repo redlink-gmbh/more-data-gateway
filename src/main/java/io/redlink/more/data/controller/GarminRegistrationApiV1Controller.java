@@ -5,6 +5,8 @@ import io.redlink.more.data.api.app.v1.webservices.GarminRegistrationApi;
 import io.redlink.more.data.configuration.AuthenticationFacade;
 import io.redlink.more.data.properties.MoreProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -15,14 +17,15 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping(value = "/api/v1", produces = MediaType.APPLICATION_JSON_VALUE)
 public class GarminRegistrationApiV1Controller implements GarminRegistrationApi {
-
     @Override
-    public ResponseEntity<String> getGarminOauthUrl() {
-        return ResponseEntity.ok().body("redirectUrl");
+    public ResponseEntity<Void> getGarminOauthUrl() {
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .header(HttpHeaders.LOCATION, "redirect-url")
+                .build();
     }
 
     @Override
-    public ResponseEntity<Void> handleGarminRedirect(GarminRedirectDTO garminRedirectDTO) {
-        return ResponseEntity.ok().build();
+    public ResponseEntity<Void> handleGarminCallback(String code, String state) {
+        return null;
     }
 }
