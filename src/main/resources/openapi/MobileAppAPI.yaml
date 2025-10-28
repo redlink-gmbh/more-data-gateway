@@ -104,6 +104,7 @@ paths:
       description: handle the Garmin OAuth redirect
       tags:
         - GarminRegistration
+      security: [ ]
       requestBody:
         content:
           application/json:
