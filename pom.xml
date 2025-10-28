@@ -341,6 +341,18 @@
                             <modelPackage>io.redlink.more.data.api.app.v1.model</modelPackage>
                         </configuration>
                     </execution>
+                    <execution>
+                        <id>garmin-api</id>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                        <configuration>
+                            <inputSpec>${project.basedir}/src/main/resources/openapi/GarminAPI.yaml</inputSpec>
+                            <output>${project.build.directory}/generated-sources/garmin</output>
+                            <apiPackage>io.redlink.more.data.api.app.v1.webservices</apiPackage>
+                            <modelPackage>io.redlink.more.data.api.app.v1.model</modelPackage>
+                        </configuration>
+                    </execution>
                 </executions>
                 <configuration>
                     <generatorName>spring</generatorName>
