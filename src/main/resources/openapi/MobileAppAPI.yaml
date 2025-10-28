@@ -85,36 +85,55 @@ paths:
   /registration/garmin/oauth:
     get:
       operationId: getGarminOauthUrl
-      description: get the url to start the Garmin OAuth process
+      description: redirect to the Garmin OAuth page
       tags:
         - GarminRegistration
       responses:
-        '200':
-          description: the url to start the Garmin OAuth process
-          content:
-            text/plain:
+        '302':
+          description: redirect to Garmin OAuth
+          headers:
+            Location:
               schema:
                 type: string
+              description: URL to the Garmin OAuth page
         '401':
           $ref: '#/components/responses/UnauthorizedApiKey'
 
-  /registration/garmin/redirect:
-    post:
-      operationId: handleGarminRedirect
-      description: handle the Garmin OAuth redirect
+  /registration/garmin/callback:
+    get:
+      operationId: handleGarminCallback
+      description: handle the Garmin OAuth callback with code and state parameters
       tags:
         - GarminRegistration
       security: [ ]
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/GarminRedirect'
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+          description: OAuth authorization code from Garmin
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+          description: State parameter for CSRF protection
       responses:
         '200':
-          description: ok
+          description: OAuth callback handled successfully
+        '302':
+          description: redirect after successful OAuth
+          headers:
+            Location:
+              schema:
+                type: string
+              description: URL to redirect the user after successful OAuth
+        '400':
+          description: invalid or missing parameters
         '401':
           $ref: '#/components/responses/UnauthorizedApiKey'
+
 
   /config/study:
     get:
