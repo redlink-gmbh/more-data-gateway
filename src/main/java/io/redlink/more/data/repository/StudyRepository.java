@@ -11,6 +11,8 @@ import io.redlink.more.data.schedule.SchedulerUtils;
 import io.redlink.more.data.service.GarminService;
 import io.redlink.more.data.util.MapperUtils;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.lang3.tuple.Pair;
+import org.springframework.dao.DataAccessException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -19,6 +21,15 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
+import java.util.OptionalInt;
+import java.util.function.Supplier;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -72,42 +83,50 @@ public class StudyRepository {
             "DELETE FROM registration_tokens WHERE token = ?";
 
     private static final String SQL_INSERT_CREDENTIALS =
-            "WITH data as (SELECT :api_secret as api_secret, :study_id as study_id, :participant_id as participant_id) " +
-                    "INSERT INTO api_credentials (api_id, api_secret, study_id, participant_id) " +
-                    "SELECT md5(study_id::text || random()::text), api_secret, study_id, participant_id FROM data " +
-                    "RETURNING api_id";
+            """
+                    WITH data as (SELECT :api_secret as api_secret, :study_id as study_id, :participant_id as participant_id)
+                    INSERT INTO api_credentials (api_id, api_secret, study_id, participant_id)
+                    SELECT md5(study_id::text || random()::text), api_secret, study_id, participant_id FROM data
+                    RETURNING api_id""";
     private static final String SQL_CLEAR_CREDENTIALS =
-            "DELETE FROM api_credentials " +
-                    "WHERE api_id = :api_id " +
-                    "RETURNING study_id, participant_id";
+            """
+                    DELETE FROM api_credentials
+                    WHERE api_id = :api_id
+                    RETURNING study_id, participant_id""";
 
     private static final String SQL_INSERT_STUDY_CONSENT =
-            "INSERT INTO participation_consents(study_id, participant_id, accepted, origin, content_md5) VALUES (:study_id, :participant_id, :accepted, :origin, :content_md5) " +
-                    "ON CONFLICT (study_id, participant_id) DO " +
-                    "   UPDATE SET accepted = excluded.accepted, origin = excluded.origin, content_md5 = excluded.content_md5, " +
-                    "              consent_timestamp = now(), consent_withdrawn = NULL";
+            """
+                    INSERT INTO participation_consents(study_id, participant_id, accepted, origin, content_md5) VALUES (:study_id, :participant_id, :accepted, :origin, :content_md5)
+                    ON CONFLICT (study_id, participant_id) DO
+                       UPDATE SET accepted = excluded.accepted, origin = excluded.origin, content_md5 = excluded.content_md5,
+                                  consent_timestamp = now(), consent_withdrawn = NULL""";
     private static final String SQL_WITHDRAW_STUDY_CONSENT =
-            "UPDATE participation_consents " +
-                    "SET consent_withdrawn = now() " +
-                    "WHERE study_id = :study_id AND participant_id = :participant_id";
+            """
+                    UPDATE participation_consents
+                    SET consent_withdrawn = now()
+                    WHERE study_id = :study_id AND participant_id = :participant_id""";
 
     private static final String SQL_INSERT_OBSERVATION_CONSENT =
-            "INSERT INTO observation_consents(study_id, participant_id, observation_id) VALUES (:study_id, :participant_id, :observation_id) " +
-                    "ON CONFLICT (study_id, participant_id, observation_id) DO NOTHING";
+            """
+                    INSERT INTO observation_consents(study_id, participant_id, observation_id) VALUES (:study_id, :participant_id, :observation_id)
+                    ON CONFLICT (study_id, participant_id, observation_id) DO NOTHING""";
     private static final String SQL_SET_PARTICIPANT_STATUS =
-            "UPDATE participants " +
-                    "SET status = :newStatus::participant_status, start = :start, modified = now() " +
-                    "WHERE study_id = :study_id AND participant_id = :participant_id AND status = :oldStatus::participant_status";
+            """
+                    UPDATE participants
+                    SET status = :newStatus::participant_status, start = COALESCE(:start, start), modified = now()
+                    WHERE study_id = :study_id AND participant_id = :participant_id AND status = :oldStatus::participant_status""";
 
     private static final String SQL_LIST_PARTICIPANTS_BY_STUDY =
-            "SELECT participant_id, alias, status, sg.study_group_id, sg.title as study_group_title, start " +
-                    "FROM participants p LEFT OUTER JOIN study_groups sg ON ( p.study_id = sg.study_id AND p.study_group_id = sg.study_group_id ) " +
-                    "WHERE p.study_id = :study_id " +
-                    "AND (p.study_group_id = :study_group_id OR :study_group_id::INT IS NULL)";
+            """
+                    SELECT participant_id, alias, status, sg.study_group_id, sg.title as study_group_title, start
+                    FROM participants p LEFT OUTER JOIN study_groups sg ON ( p.study_id = sg.study_id AND p.study_group_id = sg.study_group_id )
+                    WHERE p.study_id = :study_id
+                    AND (p.study_group_id = :study_group_id OR :study_group_id::INT IS NULL)""";
 
     private static final String GET_OBSERVATION_PROPERTIES_FOR_PARTICIPANT =
-            "SELECT properties FROM participant_observation_properties " +
-                    "WHERE  study_id = ? AND participant_id = ? AND observation_id = ?";
+            """
+                    SELECT properties FROM participant_observation_properties
+                    WHERE  study_id = ? AND participant_id = ? AND observation_id = ?""";
 
     private static final String GET_API_ROUTING_INFO_BY_API_TOKEN = """
             SELECT t.study_id, t.observation_id, o.study_group_id, o.type, t.token,
@@ -119,7 +138,18 @@ public class StudyRepository {
             """;
 
     private static final String GET_OBSERVATION_SCHEDULE = "SELECT schedule FROM observations WHERE study_id = ? AND observation_id = ?";
+    private static final String GET_PARTICIPANT_INFO_AND_START_DURATION_END_FOR_STUDY_AND_PARTICIPANT =
+            """
+                    SELECT start, participant_id, alias, COALESCE(sg.duration, s.duration) AS duration, s.planned_end_date FROM participants p
+                    LEFT OUTER JOIN study_groups sg on p.study_id = sg.study_id and p.study_group_id = sg.study_group_id
+                    JOIN studies s on p.study_id = s.study_id
+                    WHERE p.study_id = ? AND participant_id = ?""";
 
+    private static final String GET_DURATION_INFO_FOR_STUDY =
+            """
+                    SELECT sg.study_group_id as groupid, sg.duration AS groupduration, s.duration AS studyduration, s.planned_end_date AS enddate, s.planned_start_date AS startdate FROM studies s
+                    LEFT OUTER JOIN study_groups sg on s.study_id = sg.study_id
+                    WHERE s.study_id = ?""";
     private static final String GET_PARTICIPANT_INFO_AND_START_DURATION_END_FOR_STUDY_AND_PARTICIPANT =
             "SELECT start, participant_id, alias, COALESCE(sg.duration, s.duration) AS duration, s.planned_end_date FROM participants p " +
                     "LEFT OUTER JOIN study_groups sg on p.study_id = sg.study_id and p.study_group_id = sg.study_group_id " +
@@ -172,12 +202,14 @@ public class StudyRepository {
     }
 
     public Optional<ScheduleEvent> getObservationSchedule(Long studyId, Integer observationId) {
-        try (var stream = jdbcTemplate.queryForStream(
-                GET_OBSERVATION_SCHEDULE,
-                getObservationScheduleRowMapper(),
-                studyId, observationId
-        )) {
-            return stream.findFirst();
+        try {
+            return Optional.ofNullable(jdbcTemplate.queryForObject(
+                    GET_OBSERVATION_SCHEDULE,
+                    getObservationScheduleRowMapper(),
+                    studyId, observationId
+            ));
+        } catch (EmptyResultDataAccessException e) {
+            return Optional.empty();
         }
     }
 
@@ -395,12 +427,12 @@ public class StudyRepository {
             );
         }
 
-        namedTemplate.update(SQL_SET_PARTICIPANT_STATUS,
-                toParameterSource(studyId, participantId)
-                        .addValue("start", start)
-                        .addValue("oldStatus", oldStatus)
-                        .addValue("newStatus", newStatus)
-        );
+        var parameterSource = toParameterSource(studyId, participantId)
+                .addValue("oldStatus", oldStatus)
+                .addValue("newStatus", newStatus)
+                .addValue("start", start);
+
+        namedTemplate.update(SQL_SET_PARTICIPANT_STATUS, parameterSource);
     }
 
     private void storeConsent(long studyId, int participantId, ParticipantConsent consent) {
@@ -426,7 +458,7 @@ public class StudyRepository {
                     final long studyId = rs.getLong("study_id");
                     final int participantId = rs.getInt("participant_id");
                     withdrawConsent(studyId, participantId);
-                    updateParticipantStatus(studyId, participantId, 0,
+                    updateParticipantStatus(studyId, 0, participantId,
                             "active", "abandoned");
                 }
         );
@@ -528,25 +560,19 @@ public class StudyRepository {
 
     private static MapSqlParameterSource toParameterSource(long studyId, int participantId, ParticipantConsent.ObservationConsent consent) {
         return toParameterSource(studyId, participantId)
-                .addValue("observation_id", consent.observationId())
-                ;
+                .addValue("observation_id", consent.observationId());
     }
 
-    public Interval getInterval(Long studyId, Integer participantId, RelativeEvent event) {
-        try (var stream = jdbcTemplate.queryForStream(
-                GET_PARTICIPANT_INFO_AND_START_DURATION_END_FOR_STUDY_AND_PARTICIPANT,
-                ((rs, rowNum) -> {
-                    Instant start = rs.getTimestamp("start").toInstant();
-                    // TODO correct sql.Date to Instant with Time 0 ?!
-                    Instant end = Optional.ofNullable(DbUtils.readDuration(rs, "duration"))
-                            .map(d -> d.getEnd(start))
-                            .orElse(Instant.ofEpochMilli(rs.getDate("planned_end_date").getTime()));
-                    return new Interval(start, SchedulerUtils.getEnd(event, start, end));
 
-                }),
-                studyId, participantId
-        )) {
-            return stream.findFirst().orElse(null);
+    public Optional<Instant> getStudyStartFor(Long studyId, Integer participantId) {
+        try {
+            return Optional.ofNullable(jdbcTemplate.queryForObject(
+                    GET_PARTICIPANT_INFO_AND_START_DURATION_END_FOR_STUDY_AND_PARTICIPANT,
+                    (rs, rowNum) -> rs.getTimestamp("start").toInstant(),
+                    studyId, participantId
+            ));
+        } catch (DataAccessException e) {
+            return Optional.empty();
         }
     }
 
