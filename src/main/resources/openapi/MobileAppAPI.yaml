@@ -82,7 +82,7 @@ paths:
         '204':
           description: Participant left the study.
 
-  /registration/garmin/oauth:
+  /registration/garmin:
     get:
       operationId: getGarminOauthUrl
       description: redirect to the Garmin OAuth page

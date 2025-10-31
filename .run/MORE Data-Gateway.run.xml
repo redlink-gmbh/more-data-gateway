@@ -6,6 +6,9 @@
       <env name="POSTGRES_USER" value="more" />
       <env name="SERVER_PORT" value="8085" />
     </envs>
+    <option name="envFilePaths">
+      <option value="$PROJECT_DIR$/.env" />
+    </option>
     <module name="data-gateway" />
     <option name="SPRING_BOOT_MAIN_CLASS" value="io.redlink.more.data.MoreDataGatewayApplication" />
     <extension name="net.ashald.envfile">

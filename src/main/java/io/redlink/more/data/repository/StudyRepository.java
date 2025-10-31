@@ -2,22 +2,15 @@
  * Copyright (c) 2022 Redlink GmbH.
  */
 package io.redlink.more.data.repository;
-import org.apache.commons.lang3.tuple.Pair;
+
 import io.redlink.more.data.model.*;
-
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Timestamp;
-import java.time.Instant;
-import java.util.List;
-import java.util.Optional;
-import java.util.OptionalInt;
-import java.util.function.Supplier;
-
 import io.redlink.more.data.model.scheduler.Interval;
 import io.redlink.more.data.model.scheduler.RelativeEvent;
 import io.redlink.more.data.model.scheduler.ScheduleEvent;
 import io.redlink.more.data.schedule.SchedulerUtils;
+import io.redlink.more.data.service.GarminService;
+import io.redlink.more.data.util.MapperUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -26,6 +19,19 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.OptionalInt;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 import static io.redlink.more.data.repository.DbUtils.toInstant;
 import static io.redlink.more.data.repository.DbUtils.toLocalDate;
@@ -67,41 +73,41 @@ public class StudyRepository {
 
     private static final String SQL_INSERT_CREDENTIALS =
             "WITH data as (SELECT :api_secret as api_secret, :study_id as study_id, :participant_id as participant_id) " +
-            "INSERT INTO api_credentials (api_id, api_secret, study_id, participant_id) " +
-            "SELECT md5(study_id::text || random()::text), api_secret, study_id, participant_id FROM data " +
-            "RETURNING api_id";
+                    "INSERT INTO api_credentials (api_id, api_secret, study_id, participant_id) " +
+                    "SELECT md5(study_id::text || random()::text), api_secret, study_id, participant_id FROM data " +
+                    "RETURNING api_id";
     private static final String SQL_CLEAR_CREDENTIALS =
             "DELETE FROM api_credentials " +
-            "WHERE api_id = :api_id " +
-            "RETURNING study_id, participant_id";
+                    "WHERE api_id = :api_id " +
+                    "RETURNING study_id, participant_id";
 
     private static final String SQL_INSERT_STUDY_CONSENT =
             "INSERT INTO participation_consents(study_id, participant_id, accepted, origin, content_md5) VALUES (:study_id, :participant_id, :accepted, :origin, :content_md5) " +
-            "ON CONFLICT (study_id, participant_id) DO " +
-            "   UPDATE SET accepted = excluded.accepted, origin = excluded.origin, content_md5 = excluded.content_md5, " +
-            "              consent_timestamp = now(), consent_withdrawn = NULL";
+                    "ON CONFLICT (study_id, participant_id) DO " +
+                    "   UPDATE SET accepted = excluded.accepted, origin = excluded.origin, content_md5 = excluded.content_md5, " +
+                    "              consent_timestamp = now(), consent_withdrawn = NULL";
     private static final String SQL_WITHDRAW_STUDY_CONSENT =
             "UPDATE participation_consents " +
-            "SET consent_withdrawn = now() " +
-            "WHERE study_id = :study_id AND participant_id = :participant_id";
+                    "SET consent_withdrawn = now() " +
+                    "WHERE study_id = :study_id AND participant_id = :participant_id";
 
     private static final String SQL_INSERT_OBSERVATION_CONSENT =
             "INSERT INTO observation_consents(study_id, participant_id, observation_id) VALUES (:study_id, :participant_id, :observation_id) " +
-            "ON CONFLICT (study_id, participant_id, observation_id) DO NOTHING";
+                    "ON CONFLICT (study_id, participant_id, observation_id) DO NOTHING";
     private static final String SQL_SET_PARTICIPANT_STATUS =
             "UPDATE participants " +
-            "SET status = :newStatus::participant_status, start = :start, modified = now() " +
-            "WHERE study_id = :study_id AND participant_id = :participant_id AND status = :oldStatus::participant_status";
+                    "SET status = :newStatus::participant_status, start = :start, modified = now() " +
+                    "WHERE study_id = :study_id AND participant_id = :participant_id AND status = :oldStatus::participant_status";
 
     private static final String SQL_LIST_PARTICIPANTS_BY_STUDY =
             "SELECT participant_id, alias, status, sg.study_group_id, sg.title as study_group_title, start " +
-            "FROM participants p LEFT OUTER JOIN study_groups sg ON ( p.study_id = sg.study_id AND p.study_group_id = sg.study_group_id ) " +
-            "WHERE p.study_id = :study_id " +
-                "AND (p.study_group_id = :study_group_id OR :study_group_id::INT IS NULL)";
+                    "FROM participants p LEFT OUTER JOIN study_groups sg ON ( p.study_id = sg.study_id AND p.study_group_id = sg.study_group_id ) " +
+                    "WHERE p.study_id = :study_id " +
+                    "AND (p.study_group_id = :study_group_id OR :study_group_id::INT IS NULL)";
 
     private static final String GET_OBSERVATION_PROPERTIES_FOR_PARTICIPANT =
             "SELECT properties FROM participant_observation_properties " +
-            "WHERE  study_id = ? AND participant_id = ? AND observation_id = ?";
+                    "WHERE  study_id = ? AND participant_id = ? AND observation_id = ?";
 
     private static final String GET_API_ROUTING_INFO_BY_API_TOKEN = """
             SELECT t.study_id, t.observation_id, o.study_group_id, o.type, t.token,
@@ -116,14 +122,23 @@ public class StudyRepository {
 
     private static final String GET_PARTICIPANT_INFO_AND_START_DURATION_END_FOR_STUDY_AND_PARTICIPANT =
             "SELECT start, participant_id, alias, COALESCE(sg.duration, s.duration) AS duration, s.planned_end_date FROM participants p " +
-            "LEFT OUTER JOIN study_groups sg on p.study_id = sg.study_id and p.study_group_id = sg.study_group_id " +
-            "JOIN studies s on p.study_id = s.study_id " +
-            "WHERE p.study_id = ? AND participant_id = ?";
+                    "LEFT OUTER JOIN study_groups sg on p.study_id = sg.study_id and p.study_group_id = sg.study_group_id " +
+                    "JOIN studies s on p.study_id = s.study_id " +
+                    "WHERE p.study_id = ? AND participant_id = ?";
 
     private static final String GET_DURATION_INFO_FOR_STUDY =
             "SELECT sg.study_group_id as groupid, sg.duration AS groupduration, s.duration AS studyduration, s.planned_end_date AS enddate, s.planned_start_date AS startdate FROM studies s " +
-            "LEFT OUTER JOIN study_groups sg on s.study_id = sg.study_id " +
-            "WHERE s.study_id = ?";
+                    "LEFT OUTER JOIN study_groups sg on s.study_id = sg.study_id " +
+                    "WHERE s.study_id = ?";
+
+    private static final String SET_OBSERVATION_PROPERTIES_FOR_PARTICIPANT = "INSERT INTO participant_observation_properties(study_id,participant_id,observation_id,properties) VALUES (:study_id,:participant_id,:observation_id,:properties::jsonb) ON CONFLICT (study_id, participant_id, observation_id) DO UPDATE SET properties = EXCLUDED.properties";
+
+
+    private static final String GET_PARTICIPANT_OBSERVATION_PROPERTIES_BY_PROPERTY_VALUE =
+            "SELECT * FROM participant_observation_properties WHERE properties#>>CAST(:jsonPath AS text[]) = :value";
+
+    private static final String GET_PARTICIPANT_OBSERVATION_PROPERTIES_BY_KEY_EXISTS =
+            "SELECT * FROM participant_observation_properties WHERE participant_id = :participant_id AND study_id = :study_id AND properties ?? :key";
 
     private final JdbcTemplate jdbcTemplate;
     private final NamedParameterJdbcTemplate namedTemplate;
@@ -147,7 +162,7 @@ public class StudyRepository {
     }
 
     public Optional<ApiRoutingInfo> getApiRoutingInfo(Long studyId, Integer observationId, Integer tokenId) {
-        try(var stream = jdbcTemplate.queryForStream(
+        try (var stream = jdbcTemplate.queryForStream(
                 GET_API_ROUTING_INFO_BY_API_TOKEN,
                 getApiRoutingInfoRowMapper(),
                 studyId, observationId, tokenId
@@ -177,7 +192,7 @@ public class StudyRepository {
 
     public Optional<Study> findStudy(RoutingInfo routingInfo, boolean filterObservationsByGroup) {
         final List<Observation> observations = listObservations(
-                routingInfo.studyId(), routingInfo.studyGroupId().orElse(-1), routingInfo.participantId(),filterObservationsByGroup);
+                routingInfo.studyId(), routingInfo.studyGroupId().orElse(-1), routingInfo.participantId(), filterObservationsByGroup);
 
         final SimpleParticipant participant = findParticipant(routingInfo).orElse(null);
 
@@ -216,7 +231,7 @@ public class StudyRepository {
     }
 
     private List<Observation> listObservations(long studyId, int groupId, int participantId, boolean filterByGroup) {
-        if(filterByGroup) {
+        if (filterByGroup) {
             return jdbcTemplate.query(SQL_LIST_OBSERVATIONS_BY_STUDY, getObservationRowMapper(), studyId, groupId).stream()
                     .map(o -> mergeParticipantProperties(o, studyId, participantId))
                     .toList();
@@ -227,11 +242,104 @@ public class StudyRepository {
         }
     }
 
+    public List<Observation> filterObservations(RoutingInfo routingInfo, boolean filterByGroup, Predicate<Observation> filter) {
+        return listObservations(routingInfo.studyId(), routingInfo.studyGroupId().orElse(0), routingInfo.participantId(), filterByGroup)
+                .stream()
+                .filter(filter)
+                .toList();
+    }
+
     private Observation mergeParticipantProperties(Observation observation, long studyId, int participantId) {
         return getParticipantProperties(studyId, participantId, observation.observationId())
                 .map(props -> observation.withProperties(
                         DbUtils.mergeObjects(observation.properties(), props)))
                 .orElse(observation);
+    }
+
+    public void setParticipantProperties(Long studyId, Integer participantId, Integer observationId, Map<String, Object> properties) {
+        MapSqlParameterSource data = new MapSqlParameterSource()
+                .addValue("study_id", studyId)
+                .addValue("participant_id", participantId)
+                .addValue("observation_id", observationId)
+                .addValue("properties", MapperUtils.writeValueAsString(properties));
+
+        namedTemplate.update(SET_OBSERVATION_PROPERTIES_FOR_PARTICIPANT, data);
+    }
+
+    public void removeParticipantPropertyKey(Long studyId, Integer participantId, Integer observationId, String keyToRemove) {
+        Optional<Object> currentProps = getParticipantProperties(studyId, participantId, observationId);
+
+        if (currentProps.isPresent() && currentProps.get() instanceof Map) {
+            Map<String, Object> properties = new HashMap<>((Map<String, Object>) currentProps.get());
+            properties.remove(keyToRemove);
+
+            MapSqlParameterSource data = new MapSqlParameterSource()
+                    .addValue("study_id", studyId)
+                    .addValue("participant_id", participantId)
+                    .addValue("observation_id", observationId)
+                    .addValue("properties", MapperUtils.writeValueAsString(properties));
+
+            namedTemplate.update(SET_OBSERVATION_PROPERTIES_FOR_PARTICIPANT, data);
+        }
+    }
+
+
+    public List<ParticipantWithObservationProperties> getParticipantByGarminStatus(String state) {
+        if (state == null || state.isEmpty()) {
+            return List.of();
+        }
+        try {
+            return namedTemplate.query(
+                    GET_PARTICIPANT_OBSERVATION_PROPERTIES_BY_PROPERTY_VALUE,
+                    new MapSqlParameterSource()
+                            .addValue("jsonPath", "{" + GarminService.AUTH_VALUES_KEY + ",state}")
+                            .addValue("value", state),
+                    getParticipantWithObservationPropertiesRowMapper());
+        } catch (EmptyResultDataAccessException e) {
+            return Collections.emptyList();
+        }
+    }
+
+    public List<ParticipantWithObservationProperties> getParticipantObservationPropertiesByKeyExists(Long studyId, Integer participantId, String key) {
+        if (key == null || key.isEmpty()) {
+            return List.of();
+        }
+        try {
+            return namedTemplate.query(
+                    GET_PARTICIPANT_OBSERVATION_PROPERTIES_BY_KEY_EXISTS,
+                    new MapSqlParameterSource()
+                            .addValue("study_id", studyId)
+                            .addValue("participant_id", participantId)
+                            .addValue("key", key),
+                    getParticipantWithObservationPropertiesRowMapper());
+        } catch (EmptyResultDataAccessException e) {
+            return Collections.emptyList();
+        }
+    }
+
+    public List<ParticipantWithObservationProperties> getParticipantByGarminAccessToken(String token) {
+        if (token == null || token.isEmpty()) {
+            return null;
+        }
+        try {
+            return namedTemplate.query(
+                    GET_PARTICIPANT_OBSERVATION_PROPERTIES_BY_PROPERTY_VALUE,
+                    new MapSqlParameterSource()
+                            .addValue("jsonPath", "{" + GarminService.USER_ACCESS_TOKEN_KEY + ",accessToken,accessToken}")
+                            .addValue("value", token),
+                    getParticipantWithObservationPropertiesRowMapper());
+        } catch (EmptyResultDataAccessException e) {
+            return Collections.emptyList();
+        }
+    }
+
+    private static RowMapper<ParticipantWithObservationProperties> getParticipantWithObservationPropertiesRowMapper() {
+        return (rs, rowNum) -> new ParticipantWithObservationProperties(
+                rs.getInt("participant_id"),
+                rs.getLong("study_id"),
+                rs.getInt("observation_id"),
+                (Map<String, Object>) MapperUtils.readValue(rs.getString("properties"), Map.class)
+        );
     }
 
     public Optional<Object> getParticipantProperties(Long studyId, Integer participantId, Integer observationId) {
@@ -248,7 +356,7 @@ public class StudyRepository {
     }
 
     private static RowMapper<Object> getParticipantObservationPropertiesRowMapper() {
-        return (rs, rowNum) -> DbUtils.readObject(rs,"properties");
+        return (rs, rowNum) -> DbUtils.readObject(rs, "properties");
     }
 
     private static RowMapper<ScheduleEvent> getObservationScheduleRowMapper() {
@@ -361,7 +469,7 @@ public class StudyRepository {
                 rs.getString("title"),
                 rs.getString("type"),
                 rs.getString("participant_info"),
-                DbUtils.readObject(rs,"properties"),
+                DbUtils.readObject(rs, "properties"),
                 DbUtils.readEvent(rs, "schedule"),
                 toInstant(rs.getTimestamp("created")),
                 toInstant(rs.getTimestamp("modified")),
@@ -425,7 +533,7 @@ public class StudyRepository {
     }
 
     public Interval getInterval(Long studyId, Integer participantId, RelativeEvent event) {
-        try(var stream = jdbcTemplate.queryForStream(
+        try (var stream = jdbcTemplate.queryForStream(
                 GET_PARTICIPANT_INFO_AND_START_DURATION_END_FOR_STUDY_AND_PARTICIPANT,
                 ((rs, rowNum) -> {
                     Instant start = rs.getTimestamp("start").toInstant();
@@ -444,12 +552,12 @@ public class StudyRepository {
 
     public Optional<StudyDurationInfo> getStudyDurationInfo(Long studyId) {
         return jdbcTemplate.query(GET_DURATION_INFO_FOR_STUDY,
-                ((rs, rowNum) -> new StudyDurationInfo()
-                        .setEndDate(rs.getDate("enddate").toLocalDate())
-                        .setStartDate(rs.getDate("startdate").toLocalDate())
-                        .setDuration(DbUtils.readDuration(rs, "studyduration"))
-                        .addGroupDuration(Pair.of(rs.getInt("groupid"), DbUtils.readDuration(rs, "groupduration"))
-                )), studyId).stream()
+                        ((rs, rowNum) -> new StudyDurationInfo()
+                                .setEndDate(rs.getDate("enddate").toLocalDate())
+                                .setStartDate(rs.getDate("startdate").toLocalDate())
+                                .setDuration(DbUtils.readDuration(rs, "studyduration"))
+                                .addGroupDuration(Pair.of(rs.getInt("groupid"), DbUtils.readDuration(rs, "groupduration"))
+                                )), studyId).stream()
                 .reduce((prev, curr) -> prev.addGroupDuration(curr.getGroupDurations().get(0)));
     }
 }
