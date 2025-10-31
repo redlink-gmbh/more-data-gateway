@@ -4,13 +4,10 @@
 package io.redlink.more.data.repository;
 
 import io.redlink.more.data.model.*;
-import io.redlink.more.data.model.scheduler.Interval;
-import io.redlink.more.data.model.scheduler.RelativeEvent;
 import io.redlink.more.data.model.scheduler.ScheduleEvent;
 import io.redlink.more.data.schedule.SchedulerUtils;
 import io.redlink.more.data.service.GarminService;
 import io.redlink.more.data.util.MapperUtils;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -21,15 +18,6 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Timestamp;
-import java.time.Instant;
-import java.util.List;
-import java.util.Optional;
-import java.util.OptionalInt;
-import java.util.function.Supplier;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -150,16 +138,6 @@ public class StudyRepository {
                     SELECT sg.study_group_id as groupid, sg.duration AS groupduration, s.duration AS studyduration, s.planned_end_date AS enddate, s.planned_start_date AS startdate FROM studies s
                     LEFT OUTER JOIN study_groups sg on s.study_id = sg.study_id
                     WHERE s.study_id = ?""";
-    private static final String GET_PARTICIPANT_INFO_AND_START_DURATION_END_FOR_STUDY_AND_PARTICIPANT =
-            "SELECT start, participant_id, alias, COALESCE(sg.duration, s.duration) AS duration, s.planned_end_date FROM participants p " +
-                    "LEFT OUTER JOIN study_groups sg on p.study_id = sg.study_id and p.study_group_id = sg.study_group_id " +
-                    "JOIN studies s on p.study_id = s.study_id " +
-                    "WHERE p.study_id = ? AND participant_id = ?";
-
-    private static final String GET_DURATION_INFO_FOR_STUDY =
-            "SELECT sg.study_group_id as groupid, sg.duration AS groupduration, s.duration AS studyduration, s.planned_end_date AS enddate, s.planned_start_date AS startdate FROM studies s " +
-                    "LEFT OUTER JOIN study_groups sg on s.study_id = sg.study_id " +
-                    "WHERE s.study_id = ?";
 
     private static final String SET_OBSERVATION_PROPERTIES_FOR_PARTICIPANT = "INSERT INTO participant_observation_properties(study_id,participant_id,observation_id,properties) VALUES (:study_id,:participant_id,:observation_id,:properties::jsonb) ON CONFLICT (study_id, participant_id, observation_id) DO UPDATE SET properties = EXCLUDED.properties";
 
