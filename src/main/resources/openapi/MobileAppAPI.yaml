@@ -19,6 +19,8 @@ tags:
   - name: Signup
     description: |
       Provides information about the study signup
+  - name: GarminRegistration
+    description: Endpoints to register for Garmin Connect using OAuth
 
 externalDocs:
   url: https://github.com/MORE-Platform
@@ -104,6 +106,59 @@ paths:
       responses:
         '204':
           description: Participant left the study.
+
+  /registration/garmin:
+    get:
+      operationId: getGarminOauthUrl
+      description: redirect to the Garmin OAuth page
+      tags:
+        - GarminRegistration
+      responses:
+        '302':
+          description: redirect to Garmin OAuth
+          headers:
+            Location:
+              schema:
+                type: string
+              description: URL to the Garmin OAuth page
+        '401':
+          $ref: '#/components/responses/UnauthorizedApiKey'
+
+  /registration/garmin/callback:
+    get:
+      operationId: handleGarminCallback
+      description: handle the Garmin OAuth callback with code and state parameters
+      tags:
+        - GarminRegistration
+      security: [ ]
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+          description: OAuth authorization code from Garmin
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+          description: State parameter for CSRF protection
+      responses:
+        '200':
+          description: OAuth callback handled successfully
+        '302':
+          description: redirect after successful OAuth
+          headers:
+            Location:
+              schema:
+                type: string
+              description: URL to redirect the user after successful OAuth
+        '400':
+          description: invalid or missing parameters
+        '401':
+          $ref: '#/components/responses/UnauthorizedApiKey'
+
 
   /config/study:
     get:
@@ -535,6 +590,17 @@ components:
         - observationType
         - dataValue
         - timestamp
+
+    GarminRedirect:
+      type: object
+      properties:
+        code:
+          type: string
+        state:
+          type: string
+      required:
+        - code
+        - state
 
     Id:
       type: string

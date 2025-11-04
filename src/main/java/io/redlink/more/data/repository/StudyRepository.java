@@ -6,6 +6,8 @@ package io.redlink.more.data.repository;
 import io.redlink.more.data.model.*;
 import io.redlink.more.data.model.scheduler.ScheduleEvent;
 import io.redlink.more.data.schedule.SchedulerUtils;
+import io.redlink.more.data.service.GarminService;
+import io.redlink.more.data.util.MapperUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -21,9 +23,13 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import static io.redlink.more.data.repository.DbUtils.toInstant;
@@ -120,7 +126,6 @@ public class StudyRepository {
             """;
 
     private static final String GET_OBSERVATION_SCHEDULE = "SELECT schedule FROM observations WHERE study_id = ? AND observation_id = ?";
-
     private static final String GET_PARTICIPANT_INFO_AND_START_DURATION_END_FOR_STUDY_AND_PARTICIPANT =
             """
                     SELECT start, participant_id, alias, COALESCE(sg.duration, s.duration) AS duration, s.planned_end_date FROM participants p
@@ -133,6 +138,15 @@ public class StudyRepository {
                     SELECT sg.study_group_id as groupid, sg.duration AS groupduration, s.duration AS studyduration, s.planned_end_date AS enddate, s.planned_start_date AS startdate FROM studies s
                     LEFT OUTER JOIN study_groups sg on s.study_id = sg.study_id
                     WHERE s.study_id = ?""";
+
+    private static final String SET_OBSERVATION_PROPERTIES_FOR_PARTICIPANT = "INSERT INTO participant_observation_properties(study_id,participant_id,observation_id,properties) VALUES (:study_id,:participant_id,:observation_id,:properties::jsonb) ON CONFLICT (study_id, participant_id, observation_id) DO UPDATE SET properties = EXCLUDED.properties";
+
+
+    private static final String GET_PARTICIPANT_OBSERVATION_PROPERTIES_BY_PROPERTY_VALUE =
+            "SELECT * FROM participant_observation_properties WHERE properties#>>CAST(:jsonPath AS text[]) = :value";
+
+    private static final String GET_PARTICIPANT_OBSERVATION_PROPERTIES_BY_KEY_EXISTS =
+            "SELECT * FROM participant_observation_properties WHERE participant_id = :participant_id AND study_id = :study_id AND properties ?? :key";
 
     private final JdbcTemplate jdbcTemplate;
     private final NamedParameterJdbcTemplate namedTemplate;
@@ -238,11 +252,104 @@ public class StudyRepository {
         }
     }
 
+    public List<Observation> filterObservations(RoutingInfo routingInfo, boolean filterByGroup, Predicate<Observation> filter) {
+        return listObservations(routingInfo.studyId(), routingInfo.studyGroupId().orElse(0), routingInfo.participantId(), filterByGroup)
+                .stream()
+                .filter(filter)
+                .toList();
+    }
+
     private Observation mergeParticipantProperties(Observation observation, long studyId, int participantId) {
         return getParticipantProperties(studyId, participantId, observation.observationId())
                 .map(props -> observation.withProperties(
                         DbUtils.mergeObjects(observation.properties(), props)))
                 .orElse(observation);
+    }
+
+    public void setParticipantProperties(Long studyId, Integer participantId, Integer observationId, Map<String, Object> properties) {
+        MapSqlParameterSource data = new MapSqlParameterSource()
+                .addValue("study_id", studyId)
+                .addValue("participant_id", participantId)
+                .addValue("observation_id", observationId)
+                .addValue("properties", MapperUtils.writeValueAsString(properties));
+
+        namedTemplate.update(SET_OBSERVATION_PROPERTIES_FOR_PARTICIPANT, data);
+    }
+
+    public void removeParticipantPropertyKey(Long studyId, Integer participantId, Integer observationId, String keyToRemove) {
+        Optional<Object> currentProps = getParticipantProperties(studyId, participantId, observationId);
+
+        if (currentProps.isPresent() && currentProps.get() instanceof Map) {
+            Map<String, Object> properties = new HashMap<>((Map<String, Object>) currentProps.get());
+            properties.remove(keyToRemove);
+
+            MapSqlParameterSource data = new MapSqlParameterSource()
+                    .addValue("study_id", studyId)
+                    .addValue("participant_id", participantId)
+                    .addValue("observation_id", observationId)
+                    .addValue("properties", MapperUtils.writeValueAsString(properties));
+
+            namedTemplate.update(SET_OBSERVATION_PROPERTIES_FOR_PARTICIPANT, data);
+        }
+    }
+
+
+    public List<ParticipantWithObservationProperties> getParticipantByGarminStatus(String state) {
+        if (state == null || state.isEmpty()) {
+            return List.of();
+        }
+        try {
+            return namedTemplate.query(
+                    GET_PARTICIPANT_OBSERVATION_PROPERTIES_BY_PROPERTY_VALUE,
+                    new MapSqlParameterSource()
+                            .addValue("jsonPath", "{" + GarminService.AUTH_VALUES_KEY + ",state}")
+                            .addValue("value", state),
+                    getParticipantWithObservationPropertiesRowMapper());
+        } catch (EmptyResultDataAccessException e) {
+            return Collections.emptyList();
+        }
+    }
+
+    public List<ParticipantWithObservationProperties> getParticipantObservationPropertiesByKeyExists(Long studyId, Integer participantId, String key) {
+        if (key == null || key.isEmpty()) {
+            return List.of();
+        }
+        try {
+            return namedTemplate.query(
+                    GET_PARTICIPANT_OBSERVATION_PROPERTIES_BY_KEY_EXISTS,
+                    new MapSqlParameterSource()
+                            .addValue("study_id", studyId)
+                            .addValue("participant_id", participantId)
+                            .addValue("key", key),
+                    getParticipantWithObservationPropertiesRowMapper());
+        } catch (EmptyResultDataAccessException e) {
+            return Collections.emptyList();
+        }
+    }
+
+    public List<ParticipantWithObservationProperties> getParticipantByGarminAccessToken(String token) {
+        if (token == null || token.isEmpty()) {
+            return null;
+        }
+        try {
+            return namedTemplate.query(
+                    GET_PARTICIPANT_OBSERVATION_PROPERTIES_BY_PROPERTY_VALUE,
+                    new MapSqlParameterSource()
+                            .addValue("jsonPath", "{" + GarminService.USER_ACCESS_TOKEN_KEY + ",accessToken,accessToken}")
+                            .addValue("value", token),
+                    getParticipantWithObservationPropertiesRowMapper());
+        } catch (EmptyResultDataAccessException e) {
+            return Collections.emptyList();
+        }
+    }
+
+    private static RowMapper<ParticipantWithObservationProperties> getParticipantWithObservationPropertiesRowMapper() {
+        return (rs, rowNum) -> new ParticipantWithObservationProperties(
+                rs.getInt("participant_id"),
+                rs.getLong("study_id"),
+                rs.getInt("observation_id"),
+                (Map<String, Object>) MapperUtils.readValue(rs.getString("properties"), Map.class)
+        );
     }
 
     public Optional<Object> getParticipantProperties(Long studyId, Integer participantId, Integer observationId) {
