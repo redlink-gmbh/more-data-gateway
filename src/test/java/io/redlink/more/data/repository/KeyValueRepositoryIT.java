@@ -182,18 +182,15 @@ class KeyValueRepositoryIT {
         );
         repository.insert(studyId, participantId, key, stored);
 
-        // delete with subset that is contained -> should delete
         boolean deletedSubset = repository.delete(studyId, participantId, key, Map.of("a", 1));
         assertThat(deletedSubset).isTrue();
         assertThat(repository.get(studyId, participantId, key)).isEmpty();
 
-        // re-insert and try with non-matching subset -> should NOT delete
         repository.insert(studyId, participantId, key, stored);
         boolean deletedNonMatch = repository.delete(studyId, participantId, key, Map.of("a", 2));
         assertThat(deletedNonMatch).isFalse();
         assertThat(repository.get(studyId, participantId, key)).isPresent();
 
-        // delete with exact value -> should delete
         boolean deletedExact = repository.delete(studyId, participantId, key, stored);
         assertThat(deletedExact).isTrue();
         assertThat(repository.get(studyId, participantId, key)).isEmpty();
