@@ -244,7 +244,9 @@
                 <executions>
                     <execution>
                         <id>repackage</id>
-                        <goals><goal>repackage</goal></goals>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
                         <configuration>
                             <classifier>exec</classifier>
                         </configuration>
@@ -259,7 +261,9 @@
                     <execution>
                         <id>jib-deploy</id>
                         <phase>deploy</phase>
-                        <goals><goal>build</goal></goals>
+                        <goals>
+                            <goal>build</goal>
+                        </goals>
                         <configuration>
                             <from>
                                 <platforms>
@@ -278,7 +282,9 @@
                     <execution>
                         <id>jib-install</id>
                         <phase>install</phase>
-                        <goals><goal>dockerBuild</goal></goals>
+                        <goals>
+                            <goal>dockerBuild</goal>
+                        </goals>
                         <configuration>
                             <from>
                                 <platforms>
@@ -293,7 +299,9 @@
                     <execution>
                         <id>jib-package</id>
                         <phase>package</phase>
-                        <goals><goal>buildTar</goal></goals>
+                        <goals>
+                            <goal>buildTar</goal>
+                        </goals>
                     </execution>
                 </executions>
                 <configuration>
@@ -310,11 +318,13 @@
                         </ports>
                         <labels>
                             <org.opencontainers.image.title>${project.name}</org.opencontainers.image.title>
-                            <org.opencontainers.image.description>${project.description}</org.opencontainers.image.description>
+                            <org.opencontainers.image.description>${project.description}
+                            </org.opencontainers.image.description>
                             <org.opencontainers.image.url>${project.url}</org.opencontainers.image.url>
                             <org.opencontainers.image.source>${project.scm.url}</org.opencontainers.image.source>
                             <org.opencontainers.image.version>${project.version}</org.opencontainers.image.version>
-                            <org.opencontainers.image.created>${maven.build.timestamp}</org.opencontainers.image.created>
+                            <org.opencontainers.image.created>${maven.build.timestamp}
+                            </org.opencontainers.image.created>
                             <!-- org.opencontainers.image.licenses/ -->
                         </labels>
                         <environment>
@@ -370,6 +380,30 @@
                             <modelPackage>io.redlink.more.data.api.app.v1.model</modelPackage>
                         </configuration>
                     </execution>
+                    <execution>
+                        <id>garmin-wellness-api</id>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                        <configuration>
+                            <inputSpec>${project.basedir}/src/main/resources/openapi/GarminWellnessAPI.json</inputSpec>
+                            <output>${project.build.directory}/generated-sources/garmin-wellness</output>
+                            <generatorName>java</generatorName>
+                            <library>resttemplate</library>
+                            <packageName>io.redlink.more.data.garmin.wellness</packageName>
+                            <apiPackage>io.redlink.more.data.garmin.wellness.client</apiPackage>
+                            <modelPackage>io.redlink.more.data.garmin.wellness.model</modelPackage>
+                            <generateSupportingFiles>true</generateSupportingFiles>
+                            <addCompileSourceRoot>true</addCompileSourceRoot>
+                            <configOptions>
+                                <dateLibrary>java8</dateLibrary>
+                                <useJakartaEe>true</useJakartaEe>
+                                <serializationLibrary>jackson</serializationLibrary>
+                                <removeOperationIdPrefix>true</removeOperationIdPrefix>
+                                <legacyDiscriminatorBehavior>false</legacyDiscriminatorBehavior>
+                            </configOptions>
+                        </configuration>
+                    </execution>
                 </executions>
                 <configuration>
                     <generatorName>spring</generatorName>
@@ -396,7 +430,9 @@
                     <schemaMappings>
                         <schemaMapping>Instant=java.time.Instant</schemaMapping>
                         <schemaMapping>LocalTime=java.time.LocalTime</schemaMapping>
-                        <schemaMapping>HtmlPage=org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody</schemaMapping>
+                        <schemaMapping>
+                            HtmlPage=org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody
+                        </schemaMapping>
                     </schemaMappings>
                     <importMappings>
                         <importMapping>Instant=java.time.Instant</importMapping>
@@ -435,7 +471,8 @@
                             </goals>
                             <phase>generate-resources</phase>
                             <configuration>
-                                <fileTemplate>/org/codehaus/mojo/license/third-party-file-groupByLicense.ftl</fileTemplate>
+                                <fileTemplate>/org/codehaus/mojo/license/third-party-file-groupByLicense.ftl
+                                </fileTemplate>
                                 <failOnBlacklist>false</failOnBlacklist>
                             </configuration>
                         </execution>

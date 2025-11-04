@@ -1,7 +1,8 @@
 {
   "openapi": "3.0.1",
   "info": {
-    "title": "Health API"
+    "title": "Health API",
+    "version": "0"
   },
   "servers": [
     {
@@ -4176,7 +4177,7 @@
           "200": {
             "description": "OK",
             "content": {
-              "application/octet-stream": { }
+              "application/octet-stream": {}
             }
           },
           "400": {

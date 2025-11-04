@@ -22,7 +22,7 @@ public record UserAccessTokenWithData(
 
     public Boolean isAccessTokenExpired() {
         var now = Instant.now();
-        return now.getEpochSecond() - createdAt.getEpochSecond() > accessToken.expiresIn();
+        return now.getEpochSecond() - createdAt.getEpochSecond() > accessToken.refreshTokenExpiresIn();
     }
 
     public Boolean isAccessTokenValid() {
