@@ -15,7 +15,7 @@ tags:
 
 paths:
   /garmin/user:
-    delete:
+    post:
       operationId: deleteGarminUser
       description: Delete a Garmin user
       tags:
@@ -30,6 +30,7 @@ paths:
           description: User deleted successfully
         '400':
           description: Invalid request
+      security: [ ]
 
   /garmin/user/permissions:
     post:
@@ -47,6 +48,7 @@ paths:
           description: Permissions updated successfully
         '400':
           description: Invalid request
+      security: [ ]
 
 
 components:
@@ -55,7 +57,7 @@ components:
       description: Deregistration of a Garmin user
       type: object
       properties:
-        deregistration:
+        deregistrations:
           type: array
           items:
             $ref: '#/components/schemas/DeregistrationItem'

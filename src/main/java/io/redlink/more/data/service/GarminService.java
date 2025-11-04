@@ -138,7 +138,7 @@ public class GarminService {
         }
         var permissions = getPermissions(userAccessTokenWithData);
         Map<String, Object> data = Map.of(USER_ID_TYPE_KEY, "garmin", USER_PERMISSIONS_KEY, permissions);
-        keyValueRepository.insert(studyId, participantId, userId.get(), data);
+        keyValueRepository.upsert(studyId, participantId, userId.get(), data);
     }
 
     private Optional<String> getUserId(UserAccessTokenWithData userAccessTokenWithData) {

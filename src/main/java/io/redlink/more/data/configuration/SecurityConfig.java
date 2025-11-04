@@ -65,6 +65,10 @@ public class SecurityConfig {
                             .permitAll();
                     req.requestMatchers("/api/v1/calendar/studies/*/calendar.ics")
                             .permitAll();
+                    req.requestMatchers(
+                            "/api/v1/garmin/user",
+                            "/api/v1/garmin/user/**"
+                    ).permitAll();
                     // all other apis require credentials
                     req.requestMatchers("/api/v1/**")
                             .authenticated();
