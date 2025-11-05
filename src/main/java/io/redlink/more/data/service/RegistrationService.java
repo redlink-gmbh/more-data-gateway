@@ -10,11 +10,12 @@ import io.redlink.more.data.model.RoutingInfo;
 import io.redlink.more.data.model.Study;
 import io.redlink.more.data.repository.PushTokenRepository;
 import io.redlink.more.data.repository.StudyRepository;
-import java.util.Optional;
-import java.util.UUID;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class RegistrationService {
@@ -24,10 +25,13 @@ public class RegistrationService {
 
     private final PasswordEncoder passwordEncoder;
 
-    public RegistrationService(StudyRepository studyRepository, PushTokenRepository pushTokenRepository, PasswordEncoder passwordEncoder) {
+    private final GarminService garminService;
+
+    public RegistrationService(StudyRepository studyRepository, PushTokenRepository pushTokenRepository, PasswordEncoder passwordEncoder, GarminService garminService) {
         this.studyRepository = studyRepository;
         this.pushTokenRepository = pushTokenRepository;
         this.passwordEncoder = passwordEncoder;
+        this.garminService = garminService;
     }
 
     public Optional<Study> loadStudyByRegistrationToken(String registrationToken) {
@@ -67,6 +71,7 @@ public class RegistrationService {
     }
 
     public void unregister(String apiId, RoutingInfo routingInfo) {
+        garminService.deregisterParticipant(routingInfo);
         pushTokenRepository.clearToken(routingInfo.studyId(), routingInfo.participantId());
         studyRepository.clearCredentials(apiId);
     }

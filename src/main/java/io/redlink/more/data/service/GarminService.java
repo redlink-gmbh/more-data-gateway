@@ -131,6 +131,21 @@ public class GarminService {
         return true;
     }
 
+    public void deregisterParticipant(RoutingInfo routingInfo) {
+        var data = getUserAccessData(routingInfo.studyId(), routingInfo.participantId());
+        if (data.isPresent()) {
+            sendDeregistration(data.get());
+            deleteUserAccessToken(routingInfo.studyId(), routingInfo.participantId());
+        }
+
+        var participantWithKeyValue = keyValuesForParticipant(routingInfo.studyId(), routingInfo.participantId());
+        if (!participantWithKeyValue.isEmpty()) {
+            participantWithKeyValue.forEach(participantKeyValue ->
+                    deleteGarminUserId(routingInfo.studyId(), routingInfo.participantId(), participantKeyValue.key())
+            );
+        }
+    }
+
     private void storeGarminUserId(Long studyId, int participantId, UserAccessTokenWithData userAccessTokenWithData) {
         var userId = getUserId(userAccessTokenWithData);
         if (userId.isEmpty()) {
@@ -173,12 +188,29 @@ public class GarminService {
         }
     }
 
+    private List<ParticipantKeyValue> keyValuesForParticipant(Long studyId, Integer participantId) {
+        try {
+            var result = keyValueRepository.getKeysWithValue(studyId, participantId);
+            return result.stream().filter(participantKeyValue ->
+                    participantKeyValue.value().containsKey(USER_ID_TYPE_KEY)
+                            && participantKeyValue.value().get(USER_ID_TYPE_KEY).equals("garmin")
+            ).toList();
+        } catch (RuntimeException e) {
+            return Collections.emptyList();
+        }
+    }
+
     private boolean deleteGarminUserId(Long studyId, int participantId, String garminUserId) {
         try {
             return keyValueRepository.delete(studyId, participantId, garminUserId, Map.of(USER_ID_TYPE_KEY, "garmin"));
         } catch (RuntimeException e) {
             return false;
         }
+    }
+
+    private void sendDeregistration(UserAccessTokenWithData userAccessTokenWithData) {
+        var userApi = garminWellnessApiConfiguration.getUserApi(userAccessTokenWithData);
+        userApi.dEREG();
     }
 
     private Optional<GarminUserAccessToken> queryUserAccessToken(ParticipantWithObservationProperties participantWithObservationProperties, String code) {
