@@ -259,6 +259,13 @@ public class StudyRepository {
                 .toList();
     }
 
+    public List<Observation> filterObservations(Long studyId, Integer participantId, Predicate<Observation> filter) {
+        return listObservations(studyId, 0, participantId, false)
+                .stream()
+                .filter(filter)
+                .toList();
+    }
+
     private Observation mergeParticipantProperties(Observation observation, long studyId, int participantId) {
         return getParticipantProperties(studyId, participantId, observation.observationId())
                 .map(props -> observation.withProperties(
