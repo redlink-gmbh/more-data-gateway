@@ -25,9 +25,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @Testcontainers
 @JdbcTest
-@Import(KeyValueRepository.class)
+@Import(ParticipantKeyValueRepository.class)
 @TestMethodOrder(OrderAnnotation.class)
-class KeyValueRepositoryIT {
+class ParticipantKeyValueRepositoryIT {
 
     @Container
     static final PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine")
@@ -46,7 +46,7 @@ class KeyValueRepositoryIT {
     private JdbcTemplate jdbcTemplate;
 
     @Autowired
-    private KeyValueRepository repository;
+    private ParticipantKeyValueRepository repository;
 
     @BeforeEach
     void initSchema() {
