@@ -14,7 +14,7 @@ tags:
     description: Endpoints to receive user information from Garmin Connect
 
 paths:
-  /garmin/user:
+  /integrations/garmin/user:
     post:
       operationId: deleteGarminUser
       description: Delete a Garmin user
@@ -32,7 +32,7 @@ paths:
           description: Invalid request
       security: [ ]
 
-  /garmin/user/permissions:
+  /integrations/garmin/user/permissions:
     post:
       operationId: updateGarminUserPermissions
       description: Update permissions of a Garmin user
