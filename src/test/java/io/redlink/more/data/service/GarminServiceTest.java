@@ -7,7 +7,7 @@ import io.redlink.more.data.model.ParticipantWithObservationProperties;
 import io.redlink.more.data.model.RoutingInfo;
 import io.redlink.more.data.model.garmin.GarminUserAccessToken;
 import io.redlink.more.data.model.garmin.UserAccessTokenWithData;
-import io.redlink.more.data.repository.KeyValueRepository;
+import io.redlink.more.data.repository.ParticipantKeyValueRepository;
 import io.redlink.more.data.repository.StudyRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -37,7 +37,7 @@ class GarminServiceTest {
     @Mock
     private StudyRepository studyRepository;
     @Mock
-    private KeyValueRepository keyValueRepository;
+    private ParticipantKeyValueRepository participantKeyValueRepository;
 
     @InjectMocks
     private GarminService garminService;
@@ -108,13 +108,13 @@ class GarminServiceTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("No Garmin Access Token");
         verify(studyRepository, never()).setParticipantProperties(anyLong(), anyInt(), anyInt(), anyMap());
-        verify(keyValueRepository, never()).insert(anyLong(), anyInt(), anyString(), anyMap());
+        verify(participantKeyValueRepository, never()).insert(anyLong(), anyInt(), anyString(), anyMap());
     }
 
     @Test
     @DisplayName("deleteUserIdAndToken: returns true when no participants hold the userId")
     void deleteUserIdAndToken_returnsTrue_whenNoParticipants() {
-        given(keyValueRepository.getByKey("garmin-user-1")).willReturn(List.of());
+        given(participantKeyValueRepository.getByKey("garmin-user-1")).willReturn(List.of());
 
         boolean ok = garminService.deleteUserIdAndToken("garmin-user-1");
 
@@ -128,10 +128,10 @@ class GarminServiceTest {
         String userId = "user-xyz";
         ParticipantKeyValue p1 = new ParticipantKeyValue(1L, 10, userId, Map.of("keyType", "garmin"));
         ParticipantKeyValue p2 = new ParticipantKeyValue(1L, 11, userId, Map.of("keyType", "garmin"));
-        given(keyValueRepository.getByKey(userId)).willReturn(List.of(p1, p2));
+        given(participantKeyValueRepository.getByKey(userId)).willReturn(List.of(p1, p2));
 
-        given(keyValueRepository.delete(1L, 10, userId, Map.of("keyType", "garmin"))).willReturn(true);
-        given(keyValueRepository.delete(1L, 11, userId, Map.of("keyType", "garmin"))).willReturn(false);
+        given(participantKeyValueRepository.delete(1L, 10, userId, Map.of("keyType", "garmin"))).willReturn(true);
+        given(participantKeyValueRepository.delete(1L, 11, userId, Map.of("keyType", "garmin"))).willReturn(false);
 
         Observation garminObs = new Observation(5, 1, "Garmin", "garmin", null, null, null, Instant.now(), Instant.now(), false, false);
         given(studyRepository.filterObservations(eq(1L), anyInt(), any())).willReturn(List.of(garminObs));
@@ -144,8 +144,8 @@ class GarminServiceTest {
         Mockito.reset(studyRepository);
         given(studyRepository.filterObservations(eq(1L), anyInt(), any())).willReturn(List.of(garminObs));
         doNothing().when(studyRepository).removeParticipantPropertyKey(anyLong(), anyInt(), anyInt(), anyString());
-        given(keyValueRepository.delete(1L, 10, userId, Map.of("keyType", "garmin"))).willReturn(true);
-        given(keyValueRepository.delete(1L, 11, userId, Map.of("keyType", "garmin"))).willReturn(true);
+        given(participantKeyValueRepository.delete(1L, 10, userId, Map.of("keyType", "garmin"))).willReturn(true);
+        given(participantKeyValueRepository.delete(1L, 11, userId, Map.of("keyType", "garmin"))).willReturn(true);
 
         boolean resultAllOk = garminService.deleteUserIdAndToken(userId);
         assertThat(resultAllOk).isTrue();
