@@ -22,6 +22,7 @@ public class GarminApiV1Controller implements GarminUserManagementApi {
 
     @Override
     public ResponseEntity<Void> deleteGarminUser(DeregistrationRequestDTO deregistrationRequestDTO) {
+        deregistrationRequestDTO.getDeregistrations().forEach(deregistrationItemDTO -> garminService.deleteUserIdAndToken(deregistrationItemDTO.getUserId()));
         return ResponseEntity.ok().build();
     }
 
