@@ -184,15 +184,11 @@ public class GarminService {
     }
 
     private List<ParticipantKeyValue> keyValuesForParticipant(Long studyId, Integer participantId) {
-        try {
-            var result = keyValueRepository.getKeysWithValue(studyId, participantId);
-            return result.stream().filter(participantKeyValue ->
-                    participantKeyValue.value().containsKey(USER_ID_TYPE_KEY)
-                            && participantKeyValue.value().get(USER_ID_TYPE_KEY).equals("garmin")
-            ).toList();
-        } catch (RuntimeException e) {
-            return Collections.emptyList();
-        }
+        var result = participantKeyValueRepository.getKeysWithValue(studyId, participantId);
+        return result.stream().filter(participantKeyValue ->
+                participantKeyValue.value().containsKey(USER_ID_TYPE_KEY)
+                        && participantKeyValue.value().get(USER_ID_TYPE_KEY).equals("garmin")
+        ).toList();
     }
 
     private boolean deleteGarminUserId(Long studyId, int participantId, String garminUserId) {
@@ -200,7 +196,7 @@ public class GarminService {
     }
 
     private void sendDeregistration(UserAccessTokenWithData userAccessTokenWithData) {
-        var userApi = garminWellnessApiConfiguration.getUserApi(userAccessTokenWithData);
+        addAuthorizationHeader(userApi.getApiClient(), userAccessTokenWithData);
         userApi.dEREG();
     }
 
