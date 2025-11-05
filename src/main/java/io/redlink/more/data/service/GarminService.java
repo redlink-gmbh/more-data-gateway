@@ -1,7 +1,7 @@
 package io.redlink.more.data.service;
 
 import io.redlink.more.data.configuration.GarminConfiguration;
-import io.redlink.more.data.configuration.GarminWellnessApiConfiguration;
+import io.redlink.more.data.garmin.wellness.ApiClient;
 import io.redlink.more.data.garmin.wellness.client.UserApiApi;
 import io.redlink.more.data.garmin.wellness.client.UserControllerApi;
 import io.redlink.more.data.model.Observation;
@@ -11,9 +11,12 @@ import io.redlink.more.data.model.RoutingInfo;
 import io.redlink.more.data.model.garmin.GarminAuthenticationValues;
 import io.redlink.more.data.model.garmin.GarminUserAccessToken;
 import io.redlink.more.data.model.garmin.UserAccessTokenWithData;
-import io.redlink.more.data.repository.KeyValueRepository;
+import io.redlink.more.data.repository.ParticipantKeyValueRepository;
 import io.redlink.more.data.repository.StudyRepository;
 import io.redlink.more.data.util.GarminUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -22,13 +25,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.net.URI;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 @Service
 public class GarminService {
+    private final Logger LOG = LoggerFactory.getLogger(GarminService.class);
     public final static String AUTH_VALUES_KEY = "authenticationValues";
     public final static String USER_ACCESS_TOKEN_KEY = "userAccessToken";
     private final static String USER_ID_TYPE_KEY = "keyType";
@@ -36,15 +39,18 @@ public class GarminService {
     private final GarminConfiguration garminConfiguration;
     private final RestTemplate restTemplate;
     private final StudyRepository studyRepository;
-    private final KeyValueRepository keyValueRepository;
-    private final GarminWellnessApiConfiguration garminWellnessApiConfiguration;
+    private final ParticipantKeyValueRepository participantKeyValueRepository;
 
-    public GarminService(GarminConfiguration garminConfiguration, StudyRepository studyRepository, KeyValueRepository keyValueRepository, GarminWellnessApiConfiguration garminWellnessApiConfiguration) {
+    private final UserApiApi userApi;
+    private final UserControllerApi userControllerApi;
+
+    public GarminService(GarminConfiguration garminConfiguration, StudyRepository studyRepository, ParticipantKeyValueRepository participantKeyValueRepository, UserApiApi userApi, UserControllerApi userControllerApi) {
         this.garminConfiguration = garminConfiguration;
         this.studyRepository = studyRepository;
-        this.keyValueRepository = keyValueRepository;
-        this.garminWellnessApiConfiguration = garminWellnessApiConfiguration;
+        this.participantKeyValueRepository = participantKeyValueRepository;
+        this.userControllerApi = userControllerApi;
         this.restTemplate = new RestTemplate();
+        this.userApi = userApi;
     }
 
     public String getSsoUrl(RoutingInfo routingInfo, String requestUrl) {
@@ -88,7 +94,8 @@ public class GarminService {
             return response.getHeaders().getLocation() != null
                     ? response.getHeaders().getLocation().toString()
                     : oauthUrl;
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
+            LOG.error("Error while requesting OAuth URL", e);
             return oauthUrl;
         }
     }
@@ -106,7 +113,9 @@ public class GarminService {
         }
         var userAccesstokenWithData = UserAccessTokenWithData.createNewFrom(garminAccessToken.get());
         storeUserAccessToken(userAccesstokenWithData, participantWithObservationPropertiesList, participantWithObservationProperties);
-        storeGarminUserId(participantWithObservationProperties.studyId(), participantWithObservationProperties.participantId(), userAccesstokenWithData);
+        addAuthorizationHeader(userApi.getApiClient(), userAccesstokenWithData);
+        addAuthorizationHeader(userControllerApi.getApiClient(), userAccesstokenWithData);
+        storeGarminUserId(participantWithObservationProperties.studyId(), participantWithObservationProperties.participantId());
     }
 
 
@@ -127,7 +136,7 @@ public class GarminService {
         if (participants.isEmpty()) {
             return false;
         }
-        participants.forEach(participant -> keyValueRepository.upsert(participant.studyId(), participant.participantId(), userId, Map.of(USER_ID_TYPE_KEY, "garmin", USER_PERMISSIONS_KEY, permissions)));
+        participants.forEach(participant -> participantKeyValueRepository.upsert(participant.studyId(), participant.participantId(), userId, Map.of(USER_ID_TYPE_KEY, "garmin", USER_PERMISSIONS_KEY, permissions)));
         return true;
     }
 
@@ -146,46 +155,32 @@ public class GarminService {
         }
     }
 
-    private void storeGarminUserId(Long studyId, int participantId, UserAccessTokenWithData userAccessTokenWithData) {
-        var userId = getUserId(userAccessTokenWithData);
+    private void storeGarminUserId(Long studyId, int participantId) {
+        var userId = getUserId();
         if (userId.isEmpty()) {
             throw new IllegalStateException("No Garmin User ID found for " + participantId);
         }
-        var permissions = getPermissions(userAccessTokenWithData);
+        var permissions = getPermissions();
         Map<String, Object> data = Map.of(USER_ID_TYPE_KEY, "garmin", USER_PERMISSIONS_KEY, permissions);
-        keyValueRepository.insert(studyId, participantId, userId.get(), data);
+        participantKeyValueRepository.upsert(studyId, participantId, userId.get(), data);
     }
 
-    private Optional<String> getUserId(UserAccessTokenWithData userAccessTokenWithData) {
-        try {
-            UserApiApi userApi = garminWellnessApiConfiguration.getUserApi(userAccessTokenWithData);
-            var response = userApi.uSERID();
-            return Optional.ofNullable(response.getUserId());
-        } catch (RuntimeException e) {
-            return Optional.empty();
-        }
+    private Optional<String> getUserId() {
+        var response = userApi.uSERID();
+        return Optional.ofNullable(response.getUserId());
     }
 
-    private List<String> getPermissions(UserAccessTokenWithData userAccessTokenWithData) {
-        try {
-            UserControllerApi userApi = garminWellnessApiConfiguration.getUserControllerApi(userAccessTokenWithData);
-            var response = userApi.gETUSERPERMISSIONS();
-            return response.getPermissions();
-        } catch (RuntimeException e) {
-            return Collections.emptyList();
-        }
+    private List<String> getPermissions() {
+        var response = userControllerApi.gETUSERPERMISSIONS();
+        return response.getPermissions();
     }
 
     private List<ParticipantKeyValue> participantForGarminUserId(String garminUserId) {
-        try {
-            var result = keyValueRepository.getByKey(garminUserId);
-            return result.stream().filter(participantKeyValue ->
-                    participantKeyValue.value().containsKey(USER_ID_TYPE_KEY)
-                            && participantKeyValue.value().get(USER_ID_TYPE_KEY).equals("garmin")
-            ).toList();
-        } catch (RuntimeException e) {
-            return Collections.emptyList();
-        }
+        var result = participantKeyValueRepository.getByKey(garminUserId);
+        return result.stream().filter(participantKeyValue ->
+                participantKeyValue.value().containsKey(USER_ID_TYPE_KEY)
+                        && participantKeyValue.value().get(USER_ID_TYPE_KEY).equals("garmin")
+        ).toList();
     }
 
     private List<ParticipantKeyValue> keyValuesForParticipant(Long studyId, Integer participantId) {
@@ -201,11 +196,7 @@ public class GarminService {
     }
 
     private boolean deleteGarminUserId(Long studyId, int participantId, String garminUserId) {
-        try {
-            return keyValueRepository.delete(studyId, participantId, garminUserId, Map.of(USER_ID_TYPE_KEY, "garmin"));
-        } catch (RuntimeException e) {
-            return false;
-        }
+        return participantKeyValueRepository.delete(studyId, participantId, garminUserId, Map.of(USER_ID_TYPE_KEY, "garmin"));
     }
 
     private void sendDeregistration(UserAccessTokenWithData userAccessTokenWithData) {
@@ -214,26 +205,21 @@ public class GarminService {
     }
 
     private Optional<GarminUserAccessToken> queryUserAccessToken(ParticipantWithObservationProperties participantWithObservationProperties, String code) {
-        try {
-            if (!participantWithObservationProperties.properties().containsKey(AUTH_VALUES_KEY) || !(participantWithObservationProperties.properties().get(AUTH_VALUES_KEY) instanceof Map)) {
-                throw new IllegalStateException("No authentication values found for " + participantWithObservationProperties.participantId());
-            }
-            var garminAuthValues = GarminAuthenticationValues.fromMap((Map<String, String>) participantWithObservationProperties.properties().get(AUTH_VALUES_KEY));
-
-            HttpEntity<?> entity = getHttpEntity(code, garminAuthValues);
-
-            ResponseEntity<GarminUserAccessToken> response = restTemplate.exchange(
-                    garminConfiguration.garminTokenUri(),
-                    HttpMethod.POST,
-                    entity,
-                    GarminUserAccessToken.class
-            );
-
-            assert response.getBody() != null;
-            return Optional.of(response.getBody());
-        } catch (RuntimeException e) {
-            return Optional.empty();
+        if (!participantWithObservationProperties.properties().containsKey(AUTH_VALUES_KEY) || !(participantWithObservationProperties.properties().get(AUTH_VALUES_KEY) instanceof Map)) {
+            throw new IllegalStateException("No Garmin Access Token found for " + participantWithObservationProperties.participantId());
         }
+        var garminAuthValues = GarminAuthenticationValues.fromMap((Map<String, String>) participantWithObservationProperties.properties().get(AUTH_VALUES_KEY));
+
+        HttpEntity<?> entity = getHttpEntity(code, garminAuthValues);
+
+        ResponseEntity<GarminUserAccessToken> response = restTemplate.exchange(
+                garminConfiguration.garminTokenUri(),
+                HttpMethod.POST,
+                entity,
+                GarminUserAccessToken.class
+        );
+
+        return Optional.ofNullable(response.getBody());
     }
 
     private HttpEntity<?> getHttpEntity(String code, GarminAuthenticationValues garminAuthValues) {
@@ -254,12 +240,8 @@ public class GarminService {
 
 
     private Boolean hasValidUserAccessToken(Long studyId, int participantId) {
-        try {
-            var userAccessData = getUserAccessData(studyId, participantId);
-            return userAccessData.isPresent() && userAccessData.get().isAccessTokenValid();
-        } catch (RuntimeException e) {
-            return false;
-        }
+        var userAccessData = getUserAccessData(studyId, participantId);
+        return userAccessData.isPresent() && userAccessData.get().isAccessTokenValid();
     }
 
     private Optional<UserAccessTokenWithData> getUserAccessData(Long studyId, int participantId) {
@@ -306,7 +288,15 @@ public class GarminService {
             observations.forEach(observation -> studyRepository.removeParticipantPropertyKey(studyId, participantId, observation.observationId(), USER_ACCESS_TOKEN_KEY));
             return true;
         } catch (RuntimeException e) {
+            LOG.error("Error while deleting User Access Token", e);
             return false;
         }
+    }
+
+    private void addAuthorizationHeader(ApiClient apiClient, UserAccessTokenWithData userAccessTokenWithData) {
+        apiClient.addDefaultHeader(
+                HttpHeaders.AUTHORIZATION,
+                StringUtils.capitalize(userAccessTokenWithData.accessToken().tokenType()) + " " + userAccessTokenWithData.accessToken().accessToken()
+        );
     }
 }

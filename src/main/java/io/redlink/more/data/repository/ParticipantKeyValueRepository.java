@@ -17,7 +17,7 @@ import java.util.Map;
 import java.util.Optional;
 
 @Service
-public class KeyValueRepository {
+public class ParticipantKeyValueRepository {
 
     private static final String SQL_INSERT =
             """
@@ -64,7 +64,7 @@ public class KeyValueRepository {
     private final JdbcTemplate jdbcTemplate;
     private final NamedParameterJdbcTemplate namedTemplate;
 
-    public KeyValueRepository(JdbcTemplate jdbcTemplate) {
+    public ParticipantKeyValueRepository(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
         this.namedTemplate = new NamedParameterJdbcTemplate(jdbcTemplate);
     }
