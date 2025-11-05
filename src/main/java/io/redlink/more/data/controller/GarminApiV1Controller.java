@@ -14,7 +14,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping(value = "/api/v1", produces = MediaType.APPLICATION_JSON_VALUE)
 public class GarminApiV1Controller implements GarminUserManagementApi {
-
     private final GarminService garminService;
 
     public GarminApiV1Controller(GarminService garminService) {
@@ -29,6 +28,8 @@ public class GarminApiV1Controller implements GarminUserManagementApi {
 
     @Override
     public ResponseEntity<Void> updateGarminUserPermissions(UpdatePermissionsRequestDTO updatePermissionsRequestDTO) {
+        updatePermissionsRequestDTO.getUserPermissionsChange()
+                .forEach(userPermissionChangeDTO -> garminService.updateUserPermissions(userPermissionChangeDTO.getUserId(), userPermissionChangeDTO.getPermissions()));
         return ResponseEntity.ok().build();
     }
 }
