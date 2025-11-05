@@ -1,6 +1,7 @@
 package io.redlink.more.data.service;
 
 import io.redlink.more.data.configuration.GarminConfiguration;
+import io.redlink.more.data.event.DeregistrationSpringEvent;
 import io.redlink.more.data.garmin.wellness.ApiClient;
 import io.redlink.more.data.garmin.wellness.client.UserApiApi;
 import io.redlink.more.data.garmin.wellness.client.UserControllerApi;
@@ -17,6 +18,7 @@ import io.redlink.more.data.util.GarminUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationListener;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -30,12 +32,13 @@ import java.util.Map;
 import java.util.Optional;
 
 @Service
-public class GarminService {
+public class GarminService implements ApplicationListener<DeregistrationSpringEvent> {
     private final Logger LOG = LoggerFactory.getLogger(GarminService.class);
     public final static String AUTH_VALUES_KEY = "authenticationValues";
     public final static String USER_ACCESS_TOKEN_KEY = "userAccessToken";
     private final static String USER_ID_TYPE_KEY = "keyType";
     private final static String USER_PERMISSIONS_KEY = "permissions";
+    private final static String GARMIN_KEY_TYPE = "garmin";
     private final GarminConfiguration garminConfiguration;
     private final RestTemplate restTemplate;
     private final StudyRepository studyRepository;
@@ -136,22 +139,31 @@ public class GarminService {
         if (participants.isEmpty()) {
             return false;
         }
-        participants.forEach(participant -> participantKeyValueRepository.upsert(participant.studyId(), participant.participantId(), userId, Map.of(USER_ID_TYPE_KEY, "garmin", USER_PERMISSIONS_KEY, permissions)));
+        participants.forEach(participant ->
+                participantKeyValueRepository.upsert(
+                        participant.studyId(),
+                        participant.participantId(),
+                        userId,
+                        Map.of(USER_ID_TYPE_KEY, GARMIN_KEY_TYPE, USER_PERMISSIONS_KEY, permissions)
+                )
+        );
         return true;
     }
 
     public void deregisterParticipant(RoutingInfo routingInfo) {
-        var data = getUserAccessData(routingInfo.studyId(), routingInfo.participantId());
-        if (data.isPresent()) {
-            sendDeregistration(data.get());
-            deleteUserAccessToken(routingInfo.studyId(), routingInfo.participantId());
-        }
+        try {
+            var data = getUserAccessData(routingInfo.studyId(), routingInfo.participantId());
+            if (data.isPresent()) {
+                sendDeregistration(data.get());
+                deleteUserAccessToken(routingInfo.studyId(), routingInfo.participantId());
+            }
 
-        var participantWithKeyValue = keyValuesForParticipant(routingInfo.studyId(), routingInfo.participantId());
-        if (!participantWithKeyValue.isEmpty()) {
+            var participantWithKeyValue = keyValuesForParticipant(routingInfo.studyId(), routingInfo.participantId());
             participantWithKeyValue.forEach(participantKeyValue ->
                     deleteGarminUserId(routingInfo.studyId(), routingInfo.participantId(), participantKeyValue.key())
             );
+        } catch (RuntimeException e) {
+            LOG.error("Could not deregister Garmin User:", e);
         }
     }
 
@@ -187,12 +199,12 @@ public class GarminService {
         var result = participantKeyValueRepository.getKeysWithValue(studyId, participantId);
         return result.stream().filter(participantKeyValue ->
                 participantKeyValue.value().containsKey(USER_ID_TYPE_KEY)
-                        && participantKeyValue.value().get(USER_ID_TYPE_KEY).equals("garmin")
+                        && participantKeyValue.value().get(USER_ID_TYPE_KEY).equals(GARMIN_KEY_TYPE)
         ).toList();
     }
 
     private boolean deleteGarminUserId(Long studyId, int participantId, String garminUserId) {
-        return participantKeyValueRepository.delete(studyId, participantId, garminUserId, Map.of(USER_ID_TYPE_KEY, "garmin"));
+        return participantKeyValueRepository.delete(studyId, participantId, garminUserId, Map.of(USER_ID_TYPE_KEY, GARMIN_KEY_TYPE));
     }
 
     private void sendDeregistration(UserAccessTokenWithData userAccessTokenWithData) {
@@ -294,5 +306,10 @@ public class GarminService {
                 HttpHeaders.AUTHORIZATION,
                 StringUtils.capitalize(userAccessTokenWithData.accessToken().tokenType()) + " " + userAccessTokenWithData.accessToken().accessToken()
         );
+    }
+
+    @Override
+    public void onApplicationEvent(DeregistrationSpringEvent event) {
+        deregisterParticipant(event.getRoutingInfo());
     }
 }

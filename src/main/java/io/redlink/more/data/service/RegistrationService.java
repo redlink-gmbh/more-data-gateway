@@ -3,6 +3,7 @@
  */
 package io.redlink.more.data.service;
 
+import io.redlink.more.data.component.DeregistrationSpringEventPublisherComponent;
 import io.redlink.more.data.exception.RegistrationNotPossibleException;
 import io.redlink.more.data.model.ApiCredentials;
 import io.redlink.more.data.model.ParticipantConsent;
@@ -25,13 +26,13 @@ public class RegistrationService {
 
     private final PasswordEncoder passwordEncoder;
 
-    private final GarminService garminService;
+    private final DeregistrationSpringEventPublisherComponent deregistrationPublisher;
 
-    public RegistrationService(StudyRepository studyRepository, PushTokenRepository pushTokenRepository, PasswordEncoder passwordEncoder, GarminService garminService) {
+    public RegistrationService(StudyRepository studyRepository, PushTokenRepository pushTokenRepository, PasswordEncoder passwordEncoder, DeregistrationSpringEventPublisherComponent deregistrationPublisher) {
         this.studyRepository = studyRepository;
         this.pushTokenRepository = pushTokenRepository;
         this.passwordEncoder = passwordEncoder;
-        this.garminService = garminService;
+        this.deregistrationPublisher = deregistrationPublisher;
     }
 
     public Optional<Study> loadStudyByRegistrationToken(String registrationToken) {
@@ -71,7 +72,7 @@ public class RegistrationService {
     }
 
     public void unregister(String apiId, RoutingInfo routingInfo) {
-        garminService.deregisterParticipant(routingInfo);
+        deregistrationPublisher.publishParticipantDeregistrationEvent(routingInfo);
         pushTokenRepository.clearToken(routingInfo.studyId(), routingInfo.participantId());
         studyRepository.clearCredentials(apiId);
     }
