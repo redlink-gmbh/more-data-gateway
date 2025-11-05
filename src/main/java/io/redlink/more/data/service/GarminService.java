@@ -115,7 +115,7 @@ public class GarminService {
         storeUserAccessToken(userAccesstokenWithData, participantWithObservationPropertiesList, participantWithObservationProperties);
         addAuthorizationHeader(userApi.getApiClient(), userAccesstokenWithData);
         addAuthorizationHeader(userControllerApi.getApiClient(), userAccesstokenWithData);
-        storeGarminUserId(participantWithObservationProperties.studyId(), participantWithObservationProperties.participantId(), userAccesstokenWithData);
+        storeGarminUserId(participantWithObservationProperties.studyId(), participantWithObservationProperties.participantId());
     }
 
 
@@ -140,22 +140,22 @@ public class GarminService {
         return true;
     }
 
-    private void storeGarminUserId(Long studyId, int participantId, UserAccessTokenWithData userAccessTokenWithData) {
-        var userId = getUserId(userAccessTokenWithData);
+    private void storeGarminUserId(Long studyId, int participantId) {
+        var userId = getUserId();
         if (userId.isEmpty()) {
             throw new IllegalStateException("No Garmin User ID found for " + participantId);
         }
-        var permissions = getPermissions(userAccessTokenWithData);
+        var permissions = getPermissions();
         Map<String, Object> data = Map.of(USER_ID_TYPE_KEY, "garmin", USER_PERMISSIONS_KEY, permissions);
-        participantKeyValueRepository.insert(studyId, participantId, userId.get(), data);
+        participantKeyValueRepository.upsert(studyId, participantId, userId.get(), data);
     }
 
-    private Optional<String> getUserId(UserAccessTokenWithData userAccessTokenWithData) {
+    private Optional<String> getUserId() {
         var response = userApi.uSERID();
         return Optional.ofNullable(response.getUserId());
     }
 
-    private List<String> getPermissions(UserAccessTokenWithData userAccessTokenWithData) {
+    private List<String> getPermissions() {
         var response = userControllerApi.gETUSERPERMISSIONS();
         return response.getPermissions();
     }
