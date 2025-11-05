@@ -3,8 +3,7 @@ package io.redlink.more.data.controller;
 import io.redlink.more.data.api.app.v1.model.DeregistrationRequestDTO;
 import io.redlink.more.data.api.app.v1.model.UpdatePermissionsRequestDTO;
 import io.redlink.more.data.api.app.v1.webservices.GarminUserManagementApi;
-import io.redlink.more.data.properties.MoreProperties;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import io.redlink.more.data.service.GarminService;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -15,8 +14,16 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping(value = "/api/v1", produces = MediaType.APPLICATION_JSON_VALUE)
 public class GarminApiV1Controller implements GarminUserManagementApi {
+
+    private final GarminService garminService;
+
+    public GarminApiV1Controller(GarminService garminService) {
+        this.garminService = garminService;
+    }
+
     @Override
     public ResponseEntity<Void> deleteGarminUser(DeregistrationRequestDTO deregistrationRequestDTO) {
+        deregistrationRequestDTO.getDeregistrations().forEach(deregistrationItemDTO -> garminService.deleteUserIdAndToken(deregistrationItemDTO.getUserId()));
         return ResponseEntity.ok().build();
     }
 
