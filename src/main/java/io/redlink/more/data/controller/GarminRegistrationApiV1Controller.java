@@ -5,6 +5,8 @@ import io.redlink.more.data.configuration.AuthenticationFacade;
 import io.redlink.more.data.model.GatewayUserDetails;
 import io.redlink.more.data.service.GarminService;
 import io.redlink.more.data.service.GatewayUserDetailService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -21,6 +23,8 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 @RequestMapping(value = "/api/v1", produces = MediaType.APPLICATION_JSON_VALUE)
 public class GarminRegistrationApiV1Controller implements GarminRegistrationApi {
 
+    private static final Logger LOG = LoggerFactory.getLogger(GarminRegistrationApiV1Controller.class);
+
     private final GarminService garminService;
     private final AuthenticationFacade authenticationFacade;
 
@@ -36,13 +40,17 @@ public class GarminRegistrationApiV1Controller implements GarminRegistrationApi 
                 .toUriString();
         final GatewayUserDetails userDetails = this.authenticationFacade.assertAuthority(GatewayUserDetailService.APP_ROLE);
         if (userDetails == null) {
+            LOG.warn("Garmin OAuth URL requested without authentication");
             throw new AccessDeniedException("Authentication required");
         }
         if (!userDetails.getRoutingInfo().acceptData()) {
+            LOG.warn("Garmin OAuth URL requested for inactive study/participant: studyId={}, participantId={}", userDetails.getRoutingInfo().studyId(), userDetails.getRoutingInfo().participantId());
             throw new AccessDeniedException("Study or participant not active");
         }
 
+        LOG.info("Generating Garmin OAuth URL for studyId={}, participantId={}", userDetails.getRoutingInfo().studyId(), userDetails.getRoutingInfo().participantId());
         String redirectUrl = garminService.getSsoUrl(userDetails.getRoutingInfo(), baseUrl);
+        LOG.debug("Redirecting to Garmin OAuth URL: {}", redirectUrl);
         return ResponseEntity.status(HttpStatus.FOUND)
                 .header(HttpHeaders.LOCATION, redirectUrl)
                 .build();
@@ -50,6 +58,7 @@ public class GarminRegistrationApiV1Controller implements GarminRegistrationApi 
 
     @Override
     public ResponseEntity<Void> handleGarminCallback(String code, String state) {
+        LOG.info("Handling Garmin OAuth callback: statePresent={}, codePresent={}", state != null, code != null);
         garminService.ssoCallback(state, code);
         return ResponseEntity.ok().build();
     }

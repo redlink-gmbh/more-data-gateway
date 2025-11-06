@@ -58,6 +58,9 @@ public class ParticipantKeyValueRepository {
     private static final String SQL_GET_BY_KEY =
             "SELECT * FROM participant_key_value WHERE key = ?";
 
+    private static final String SQL_GET_WITH_KEY_TYPE =
+            "SELECT key, value FROM participant_key_value WHERE study_id = ? AND participant_id = ?";
+
     private final JdbcTemplate jdbcTemplate;
     private final NamedParameterJdbcTemplate namedTemplate;
 
@@ -144,6 +147,18 @@ public class ParticipantKeyValueRepository {
             return Collections.emptyList();
         }
 
+    }
+
+    public List<ParticipantKeyValue> getKeysWithValue(Long studyId, Integer participantId) {
+        try {
+            return jdbcTemplate.query(
+                    SQL_GET_WITH_KEY_TYPE,
+                    getRecordRowMapper(studyId, participantId),
+                    studyId, participantId
+            );
+        } catch (EmptyResultDataAccessException e) {
+            return Collections.emptyList();
+        }
     }
 
     public boolean delete(Long studyId, Integer participantId, String key) {
