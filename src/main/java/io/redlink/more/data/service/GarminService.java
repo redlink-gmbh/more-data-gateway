@@ -127,8 +127,7 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
         LOG.info("Successfully obtained Garmin access token (metadata only) for participantId={} in studyId={}", participantWithObservationProperties.participantId(), participantWithObservationProperties.studyId());
         var userAccesstokenWithData = UserAccessTokenWithData.createNewFrom(garminAccessToken.get());
         storeUserAccessToken(userAccesstokenWithData, participantWithObservationPropertiesList, participantWithObservationProperties);
-        addAuthorizationHeader(userApi.getApiClient(), userAccesstokenWithData);
-        addAuthorizationHeader(userControllerApi.getApiClient(), userAccesstokenWithData);
+
         storeGarminUserId(participantWithObservationProperties.studyId(), participantWithObservationProperties.participantId());
         LOG.info("Garmin SSO callback processing completed for studyId={}, participantId={}", participantWithObservationProperties.studyId(), participantWithObservationProperties.participantId());
     }
@@ -176,8 +175,9 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
         try {
             var data = getUserAccessData(studyId, participantId);
             if (data.isPresent()) {
+                refreshTokenIfNeeded(data.get());
                 LOG.debug("Sending deregistration to Garmin for studyId={}, participantId={}", studyId, participantId);
-                sendDeregistration(data.get());
+                sendDeregistration();
                 boolean tokenDeleted = deleteUserAccessToken(studyId, participantId);
                 LOG.debug("Deleted user access token for studyId={}, participantId={}, result={}", studyId, participantId, tokenDeleted);
             }
@@ -249,9 +249,8 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
         return result;
     }
 
-    private void sendDeregistration(UserAccessTokenWithData userAccessTokenWithData) {
+    private void sendDeregistration() {
         LOG.info("Calling Garmin deregistration endpoint");
-        addAuthorizationHeader(userApi.getApiClient(), userAccessTokenWithData);
         userApi.dEREG();
         LOG.debug("Garmin deregistration call completed");
     }
@@ -263,8 +262,26 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
         LOG.info("Exchanging Garmin OAuth code for access token: studyId={}, participantId={}", participantWithObservationProperties.studyId(), participantWithObservationProperties.participantId());
         var garminAuthValues = GarminAuthenticationValues.fromMap((Map<String, String>) participantWithObservationProperties.properties().get(AUTH_VALUES_KEY));
 
-        HttpEntity<?> entity = getHttpEntity(code, garminAuthValues);
+        HttpEntity<?> entity = getAuthorizationCodeHttpEntity(code, garminAuthValues);
 
+        return requestAccessToken(entity);
+    }
+
+    private UserAccessTokenWithData refreshUserAccessToken(UserAccessTokenWithData userAccessTokenWithData) {
+        if (userAccessTokenWithData.isAccessTokenExpired()) {
+            if (!userAccessTokenWithData.isRefreshAccessTokenExpired()) {
+                HttpEntity<?> entity = getRefreshTokenHttpEntity(userAccessTokenWithData.accessToken().refreshToken());
+
+                return requestAccessToken(entity)
+                        .map(UserAccessTokenWithData::createNewFrom)
+                        .orElseThrow(() -> new IllegalStateException("Failed to refresh access token"));
+            }
+            throw new IllegalStateException("Access token is not valid and refreshable!");
+        }
+        return userAccessTokenWithData;
+    }
+
+    private Optional<GarminUserAccessToken> requestAccessToken(HttpEntity<?> entity) {
         ResponseEntity<GarminUserAccessToken> response = restTemplate.exchange(
                 garminConfiguration.garminTokenUri(),
                 HttpMethod.POST,
@@ -273,15 +290,29 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
         );
         LOG.debug("Token exchange HTTP status: {}", response.getStatusCode());
 
-        return Optional.ofNullable(response.getBody());
+        if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+            return Optional.ofNullable(response.getBody());
+        }
+        throw new IllegalStateException("Issue requesting access token with status code " + response.getStatusCode());
     }
 
-    private HttpEntity<?> getHttpEntity(String code, GarminAuthenticationValues garminAuthValues) {
+    private HttpEntity<?> getAuthorizationCodeHttpEntity(String code, GarminAuthenticationValues garminAuthValues) {
         String body = "grant_type=authorization_code" +
                 "&redirect_uri=" + garminConfiguration.getRedirectUri() +
                 "&code=" + code +
                 "&code_verifier=" + garminAuthValues.challengeCode();
 
+        return createTokenRequestEntity(body);
+    }
+
+    private HttpEntity<?> getRefreshTokenHttpEntity(String refreshToken) {
+        String body = "grant_type=refresh_token" +
+                "&refresh_token=" + refreshToken;
+
+        return createTokenRequestEntity(body);
+    }
+
+    private HttpEntity<?> createTokenRequestEntity(String body) {
         HttpHeaders headers = new HttpHeaders();
         headers.add(HttpHeaders.CONTENT_TYPE, "application/x-www-form-urlencoded");
         headers.add(HttpHeaders.AUTHORIZATION, garminConfiguration.authorizationHeader());
@@ -296,7 +327,7 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
 
     private Boolean hasValidUserAccessToken(Long studyId, int participantId) {
         var userAccessData = getUserAccessData(studyId, participantId);
-        return userAccessData.isPresent() && userAccessData.get().isAccessTokenValid();
+        return userAccessData.isPresent() && userAccessData.get().isAccessTokenValidOrRefreshable();
     }
 
     private Optional<UserAccessTokenWithData> getUserAccessData(Long studyId, int participantId) {
@@ -329,6 +360,32 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
                                 map
                         )
                 );
+        addAuthorizationHeader(userApi.getApiClient(), userAccesstokenWithData);
+        addAuthorizationHeader(userControllerApi.getApiClient(), userAccesstokenWithData);
+    }
+
+    private void refreshTokenIfNeeded(Long studyId, int participantId) {
+        var token = getUserAccessData(studyId, participantId);
+        token.ifPresent(this::refreshTokenIfNeeded);
+    }
+
+    private void refreshTokenIfNeeded(UserAccessTokenWithData token) {
+        if (token.isAccessTokenExpired() && !token.isRefreshAccessTokenExpired()) {
+            LOG.info("Access token is expired and refreshable, refreshing token");
+            var newToken = refreshUserAccessToken(token);
+            if (!newToken.getAccessToken().equals(token.accessToken().accessToken())) {
+                LOG.info("Refreshed token...");
+                var participantWithObservationPropertiesList = studyRepository.getParticipantByGarminAccessToken(token.accessToken().accessToken());
+
+                var participantWithObservationProperties = participantWithObservationPropertiesList.stream().findFirst().orElseThrow();
+                storeUserAccessToken(newToken, participantWithObservationPropertiesList, participantWithObservationProperties);
+                LOG.info("Refreshed token for participantId={} in studyId={}", participantWithObservationProperties.participantId(), participantWithObservationProperties.studyId());
+            } else {
+                addAuthorizationHeader(userApi.getApiClient(), newToken);
+                addAuthorizationHeader(userControllerApi.getApiClient(), newToken);
+            }
+        }
+
     }
 
     private boolean deleteUserAccessToken(Long studyId, int participantId) {
