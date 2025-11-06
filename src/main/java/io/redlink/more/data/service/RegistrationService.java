@@ -3,7 +3,8 @@
  */
 package io.redlink.more.data.service;
 
-import io.redlink.more.data.component.DeregistrationSpringEventPublisherComponent;
+import io.redlink.more.data.event.ParticipantUpdateAction;
+import io.redlink.more.data.event.ParticipantUpdateEvent;
 import io.redlink.more.data.exception.RegistrationNotPossibleException;
 import io.redlink.more.data.model.ApiCredentials;
 import io.redlink.more.data.model.ParticipantConsent;
@@ -11,6 +12,7 @@ import io.redlink.more.data.model.RoutingInfo;
 import io.redlink.more.data.model.Study;
 import io.redlink.more.data.repository.PushTokenRepository;
 import io.redlink.more.data.repository.StudyRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -26,13 +28,13 @@ public class RegistrationService {
 
     private final PasswordEncoder passwordEncoder;
 
-    private final DeregistrationSpringEventPublisherComponent deregistrationPublisher;
+    private final ApplicationEventPublisher eventPublisher;
 
-    public RegistrationService(StudyRepository studyRepository, PushTokenRepository pushTokenRepository, PasswordEncoder passwordEncoder, DeregistrationSpringEventPublisherComponent deregistrationPublisher) {
+    public RegistrationService(StudyRepository studyRepository, PushTokenRepository pushTokenRepository, PasswordEncoder passwordEncoder, ApplicationEventPublisher eventPublisher) {
         this.studyRepository = studyRepository;
         this.pushTokenRepository = pushTokenRepository;
         this.passwordEncoder = passwordEncoder;
-        this.deregistrationPublisher = deregistrationPublisher;
+        this.eventPublisher = eventPublisher;
     }
 
     public Optional<Study> loadStudyByRegistrationToken(String registrationToken) {
@@ -72,8 +74,12 @@ public class RegistrationService {
     }
 
     public void unregister(String apiId, RoutingInfo routingInfo) {
-        deregistrationPublisher.publishParticipantDeregistrationEvent(routingInfo);
+        publishParticipantDeregistrationEvent(routingInfo, ParticipantUpdateAction.DELETE);
         pushTokenRepository.clearToken(routingInfo.studyId(), routingInfo.participantId());
         studyRepository.clearCredentials(apiId);
+    }
+
+    private void publishParticipantDeregistrationEvent(RoutingInfo routingInfo, ParticipantUpdateAction action) {
+        eventPublisher.publishEvent(new ParticipantUpdateEvent(this, routingInfo.studyId(), routingInfo.participantId(), action));
     }
 }

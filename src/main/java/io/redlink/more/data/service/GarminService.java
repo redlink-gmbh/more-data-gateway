@@ -1,7 +1,7 @@
 package io.redlink.more.data.service;
 
 import io.redlink.more.data.configuration.GarminConfiguration;
-import io.redlink.more.data.event.DeregistrationSpringEvent;
+import io.redlink.more.data.event.ParticipantUpdateEvent;
 import io.redlink.more.data.garmin.wellness.ApiClient;
 import io.redlink.more.data.garmin.wellness.client.UserApiApi;
 import io.redlink.more.data.garmin.wellness.client.UserControllerApi;
@@ -32,7 +32,7 @@ import java.util.Map;
 import java.util.Optional;
 
 @Service
-public class GarminService implements ApplicationListener<DeregistrationSpringEvent> {
+public class GarminService implements ApplicationListener<ParticipantUpdateEvent> {
     private final Logger LOG = LoggerFactory.getLogger(GarminService.class);
     public final static String AUTH_VALUES_KEY = "authenticationValues";
     public final static String USER_ACCESS_TOKEN_KEY = "userAccessToken";
@@ -150,17 +150,17 @@ public class GarminService implements ApplicationListener<DeregistrationSpringEv
         return true;
     }
 
-    public void deregisterParticipant(RoutingInfo routingInfo) {
+    public void deregisterParticipant(Long studyId, int participantId) {
         try {
-            var data = getUserAccessData(routingInfo.studyId(), routingInfo.participantId());
+            var data = getUserAccessData(studyId, participantId);
             if (data.isPresent()) {
                 sendDeregistration(data.get());
-                deleteUserAccessToken(routingInfo.studyId(), routingInfo.participantId());
+                deleteUserAccessToken(studyId, participantId);
             }
 
-            var participantWithKeyValue = keyValuesForParticipant(routingInfo.studyId(), routingInfo.participantId());
+            var participantWithKeyValue = keyValuesForParticipant(studyId, participantId);
             participantWithKeyValue.forEach(participantKeyValue ->
-                    deleteGarminUserId(routingInfo.studyId(), routingInfo.participantId(), participantKeyValue.key())
+                    deleteGarminUserId(studyId, participantId, participantKeyValue.key())
             );
         } catch (RuntimeException e) {
             LOG.error("Could not deregister Garmin User:", e);
@@ -309,7 +309,9 @@ public class GarminService implements ApplicationListener<DeregistrationSpringEv
     }
 
     @Override
-    public void onApplicationEvent(DeregistrationSpringEvent event) {
-        deregisterParticipant(event.getRoutingInfo());
+    public void onApplicationEvent(ParticipantUpdateEvent event) {
+        switch (event.getAction()) {
+            case DELETE -> deregisterParticipant(event.getStudyId(), event.getParticipantId());
+        }
     }
 }
