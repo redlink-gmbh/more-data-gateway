@@ -46,4 +46,8 @@ public class GarminConfiguration {
     public String authorizationHeader() {
         return "Basic " + Base64.getEncoder().encodeToString((garminProperties.oauth().clientId() + ":" + garminProperties.oauth().clientSecret()).getBytes());
     }
+
+    public Boolean clientIdsMatch(String cliendId) {
+        return garminProperties.oauth().clientId().equalsIgnoreCase(cliendId);
+    }
 }
