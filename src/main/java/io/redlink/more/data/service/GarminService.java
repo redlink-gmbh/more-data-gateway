@@ -193,6 +193,10 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
         }
     }
 
+    public boolean garminRequestIsValid(String userAgent, String cliendId) {
+        return userAgent != null && userAgent.equalsIgnoreCase("Garmin Health API") && cliendId != null && garminConfiguration.clientIdsMatch(cliendId);
+    }
+
     private void storeGarminUserId(Long studyId, int participantId) {
         var userId = getUserId();
         if (userId.isEmpty()) {

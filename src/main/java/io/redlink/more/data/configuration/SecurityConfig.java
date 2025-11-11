@@ -70,6 +70,10 @@ public class SecurityConfig {
                             "/api/v1/integrations/garmin/user",
                             "/api/v1/integrations/garmin/user/permissions"
                     ).permitAll();
+                    req.requestMatchers(
+                                    "/api/v1/integrations/garmin/summaries"
+                            )
+                            .permitAll();
                     // all other apis require credentials
                     req.requestMatchers("/api/v1/**")
                             .authenticated();

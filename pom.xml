@@ -376,6 +376,15 @@
                             <output>${project.build.directory}/generated-sources/garmin</output>
                             <apiPackage>io.redlink.more.data.api.app.v1.webservices</apiPackage>
                             <modelPackage>io.redlink.more.data.api.app.v1.model</modelPackage>
+
+                            <configOptions>
+                              <modelMutable>true</modelMutable>
+                              <useBeanValidation>false</useBeanValidation>
+                              <openApiNullable>false</openApiNullable>
+                              <additionalModelTypeAnnotations>
+                                @com.fasterxml.jackson.annotation.JsonIgnoreProperties(ignoreUnknown = true)
+                              </additionalModelTypeAnnotations>
+                            </configOptions>
                         </configuration>
                     </execution>
                     <execution>
