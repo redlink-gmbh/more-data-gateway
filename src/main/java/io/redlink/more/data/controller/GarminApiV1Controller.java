@@ -56,9 +56,10 @@ public class GarminApiV1Controller implements GarminUserManagementApi {
     }
 
     @Override
-    public ResponseEntity<Void> submitSummaries(String userAgent, String garminClientId, Map<String, List<Map>> requestBody) {
+    public ResponseEntity<Void> submitSummaries(String userAgent, String garminClientId, Map<String, List<Map<String, Object>>> requestBody) {
         if (garminService.garminRequestIsValid(userAgent, garminClientId)) {
-            LOG.info("Summaries received: user agent: {}; client id: {}; summariesRequestDTO keys: {}", userAgent, StringUtils.anonymize(garminClientId), requestBody.keySet());
+            LOG.debug("Summaries received: user agent: {}; client id: {}; summariesRequestDTO keys: {}", userAgent, StringUtils.anonymize(garminClientId), requestBody.keySet());
+            garminService.storeData(requestBody);
         } else {
             LOG.warn("Invalid Garmin request: user agent: {}; client id: {}; summariesRequestDTO keys: {}", userAgent, StringUtils.anonymize(garminClientId), requestBody.keySet());
         }

@@ -167,9 +167,9 @@ components:
       additionalProperties:
         type: array
         items:
-          allOf:
-            - type: object
-              additionalProperties: true
+          type: string
+          additionalProperties:
+            type: object
       description: |
         Dynamic object where each property is an array of summary data.
         Property names can be: dailies, epochs, hrv, sleeps, pulseox, stressDetails, or any other summary type.
