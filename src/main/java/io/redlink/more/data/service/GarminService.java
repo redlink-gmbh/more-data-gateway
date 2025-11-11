@@ -411,7 +411,7 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
         return participantKeyValues
                 .parallelStream()
                 .map(participantKeyValue -> {
-                            List<Observation> observations = studyRepository.filterObservations(participantKeyValue.studyId(), participantKeyValue.participantId(), observation -> observation.type().equalsIgnoreCase(GARMIN_KEY_TYPE));
+                            List<Observation> observations = studyRepository.filterObservations(participantKeyValue.studyId(), participantKeyValue.participantId(), observation -> observation.type().contains(GARMIN_KEY_TYPE));
                             List<DataPoint> dataPoints = dataObjects
                                     .parallelStream()
                                     .filter(data -> data.containsKey("userId") && data.get("userId").equals(participantKeyValue.key()))
@@ -428,6 +428,7 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
                             );
                         }
                 )
+                .filter(entry -> !entry.getValue().isEmpty())
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
