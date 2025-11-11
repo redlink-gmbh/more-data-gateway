@@ -1,19 +1,45 @@
 package io.redlink.more.data.configuration;
 
 import io.redlink.more.data.properties.GarminProperties;
+import jakarta.annotation.PostConstruct;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.TaskScheduler;
 
 import java.net.URI;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Base64;
 
 @Configuration
 @EnableConfigurationProperties({GarminProperties.class})
 public class GarminConfiguration {
+    private static final Logger LOG = LoggerFactory.getLogger(GarminConfiguration.class);
     private final GarminProperties garminProperties;
+    private final TaskScheduler scheduler;
 
-    GarminConfiguration(GarminProperties garminProperties) {
+    GarminConfiguration(
+            GarminProperties garminProperties,
+            TaskScheduler scheduler
+    ) {
         this.garminProperties = garminProperties;
+        this.scheduler = scheduler;
+    }
+
+    @PostConstruct
+    protected void initTokenRefresh(){
+        LOG.info("Initializing Garmin token refresh task (cron: {})", garminProperties.tokenRefresh());
+        scheduler.schedule(this::todoImplementTokenRefresh, garminProperties.tokenRefresh());
+    }
+
+    private void todoImplementTokenRefresh() {
+        LOG.info("Refresh Garmin Tokens for {}", Instant.now().truncatedTo(ChronoUnit.MINUTES).toString());
+        //iterate over all garmin users
+        //  check the remaining validity of the token
+        //  if to short
+        //    refresh the token and store the new token in the database
     }
 
     public URI basicOAuthUri() {
