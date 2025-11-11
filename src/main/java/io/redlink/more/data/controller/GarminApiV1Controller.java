@@ -4,6 +4,7 @@ import io.redlink.more.data.api.app.v1.model.DeregistrationRequestDTO;
 import io.redlink.more.data.api.app.v1.model.UpdatePermissionsRequestDTO;
 import io.redlink.more.data.api.app.v1.webservices.GarminUserManagementApi;
 import io.redlink.more.data.service.GarminService;
+import io.redlink.more.data.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
@@ -34,6 +35,8 @@ public class GarminApiV1Controller implements GarminUserManagementApi {
                 LOG.info("Handling Garmin user deregistration request for user: {}", deregistrationItemDTO.getUserId());
                 garminService.deleteUserIdAndToken(deregistrationItemDTO.getUserId());
             });
+        } else {
+            LOG.warn("Invalid Garmin request: user agent: {}; client id: {}; deregistrationRequestDTO: {}", userAgent, StringUtils.shorten(garminClientId), deregistrationRequestDTO);
         }
         return ResponseEntity.ok().build();
     }
@@ -46,6 +49,8 @@ public class GarminApiV1Controller implements GarminUserManagementApi {
                         LOG.info("Handling Garmin user permissions update request for user: {}", userPermissionChangeDTO.getUserId());
                         garminService.updateUserPermissions(userPermissionChangeDTO.getUserId(), userPermissionChangeDTO.getPermissions());
                     });
+        } else {
+            LOG.warn("Invalid Garmin request: user agent: {}; client id: {}; updatePermissionsRequestDTO: {}", userAgent, StringUtils.shorten(garminClientId), updatePermissionsRequestDTO);
         }
         return ResponseEntity.ok().build();
     }
@@ -53,9 +58,9 @@ public class GarminApiV1Controller implements GarminUserManagementApi {
     @Override
     public ResponseEntity<Void> submitSummaries(String userAgent, String garminClientId, Map<String, List<Map>> requestBody) {
         if (garminService.garminRequestIsValid(userAgent, garminClientId)) {
-            LOG.info("Summaries received: user agent: {}; client id: {}; summariesRequestDTO: {}", userAgent, garminClientId, requestBody);
+            LOG.info("Summaries received: user agent: {}; client id: {}; summariesRequestDTO keys: {}", userAgent, StringUtils.shorten(garminClientId), requestBody.keySet());
         } else {
-            LOG.warn("Invalid Garmin request: user agent: {}; client id: {}; summariesRequestDTO: {}", userAgent, garminClientId, requestBody);
+            LOG.warn("Invalid Garmin request: user agent: {}; client id: {}; summariesRequestDTO keys: {}", userAgent, StringUtils.shorten(garminClientId), requestBody.keySet());
         }
         return ResponseEntity.ok().build();
     }
