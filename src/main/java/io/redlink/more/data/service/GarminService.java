@@ -1,17 +1,18 @@
 package io.redlink.more.data.service;
 
+import io.redlink.more.data.api.app.v1.model.GarminDataPointDTO;
 import io.redlink.more.data.configuration.GarminConfiguration;
 import io.redlink.more.data.event.ParticipantUpdateEvent;
 import io.redlink.more.data.garmin.wellness.ApiClient;
 import io.redlink.more.data.garmin.wellness.client.UserApiApi;
 import io.redlink.more.data.garmin.wellness.client.UserControllerApi;
-import io.redlink.more.data.model.DataPoint;
 import io.redlink.more.data.model.Observation;
 import io.redlink.more.data.model.ParticipantKeyValue;
 import io.redlink.more.data.model.ParticipantWithObservationProperties;
 import io.redlink.more.data.model.RoutingInfo;
 import io.redlink.more.data.model.garmin.GarminAuthenticationValues;
 import io.redlink.more.data.model.garmin.GarminUserAccessToken;
+import io.redlink.more.data.model.garmin.ParticipantGarminDataPoint;
 import io.redlink.more.data.model.garmin.UserAccessTokenWithData;
 import io.redlink.more.data.repository.ParticipantKeyValueRepository;
 import io.redlink.more.data.repository.StudyRepository;
@@ -29,15 +30,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.net.URI;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.OptionalInt;
-import java.util.Set;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Service
@@ -47,7 +42,8 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
     public final static String USER_ACCESS_TOKEN_KEY = "userAccessToken";
     private final static String USER_ID_TYPE_KEY = "keyType";
     private final static String USER_PERMISSIONS_KEY = "permissions";
-    private final static String GARMIN_KEY_TYPE = "garmin";
+    final static String GARMIN_KEY_TYPE = "garmin";
+    private final static String DAILIES_SUMMARY_KEY = "dailies";
     private final GarminConfiguration garminConfiguration;
     private final RestTemplate restTemplate;
     private final StudyRepository studyRepository;
@@ -57,12 +53,15 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
     private final UserApiApi userApi;
     private final UserControllerApi userControllerApi;
 
-    public GarminService(GarminConfiguration garminConfiguration, StudyRepository studyRepository, ParticipantKeyValueRepository participantKeyValueRepository, ElasticService elasticService, UserApiApi userApi, UserControllerApi userControllerApi) {
+    private final GarminDataTransformationService transformationService;
+
+    public GarminService(GarminConfiguration garminConfiguration, StudyRepository studyRepository, ParticipantKeyValueRepository participantKeyValueRepository, ElasticService elasticService, UserApiApi userApi, UserControllerApi userControllerApi, GarminDataTransformationService transformationService) {
         this.garminConfiguration = garminConfiguration;
         this.studyRepository = studyRepository;
         this.participantKeyValueRepository = participantKeyValueRepository;
         this.elasticService = elasticService;
         this.userControllerApi = userControllerApi;
+        this.transformationService = transformationService;
         this.restTemplate = new RestTemplate();
         this.userApi = userApi;
     }
@@ -207,15 +206,14 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
         return userAgent != null && userAgent.equalsIgnoreCase("Garmin Health API") && cliendId != null && garminConfiguration.clientIdsMatch(cliendId);
     }
 
-    public void storeData(Map<String, List<Map<String, Object>>> data) {
-        Set<String> userIds = userIdsFromData(data);
-        List<ParticipantKeyValue> garminUserIds = participantsForUserIds(userIds);
-        data.entrySet()
-                .parallelStream()
-                .map(entry -> transformData(garminUserIds, entry.getKey(), entry.getValue()))
-                .forEach(participantWithData -> {
-                    participantWithData.forEach((key, value) -> elasticService.storeDataPoints(value, key));
-                });
+    public void storeData(Map<String, List<GarminDataPointDTO>> data) {
+        if (data == null || data.isEmpty() || !data.containsKey(DAILIES_SUMMARY_KEY)) {
+            return;
+        }
+        var dailiesData = data.get("dailies");
+        List<ParticipantGarminDataPoint> participantWithData = participantsForUserIds(dailiesData);
+
+        transformationService.transformData(DAILIES_SUMMARY_KEY, participantWithData).forEach((key, value) -> elasticService.storeDataPoints(value, key));
     }
 
     private void storeGarminUserId(Long studyId, int participantId) {
@@ -381,20 +379,10 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
     }
 
 
-    private Set<String> userIdsFromData(Map<String, List<Map<String, Object>>> data) {
-        return data.values()
-                .parallelStream()
-                .flatMap(List::stream)
-                .filter(map -> map.containsKey("userId"))
-                .map(map -> map.get("userId"))
-                .filter(String.class::isInstance)
-                .map(String.class::cast)
-                .collect(Collectors.toSet());
-    }
-
-    private List<ParticipantKeyValue> participantsForUserIds(Set<String> userIds) {
-        return userIds
-                .stream()
+    private List<ParticipantGarminDataPoint> participantsForUserIds(List<GarminDataPointDTO> dataPoints) {
+        return dataPoints.stream()
+                .map(GarminDataPointDTO::getUserId)
+                .distinct()
                 .flatMap(userId -> {
                     try {
                         return participantForGarminUserId(userId).stream();
@@ -403,112 +391,15 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
                         return Stream.empty();
                     }
                 })
-                .distinct()
+                .map(participantKeyValue ->
+                        new ParticipantGarminDataPoint(
+                                participantKeyValue,
+                                dataPoints.stream()
+                                        .filter(dp -> dp.getUserId().equals(participantKeyValue.key()))
+                                        .toList()))
                 .toList();
     }
 
-    private Map<RoutingInfo, List<DataPoint>> transformData(List<ParticipantKeyValue> participantKeyValues, String dataType, List<Map<String, Object>> dataObjects) {
-        return participantKeyValues
-                .parallelStream()
-                .map(participantKeyValue -> {
-                            List<Observation> observations = studyRepository.filterObservations(participantKeyValue.studyId(), participantKeyValue.participantId(), observation -> observation.type().contains(GARMIN_KEY_TYPE));
-                            List<DataPoint> dataPoints = dataObjects
-                                    .parallelStream()
-                                    .filter(data -> data.containsKey("userId") && data.get("userId").equals(participantKeyValue.key()))
-                                    .flatMap(data -> observations
-                                            .parallelStream()
-                                            .map(observation -> createDataPointFromGarminData(String.valueOf(observation.observationId()), observation.type(), dataType, data))
-                                    )
-                                    .filter(Optional::isPresent)
-                                    .map(Optional::get)
-                                    .toList();
-                            return Map.entry(
-                                    participantKeyValueToRoutingInfo(participantKeyValue),
-                                    dataPoints
-                            );
-                        }
-                )
-                .filter(entry -> !entry.getValue().isEmpty())
-                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-    }
-
-    private Optional<DataPoint> createDataPointFromGarminData(String observationId, String observationType, String dataType, Map<String, Object> data) {
-        if (!data.containsKey("summaryId") || !data.containsKey("userId") || !data.containsKey("startTimeInSeconds")) {
-            return Optional.empty();
-        }
-        var newModifiableMap = new HashMap<>(data);
-        String summaryId = (String) newModifiableMap.remove("summaryId");
-        Long unixTimestamp = newModifiableMap.get("startTimeInSeconds") instanceof Integer ? ((Integer) newModifiableMap.get("startTimeInSeconds")).longValue() : (Long) newModifiableMap.get("startTimeInSeconds");
-        Long timezoneOffset = newModifiableMap.getOrDefault("startTimeOffsetInSeconds", 0L) instanceof Integer ? ((Integer) newModifiableMap.getOrDefault("startTimeOffsetInSeconds", 0L)).longValue() : (Long) newModifiableMap.getOrDefault("startTimeOffsetInSeconds", 0L);
-        newModifiableMap.remove("userId");
-        long timeWithOffset = unixTimestamp + timezoneOffset;
-        Instant recordedDateTime = Instant.ofEpochSecond(timeWithOffset);
-
-        if (dataType.equalsIgnoreCase("dailies") && newModifiableMap.containsKey("timeOffsetHeartRateSamples")) {
-            Map<?, ?> rawMap = (Map<?, ?>) newModifiableMap.remove("timeOffsetHeartRateSamples");
-            Map<String, Short> hrTimeOffset = rawMap.entrySet().stream()
-                    .collect(Collectors.toMap(
-                            e -> (String) e.getKey(),
-                            e -> ((Number) e.getValue()).shortValue()
-                    ));
-            Integer intervalInSeconds = 15;
-            var newHeartRateSamples = transformHRTimeoffset(timeWithOffset, hrTimeOffset, intervalInSeconds);
-            newModifiableMap.put("timeOffsetHeartRateSamples", newHeartRateSamples);
-            newModifiableMap.put("timeOffsetHeartRateSamplesIntervalInSeconds", intervalInSeconds);
-        }
-
-        return Optional.of(
-                new DataPoint(
-                        summaryId,
-                        observationId,
-                        observationType,
-                        dataType,
-                        Instant.now(),
-                        recordedDateTime,
-                        newModifiableMap
-                )
-        );
-    }
-
-
-    private List<Map<Long, Short>> transformHRTimeoffset(Long startTimestampInSeconds, Map<String, Short> hrTimeOffset, Integer intervalInSeconds) {
-        List<Map<Long, Short>> result = new ArrayList<>();
-
-        if (hrTimeOffset == null || hrTimeOffset.isEmpty()) {
-            return result;
-        }
-
-        List<Map.Entry<Long, Short>> sortedEntries = hrTimeOffset.entrySet().stream()
-                .map(entry -> Map.entry(startTimestampInSeconds + Integer.parseInt(entry.getKey()), entry.getValue()))
-                .sorted(Map.Entry.comparingByKey())
-                .toList();
-
-        Map<Long, Short> currentMap = new HashMap<>();
-        Long intervalStart = null;
-
-        for (Map.Entry<Long, Short> entry : sortedEntries) {
-            Long timestamp = entry.getKey();
-
-            if (intervalStart == null || timestamp - intervalStart > intervalInSeconds) {
-                if (intervalStart != null) {
-                    result.add(new HashMap<>(currentMap));
-                    currentMap.clear();
-                }
-                intervalStart = timestamp;
-            }
-            currentMap.put(timestamp, entry.getValue());
-        }
-
-        if (!currentMap.isEmpty()) {
-            result.add(currentMap);
-        }
-
-        return result;
-    }
-
-    private RoutingInfo participantKeyValueToRoutingInfo(ParticipantKeyValue participantKeyValue) {
-        return new RoutingInfo(participantKeyValue.studyId(), participantKeyValue.participantId(), OptionalInt.empty(), true, true);
-    }
 
     @Override
     public void onApplicationEvent(ParticipantUpdateEvent event) {
