@@ -1,11 +1,12 @@
 package io.redlink.more.data.service;
 
-import io.redlink.more.data.api.app.v1.model.GarminDataPointDTO;
+import io.redlink.more.data.custom.model.GarminDataPoint;
 import io.redlink.more.data.model.DataPoint;
 import io.redlink.more.data.model.DataType;
 import io.redlink.more.data.model.Observation;
 import io.redlink.more.data.model.ParticipantKeyValue;
 import io.redlink.more.data.model.RoutingInfo;
+import io.redlink.more.data.model.garmin.GarminSummaryType;
 import io.redlink.more.data.model.garmin.GarminTimeData;
 import io.redlink.more.data.model.garmin.ParticipantGarminDataPoint;
 import io.redlink.more.data.repository.StudyRepository;
@@ -40,6 +41,17 @@ class GarminDataTransformationServiceTest {
 
     private final ParticipantKeyValue participantKey = new ParticipantKeyValue(1L, 1, "abc", Collections.emptyMap());
 
+    private GarminDataPoint createGarminDataPoint(String userId, String summarId, Integer startTime, Integer offset, Integer duration, Map<String, Integer> hrSamples) {
+        GarminDataPoint dto = new GarminDataPoint();
+        dto.setUserId(userId);
+        dto.setSummaryId(summarId);
+        dto.setStartTimeInSeconds(startTime);
+        dto.setStartTimeOffsetInSeconds(offset);
+        dto.setDurationInSeconds(duration);
+        dto.setTimeOffsetHeartRateSamples(hrSamples);
+        return dto;
+    }
+
     @Test
     @DisplayName("transformData(dailies): builds HEARTRATE DataPoints per participant/observation and inserts gap sentinels")
     void transformData_dailiesWithHrSamples_buildsDataPointsAndGapSentinels() {
@@ -54,12 +66,12 @@ class GarminDataTransformationServiceTest {
         hr.put("0", 70);
         hr.put("10", 72);
         hr.put("40", 90);
-        GarminDataPointDTO dto = new GarminDataPointDTO("abc", "sum-1", (int) Instant.parse("2024-01-01T00:00:00Z").getEpochSecond(), 0, 0);
+        GarminDataPoint dto = createGarminDataPoint("abc", "sum-1", (int) Instant.parse("2024-01-01T00:00:00Z").getEpochSecond(), 0, 0, hr);
         dto.setTimeOffsetHeartRateSamples(hr);
 
         ParticipantGarminDataPoint pgdp = new ParticipantGarminDataPoint(participantKey, List.of(dto));
 
-        Map<RoutingInfo, List<DataPoint>> result = service.transformData("dailies", List.of(pgdp));
+        Map<RoutingInfo, List<DataPoint>> result = service.transformData(GarminSummaryType.DAILIES, List.of(pgdp));
 
         assertThat(result).hasSize(1);
         List<DataPoint> produced = result.values().iterator().next();
@@ -89,13 +101,13 @@ class GarminDataTransformationServiceTest {
         given(studyRepository.filterObservations(eq(1L), eq(1), any()))
                 .willReturn(List.of(garminObs));
 
-        GarminDataPointDTO dto = new GarminDataPointDTO("abc", "sum-1", (int) Instant.parse("2024-01-01T00:00:00Z").getEpochSecond(), 0, 0);
+        GarminDataPoint dto = createGarminDataPoint("abc", "sum-1", (int) Instant.parse("2024-01-01T00:00:00Z").getEpochSecond(), 0, 0, Collections.emptyMap());
         ParticipantGarminDataPoint pgdp = new ParticipantGarminDataPoint(participantKey, List.of(dto));
 
-        Map<RoutingInfo, List<DataPoint>> notDailies = service.transformData("summary", List.of(pgdp));
+        Map<RoutingInfo, List<DataPoint>> notDailies = service.transformData(GarminSummaryType.EPOCHS, List.of(pgdp));
         assertThat(notDailies).isEmpty();
 
-        Map<RoutingInfo, List<DataPoint>> emptyHr = service.transformData("dailies", List.of(pgdp));
+        Map<RoutingInfo, List<DataPoint>> emptyHr = service.transformData(GarminSummaryType.DAILIES, List.of(pgdp));
         assertThat(emptyHr).isEmpty();
     }
 

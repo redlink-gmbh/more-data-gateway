@@ -5,8 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.redlink.more.data.exception.BadRequestException;
 
-import java.util.Map;
-
 public class MapperUtils {
     public static final ObjectMapper MAPPER = new ObjectMapper().registerModule(new JavaTimeModule());
 
@@ -27,7 +25,7 @@ public class MapperUtils {
         }
     }
 
-    public static Map<String, Object> toMap(Object o) {
-        return (Map<String, Object>) MAPPER.convertValue(o, Map.class);
+    public static <T> T convertValue(Object o, Class<T> c) {
+        return MAPPER.convertValue(o, c);
     }
 }

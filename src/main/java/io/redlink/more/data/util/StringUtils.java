@@ -6,6 +6,9 @@ public class StringUtils {
     }
 
     public static String anonymize(String s, int maxVisible) {
+        if (s == null) {
+            return null;
+        }
         int visibleLength = Math.min(maxVisible, s.length() - s.length() / 2);
         String anonym;
         if (s.isEmpty()) {

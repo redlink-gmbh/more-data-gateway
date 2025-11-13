@@ -1,13 +1,16 @@
 package io.redlink.more.data.controller;
 
 import io.redlink.more.data.api.app.v1.model.DeregistrationRequestDTO;
-import io.redlink.more.data.api.app.v1.model.GarminDataPointDTO;
 import io.redlink.more.data.api.app.v1.model.UpdatePermissionsRequestDTO;
 import io.redlink.more.data.api.app.v1.webservices.GarminUserManagementApi;
+import io.redlink.more.data.custom.model.GarminDataPoint;
+import io.redlink.more.data.model.garmin.GarminSummaryType;
 import io.redlink.more.data.service.GarminService;
+import io.redlink.more.data.util.MapperUtils;
 import io.redlink.more.data.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -16,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Controller
 @RestController
@@ -57,10 +61,24 @@ public class GarminApiV1Controller implements GarminUserManagementApi {
     }
 
     @Override
-    public ResponseEntity<Void> submitSummaries(String userAgent, String garminClientId, Map<String, List<GarminDataPointDTO>> requestBody) {
+    public ResponseEntity<Void> submitSummaries(String userAgent, String garminClientId, Map<String, List<Map<String, Object>>> requestBody) {
         if (garminService.garminRequestIsValid(userAgent, garminClientId)) {
-            LOG.debug("Summaries received: user agent: {}; client id: {}; summariesRequestDTO keys: {}", userAgent, StringUtils.anonymize(garminClientId), requestBody.keySet());
-            garminService.storeData(requestBody);
+            try {
+                LOG.info("Summaries received: user agent: {}; client id: {}; summariesRequestDTO keys: {}", userAgent, StringUtils.anonymize(garminClientId), requestBody.keySet());
+                Map<GarminSummaryType, List<GarminDataPoint>> requestDataPoints =
+                        requestBody.entrySet()
+                                .stream()
+                                .collect(Collectors.toMap(
+                                        entry -> GarminSummaryType.fromLabel(entry.getKey()),
+                                        entry -> ((List<?>) entry.getValue()).stream()
+                                                .map(item -> MapperUtils.convertValue(item, GarminDataPoint.class))
+                                                .collect(Collectors.toList())
+                                ));
+                garminService.storeData(requestDataPoints);
+            } catch (ClassCastException e) {
+                LOG.error("Exception casting Map<String, Object> to GarminDataPoints", e);
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            }
         } else {
             LOG.warn("Invalid Garmin request: user agent: {}; client id: {}; summariesRequestDTO keys: {}", userAgent, StringUtils.anonymize(garminClientId), requestBody.keySet());
         }

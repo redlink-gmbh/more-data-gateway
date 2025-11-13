@@ -1,7 +1,7 @@
 package io.redlink.more.data.service;
 
-import io.redlink.more.data.api.app.v1.model.GarminDataPointDTO;
 import io.redlink.more.data.configuration.GarminConfiguration;
+import io.redlink.more.data.custom.model.GarminDataPoint;
 import io.redlink.more.data.event.ParticipantUpdateEvent;
 import io.redlink.more.data.garmin.wellness.ApiClient;
 import io.redlink.more.data.garmin.wellness.client.UserApiApi;
@@ -11,6 +11,7 @@ import io.redlink.more.data.model.ParticipantKeyValue;
 import io.redlink.more.data.model.ParticipantWithObservationProperties;
 import io.redlink.more.data.model.RoutingInfo;
 import io.redlink.more.data.model.garmin.GarminAuthenticationValues;
+import io.redlink.more.data.model.garmin.GarminSummaryType;
 import io.redlink.more.data.model.garmin.GarminUserAccessToken;
 import io.redlink.more.data.model.garmin.ParticipantGarminDataPoint;
 import io.redlink.more.data.model.garmin.UserAccessTokenWithData;
@@ -206,14 +207,14 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
         return userAgent != null && userAgent.equalsIgnoreCase("Garmin Health API") && cliendId != null && garminConfiguration.clientIdsMatch(cliendId);
     }
 
-    public void storeData(Map<String, List<GarminDataPointDTO>> data) {
-        if (data == null || data.isEmpty() || !data.containsKey(DAILIES_SUMMARY_KEY)) {
+    public void storeData(Map<GarminSummaryType, List<GarminDataPoint>> data) {
+        if (data == null || data.isEmpty() || !data.containsKey(GarminSummaryType.DAILIES)) {
             return;
         }
-        var dailiesData = data.get("dailies");
+        var dailiesData = data.get(GarminSummaryType.DAILIES);
         List<ParticipantGarminDataPoint> participantWithData = participantsForUserIds(dailiesData);
 
-        transformationService.transformData(DAILIES_SUMMARY_KEY, participantWithData).forEach((key, value) -> elasticService.storeDataPoints(value, key));
+        transformationService.transformData(GarminSummaryType.DAILIES, participantWithData).forEach((key, value) -> elasticService.storeDataPoints(value, key));
     }
 
     private void storeGarminUserId(Long studyId, int participantId) {
@@ -379,9 +380,9 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
     }
 
 
-    private List<ParticipantGarminDataPoint> participantsForUserIds(List<GarminDataPointDTO> dataPoints) {
+    private List<ParticipantGarminDataPoint> participantsForUserIds(List<GarminDataPoint> dataPoints) {
         return dataPoints.stream()
-                .map(GarminDataPointDTO::getUserId)
+                .map(GarminDataPoint::getUserId)
                 .distinct()
                 .flatMap(userId -> {
                     try {

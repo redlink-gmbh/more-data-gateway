@@ -1,11 +1,12 @@
 package io.redlink.more.data.service;
 
-import io.redlink.more.data.api.app.v1.model.GarminDataPointDTO;
+import io.redlink.more.data.custom.model.GarminDataPoint;
 import io.redlink.more.data.model.DataPoint;
 import io.redlink.more.data.model.DataType;
 import io.redlink.more.data.model.Observation;
 import io.redlink.more.data.model.ParticipantKeyValue;
 import io.redlink.more.data.model.RoutingInfo;
+import io.redlink.more.data.model.garmin.GarminSummaryType;
 import io.redlink.more.data.model.garmin.GarminTimeData;
 import io.redlink.more.data.model.garmin.ParticipantGarminDataPoint;
 import io.redlink.more.data.repository.StudyRepository;
@@ -29,7 +30,7 @@ public class GarminDataTransformationService {
         this.studyRepository = studyRepository;
     }
 
-    public Map<RoutingInfo, List<DataPoint>> transformData(String summaryType, List<ParticipantGarminDataPoint> participantGarminDataPoints) {
+    public Map<RoutingInfo, List<DataPoint>> transformData(GarminSummaryType summaryType, List<ParticipantGarminDataPoint> participantGarminDataPoints) {
         return participantGarminDataPoints
                 .stream()
                 .map(participantGarminDataPoint -> {
@@ -54,26 +55,29 @@ public class GarminDataTransformationService {
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
-    private List<DataPoint> createDataPointFromGarminData(String observationId, String observationType, String summaryType, GarminDataPointDTO garminDataPointDTO) {
+    private List<DataPoint> createDataPointFromGarminData(String observationId, String observationType, GarminSummaryType summaryType, GarminDataPoint garminDataPoint) {
         ArrayList<DataPoint> result = new ArrayList<>();
-        Instant unixTimestamp = Instant.ofEpochSecond(garminDataPointDTO.getStartTimeInSeconds());
+        Instant unixTimestamp = Instant.ofEpochSecond(garminDataPoint.getStartTimeInSeconds());
 
-        ZoneOffset offset = ZoneOffset.ofTotalSeconds(garminDataPointDTO.getStartTimeOffsetInSeconds());
+        ZoneOffset offset = ZoneOffset.ofTotalSeconds(garminDataPoint.getStartTimeOffsetInSeconds());
 
         OffsetDateTime dateTimeWithOffset = unixTimestamp.atOffset(offset);
 
-        if (summaryType.equalsIgnoreCase("dailies") && garminDataPointDTO.getTimeOffsetHeartRateSamples() != null && !garminDataPointDTO.getTimeOffsetHeartRateSamples().isEmpty()) {
-            result.addAll(dailyGarminHeartRateSampling(observationId, observationType, dateTimeWithOffset, garminDataPointDTO));
+        if (summaryType == GarminSummaryType.DAILIES) {
+            result.addAll(dailyGarminHeartRateSampling(observationId, observationType, dateTimeWithOffset, garminDataPoint));
         }
 
         return result;
     }
 
-    private List<DataPoint> dailyGarminHeartRateSampling(String observationId, String observationType, OffsetDateTime offsetDateTime, GarminDataPointDTO garminDataPointDTO) {
-        return extractHrDataWithThreshold(offsetDateTime, garminDataPointDTO.getTimeOffsetHeartRateSamples())
-                .stream()
-                .map(data -> transformGarminTimeDataToDataPoint(observationId, observationType, garminDataPointDTO.getSummaryId(), DataType.HEARTRATE, data))
-                .toList();
+    private List<DataPoint> dailyGarminHeartRateSampling(String observationId, String observationType, OffsetDateTime offsetDateTime, GarminDataPoint garminDataPoint) {
+        if (garminDataPoint.getTimeOffsetHeartRateSamples() != null && !garminDataPoint.getTimeOffsetHeartRateSamples().isEmpty()) {
+            return extractHrDataWithThreshold(offsetDateTime, garminDataPoint.getTimeOffsetHeartRateSamples())
+                    .stream()
+                    .map(data -> transformGarminTimeDataToDataPoint(observationId, observationType, garminDataPoint.getSummaryId(), DataType.HEARTRATE, data))
+                    .toList();
+        }
+        return Collections.emptyList();
     }
 
 
