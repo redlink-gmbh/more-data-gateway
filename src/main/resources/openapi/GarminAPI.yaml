@@ -156,26 +156,20 @@ components:
           type: integer
           format: int64
           description: Timestamp of when the permissions changed
-          default: 0
-      required:
-        - userId
-        - summaryId
-
-
     SummariesRequest:
       type: object
       additionalProperties:
         type: array
         items:
-          allOf:
-            - type: object
-              additionalProperties: true
+          type: object
+          additionalProperties:
+            type: object
       description: |
         Dynamic object where each property is an array of summary data.
         Property names can be: dailies, epochs, hrv, sleeps, pulseox, stressDetails, or any other summary type.
         Each item in the array must contain userId and can have any additional properties.
 
-    # Summary models for validation
+    # Garmin Summary Models for future development
     DailySummariesRequest:
       type: object
       properties:

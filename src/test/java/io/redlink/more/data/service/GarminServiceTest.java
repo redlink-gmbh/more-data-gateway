@@ -150,5 +150,4 @@ class GarminServiceTest {
         boolean resultAllOk = garminService.deleteUserIdAndToken(userId);
         assertThat(resultAllOk).isTrue();
     }
-
 }
