@@ -74,7 +74,7 @@ public class GarminDataTransformationService {
         if (garminDataPoint.getTimeOffsetHeartRateSamples() != null && !garminDataPoint.getTimeOffsetHeartRateSamples().isEmpty()) {
             return extractHrDataWithThreshold(offsetDateTime, garminDataPoint.getTimeOffsetHeartRateSamples())
                     .stream()
-                    .map(data -> transformGarminTimeDataToDataPoint(observationId, observationType, garminDataPoint.getSummaryId(), DataType.HEARTRATE, data))
+                    .map(data -> transformGarminTimeDataToDataPoint(observationId, observationType, garminDataPoint.getSummaryId() + "_" + data.timestamp().toEpochMilli(), DataType.HEARTRATE, data))
                     .toList();
         }
         return Collections.emptyList();
