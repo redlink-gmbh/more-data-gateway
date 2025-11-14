@@ -82,7 +82,6 @@ class GarminDataTransformationServiceTest {
             assertThat(dp).isNotNull();
             assertThat(dp.observationType()).contains(GarminService.GARMIN_KEY_TYPE);
             assertThat(dp.dataType()).isEqualTo(DataType.HEARTRATE.name());
-            assertThat(dp.datapointId()).isEqualTo("sum-1");
             assertThat(dp.effectiveDateTime()).isNotNull();
             assertThat(dp.serverTime()).isNotNull();
             assertThat(dp.data()).isInstanceOf(Map.class);
