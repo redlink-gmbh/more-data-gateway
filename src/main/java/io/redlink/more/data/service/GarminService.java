@@ -31,6 +31,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.net.URI;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -238,11 +239,16 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
     }
 
     private List<String> getPermissions() {
-        LOG.debug("Requesting Garmin user permissions via UserControllerApi");
-        var response = userControllerApi.gETUSERPERMISSIONS();
-        List<String> permissions = response.getPermissions();
-        LOG.debug("Received Garmin permissions count={}", permissions != null ? permissions.size() : 0);
-        return permissions;
+        try {
+            LOG.debug("Requesting Garmin user permissions via UserControllerApi");
+            var response = userControllerApi.gETUSERPERMISSIONS();
+            List<String> permissions = response.getPermissions();
+            LOG.debug("Received Garmin permissions count={}", permissions != null ? permissions.size() : 0);
+            return permissions;
+        } catch (Exception e) {
+            LOG.error("Could not get Garmin user permissions via UserControllerApi", e);
+            return Collections.emptyList();
+        }
     }
 
     private List<ParticipantKeyValue> participantForGarminUserId(String garminUserId) {
