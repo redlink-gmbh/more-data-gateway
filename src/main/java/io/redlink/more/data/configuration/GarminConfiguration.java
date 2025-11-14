@@ -16,7 +16,7 @@ public class GarminConfiguration {
         this.garminProperties = garminProperties;
     }
 
-    public URI basicOAuthUri() {
+    public URI basicOAuthUri(String redirectUri) {
         if (garminProperties.oauth() == null || garminProperties.oauth().garminOauthUrl() == null || garminProperties.oauth().garminOauthUrl().isEmpty()) {
             throw new IllegalStateException("Missing Garmin OAuth URL");
         }
@@ -27,7 +27,7 @@ public class GarminConfiguration {
                 + "?client_id=" + garminProperties.oauth().clientId()
                 + "&response_type=code";
         if (garminProperties.oauth().garminCallbackRedirectUri() != null && !garminProperties.oauth().garminCallbackRedirectUri().isEmpty()) {
-            baseUri += "&redirect_uri=" + garminProperties.oauth().garminCallbackRedirectUri();
+            baseUri += "&redirect_uri=" + (redirectUri != null ? redirectUri : garminProperties.oauth().garminCallbackRedirectUri());
         }
         return URI.create(baseUri);
     }

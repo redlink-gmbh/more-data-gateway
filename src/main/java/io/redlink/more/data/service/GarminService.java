@@ -82,7 +82,7 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
             return garminConfiguration.getRedirectUri();
         }
 
-        URI baseUri = garminConfiguration.basicOAuthUri();
+        URI baseUri = garminConfiguration.basicOAuthUri(requestUrl);
 
         String codeVerifier = GarminUtils.createCodeVerifier();
         String state = GarminUtils.garminOAuthState();

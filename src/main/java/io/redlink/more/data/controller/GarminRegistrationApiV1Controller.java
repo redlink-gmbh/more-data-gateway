@@ -49,7 +49,7 @@ public class GarminRegistrationApiV1Controller implements GarminRegistrationApi 
         }
 
         LOG.info("Generating Garmin OAuth URL for studyId={}, participantId={}", userDetails.getRoutingInfo().studyId(), userDetails.getRoutingInfo().participantId());
-        String redirectUrl = garminService.getSsoUrl(userDetails.getRoutingInfo(), baseUrl);
+        String redirectUrl = garminService.getSsoUrl(userDetails.getRoutingInfo(), baseUrl + "/callback");
         LOG.debug("Redirecting to Garmin OAuth URL: {}", redirectUrl);
         return ResponseEntity.status(HttpStatus.FOUND)
                 .header(HttpHeaders.LOCATION, redirectUrl)
