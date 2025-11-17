@@ -150,8 +150,8 @@ public class StudyRepository {
 
     private static final String GET_ALL_PARTICIPANT_OBSERVATION_PROPERTIES_BY_OBSERVATION_TYPE =
             """
-                    SELECT p.*
-                    FROM participant_observation_properties AS p
+                    SELECT pop.*
+                    FROM participant_observation_properties AS pop
                     JOIN observations AS o
                       ON o.observation_id = p.observation_id
                     WHERE o.observation_type = :observation_type""";

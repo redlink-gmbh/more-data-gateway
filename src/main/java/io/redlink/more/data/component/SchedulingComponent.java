@@ -2,9 +2,10 @@ package io.redlink.more.data.component;
 
 import io.redlink.more.data.properties.GarminProperties;
 import io.redlink.more.data.service.GarminService;
-import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
 
@@ -24,7 +25,7 @@ public class SchedulingComponent {
         this.garminProperties = garminProperties;
     }
 
-    @PostConstruct
+    @EventListener(ApplicationReadyEvent.class)
     protected void initTokenRefresh() {
         LOG.info("Initializing Garmin token refresh task (cron: {})", garminProperties.tokenRefresh());
         scheduler.schedule(this::refreshAllGarminTokens, garminProperties.tokenRefresh());

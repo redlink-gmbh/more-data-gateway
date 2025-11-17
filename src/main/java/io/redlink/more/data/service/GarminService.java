@@ -309,11 +309,11 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
 
     // The User access tokens are being accessed and the participants are being grouped by the accessToken, as one access token can be applied to multiple participants
     private Map<UserAccessTokenWithData, List<ParticipantWithObservationProperties>> getAllGarminParticipants() {
-        var participants = studyRepository.getParticipantObservationPropertiesByObservationType(GARMIN_OBSERVATION_TYPE);
-        return participants.stream()
-                .map(p -> Map.entry(p, getUserAccessData(p)))
-                .filter(e -> e.getValue().isPresent())
-                .map(e -> Map.entry(e.getValue().get(), e.getKey()))
+        var participantWithObservationProperties = studyRepository.getParticipantObservationPropertiesByObservationType(GARMIN_OBSERVATION_TYPE);
+        return participantWithObservationProperties.stream()
+                .map(pop -> Map.entry(pop, getUserAccessData(pop)))
+                .filter(entry -> entry.getValue().isPresent())
+                .map(entry -> Map.entry(entry.getValue().get(), entry.getKey()))
                 .collect(Collectors.groupingBy(
                         Map.Entry::getKey,
                         Collectors.mapping(Map.Entry::getValue, Collectors.toList())
