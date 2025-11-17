@@ -1,6 +1,7 @@
 package io.redlink.more.data.service;
 
 import io.redlink.more.data.configuration.GarminConfiguration;
+import io.redlink.more.data.custom.model.GarminDataPoint;
 import io.redlink.more.data.event.ParticipantUpdateEvent;
 import io.redlink.more.data.garmin.wellness.ApiClient;
 import io.redlink.more.data.garmin.wellness.client.UserApiApi;
@@ -10,7 +11,9 @@ import io.redlink.more.data.model.ParticipantKeyValue;
 import io.redlink.more.data.model.ParticipantWithObservationProperties;
 import io.redlink.more.data.model.RoutingInfo;
 import io.redlink.more.data.model.garmin.GarminAuthenticationValues;
+import io.redlink.more.data.model.garmin.GarminSummaryType;
 import io.redlink.more.data.model.garmin.GarminUserAccessToken;
+import io.redlink.more.data.model.garmin.ParticipantGarminDataPoint;
 import io.redlink.more.data.model.garmin.UserAccessTokenWithData;
 import io.redlink.more.data.repository.ParticipantKeyValueRepository;
 import io.redlink.more.data.repository.StudyRepository;
@@ -28,9 +31,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.net.URI;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 @Service
 public class GarminService implements ApplicationListener<ParticipantUpdateEvent> {
@@ -39,20 +44,26 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
     public final static String USER_ACCESS_TOKEN_KEY = "userAccessToken";
     private final static String USER_ID_TYPE_KEY = "keyType";
     private final static String USER_PERMISSIONS_KEY = "permissions";
-    private final static String GARMIN_KEY_TYPE = "garmin";
+    final static String GARMIN_KEY_TYPE = "garmin";
+    private final static String DAILIES_SUMMARY_KEY = "dailies";
     private final GarminConfiguration garminConfiguration;
     private final RestTemplate restTemplate;
     private final StudyRepository studyRepository;
     private final ParticipantKeyValueRepository participantKeyValueRepository;
+    private final ElasticService elasticService;
 
     private final UserApiApi userApi;
     private final UserControllerApi userControllerApi;
 
-    public GarminService(GarminConfiguration garminConfiguration, StudyRepository studyRepository, ParticipantKeyValueRepository participantKeyValueRepository, UserApiApi userApi, UserControllerApi userControllerApi) {
+    private final GarminDataTransformationService transformationService;
+
+    public GarminService(GarminConfiguration garminConfiguration, StudyRepository studyRepository, ParticipantKeyValueRepository participantKeyValueRepository, ElasticService elasticService, UserApiApi userApi, UserControllerApi userControllerApi, GarminDataTransformationService transformationService) {
         this.garminConfiguration = garminConfiguration;
         this.studyRepository = studyRepository;
         this.participantKeyValueRepository = participantKeyValueRepository;
+        this.elasticService = elasticService;
         this.userControllerApi = userControllerApi;
+        this.transformationService = transformationService;
         this.restTemplate = new RestTemplate();
         this.userApi = userApi;
     }
@@ -62,7 +73,7 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
         List<Observation> observations = studyRepository.filterObservations(
                 routingInfo,
                 true,
-                observation -> observation.type().toLowerCase().contains("garmin"));
+                observation -> observation.type().toLowerCase().contains(GARMIN_KEY_TYPE));
         if (observations.isEmpty()) {
             throw new IllegalStateException("No Garmin Observations found for " + routingInfo.participantId());
         }
@@ -72,7 +83,7 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
             return garminConfiguration.getRedirectUri();
         }
 
-        URI baseUri = garminConfiguration.basicOAuthUri();
+        URI baseUri = garminConfiguration.basicOAuthUri(requestUrl);
 
         String codeVerifier = GarminUtils.createCodeVerifier();
         String state = GarminUtils.garminOAuthState();
@@ -193,6 +204,20 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
         }
     }
 
+    public boolean garminRequestIsValid(String userAgent, String cliendId) {
+        return userAgent != null && userAgent.equalsIgnoreCase("Garmin Health API") && cliendId != null && garminConfiguration.clientIdsMatch(cliendId);
+    }
+
+    public void storeData(Map<GarminSummaryType, List<GarminDataPoint>> data) {
+        if (data == null || data.isEmpty() || !data.containsKey(GarminSummaryType.DAILIES)) {
+            return;
+        }
+        var dailiesData = data.get(GarminSummaryType.DAILIES);
+        List<ParticipantGarminDataPoint> participantWithData = participantsForUserIds(dailiesData);
+
+        transformationService.transformData(GarminSummaryType.DAILIES, participantWithData).forEach((key, value) -> elasticService.storeDataPoints(value, key));
+    }
+
     private void storeGarminUserId(Long studyId, int participantId) {
         var userId = getUserId();
         if (userId.isEmpty()) {
@@ -214,11 +239,16 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
     }
 
     private List<String> getPermissions() {
-        LOG.debug("Requesting Garmin user permissions via UserControllerApi");
-        var response = userControllerApi.gETUSERPERMISSIONS();
-        List<String> permissions = response.getPermissions();
-        LOG.debug("Received Garmin permissions count={}", permissions != null ? permissions.size() : 0);
-        return permissions;
+        try {
+            LOG.debug("Requesting Garmin user permissions via UserControllerApi");
+            var response = userControllerApi.gETUSERPERMISSIONS();
+            List<String> permissions = response.getPermissions();
+            LOG.debug("Received Garmin permissions count={}", permissions != null ? permissions.size() : 0);
+            return permissions;
+        } catch (Exception e) {
+            LOG.error("Could not get Garmin user permissions via UserControllerApi", e);
+            return Collections.emptyList();
+        }
     }
 
     private List<ParticipantKeyValue> participantForGarminUserId(String garminUserId) {
@@ -392,7 +422,7 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
         List<Observation> observations = studyRepository.filterObservations(
                 studyId,
                 participantId,
-                observation -> observation.type().toLowerCase().contains("garmin"));
+                observation -> observation.type().toLowerCase().contains(GARMIN_KEY_TYPE));
         if (observations.isEmpty()) {
             return true;
         }
@@ -411,6 +441,29 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
                 StringUtils.capitalize(userAccessTokenWithData.accessToken().tokenType()) + " " + userAccessTokenWithData.accessToken().accessToken()
         );
     }
+
+
+    private List<ParticipantGarminDataPoint> participantsForUserIds(List<GarminDataPoint> dataPoints) {
+        return dataPoints.stream()
+                .map(GarminDataPoint::getUserId)
+                .distinct()
+                .flatMap(userId -> {
+                    try {
+                        return participantForGarminUserId(userId).stream();
+                    } catch (EmptyResultDataAccessException e) {
+                        LOG.warn("No participant found for Garmin userId={}", userId);
+                        return Stream.empty();
+                    }
+                })
+                .map(participantKeyValue ->
+                        new ParticipantGarminDataPoint(
+                                participantKeyValue,
+                                dataPoints.stream()
+                                        .filter(dp -> dp.getUserId().equals(participantKeyValue.key()))
+                                        .toList()))
+                .toList();
+    }
+
 
     @Override
     public void onApplicationEvent(ParticipantUpdateEvent event) {

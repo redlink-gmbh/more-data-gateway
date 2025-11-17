@@ -24,4 +24,8 @@ public class MapperUtils {
             throw new BadRequestException(e.getMessage());
         }
     }
+
+    public static <T> T convertValue(Object o, Class<T> c) {
+        return MAPPER.convertValue(o, c);
+    }
 }

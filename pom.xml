@@ -352,6 +352,7 @@
                             <output>${project.build.directory}/generated-sources/app</output>
                             <apiPackage>io.redlink.more.data.api.app.v1.webservices</apiPackage>
                             <modelPackage>io.redlink.more.data.api.app.v1.model</modelPackage>
+                            <modelNameSuffix>DTO</modelNameSuffix>
                         </configuration>
                     </execution>
                     <execution>
@@ -364,6 +365,7 @@
                             <output>${project.build.directory}/generated-sources/external</output>
                             <apiPackage>io.redlink.more.data.api.app.v1.webservices</apiPackage>
                             <modelPackage>io.redlink.more.data.api.app.v1.model</modelPackage>
+                            <modelNameSuffix>DTO</modelNameSuffix>
                         </configuration>
                     </execution>
                     <execution>
@@ -376,6 +378,16 @@
                             <output>${project.build.directory}/generated-sources/garmin</output>
                             <apiPackage>io.redlink.more.data.api.app.v1.webservices</apiPackage>
                             <modelPackage>io.redlink.more.data.api.app.v1.model</modelPackage>
+                            <modelNameSuffix>DTO</modelNameSuffix>
+
+                            <configOptions>
+                              <modelMutable>true</modelMutable>
+                              <useBeanValidation>false</useBeanValidation>
+                              <openApiNullable>false</openApiNullable>
+                              <additionalModelTypeAnnotations>
+                                @com.fasterxml.jackson.annotation.JsonIgnoreProperties(ignoreUnknown = true)
+                              </additionalModelTypeAnnotations>
+                            </configOptions>
                         </configuration>
                     </execution>
                     <execution>
@@ -393,6 +405,8 @@
                             <modelPackage>io.redlink.more.data.garmin.wellness.model</modelPackage>
                             <generateSupportingFiles>true</generateSupportingFiles>
                             <addCompileSourceRoot>true</addCompileSourceRoot>
+                             <modelNameSuffix>DTO</modelNameSuffix>
+
                             <configOptions>
                                 <dateLibrary>java8</dateLibrary>
                                 <useJakartaEe>true</useJakartaEe>
@@ -402,7 +416,37 @@
                             </configOptions>
                         </configuration>
                     </execution>
-                </executions>
+                    <execution>
+                        <id>custom-model-api</id>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                        <configuration>
+                            <inputSpec>${project.basedir}/src/main/resources/openapi/CustomModelAPI.yaml</inputSpec>
+                            <output>${project.build.directory}/generated-sources/custom-model</output>
+                            <generatorName>java</generatorName>
+                            <library>resttemplate</library>
+                            <packageName>io.redlink.more.data.custom</packageName>
+                            <apiPackage>io.redlink.more.data.custom.client</apiPackage>
+                            <modelPackage>io.redlink.more.data.custom.model</modelPackage>
+                            <generateSupportingFiles>true</generateSupportingFiles>
+                            <addCompileSourceRoot>true</addCompileSourceRoot>
+                            <configOptions>
+                                <dateLibrary>java8</dateLibrary>
+                                <useJakartaEe>true</useJakartaEe>
+                                <serializationLibrary>jackson</serializationLibrary>
+                                <removeOperationIdPrefix>true</removeOperationIdPrefix>
+                                <modelMutable>true</modelMutable>
+                              <useBeanValidation>false</useBeanValidation>
+                              <openApiNullable>false</openApiNullable>
+                              <additionalModelTypeAnnotations>
+                                @com.fasterxml.jackson.annotation.JsonIgnoreProperties(ignoreUnknown = true)
+                              </additionalModelTypeAnnotations>
+
+                            </configOptions>
+                        </configuration>
+                    </execution>
+                 </executions>
                 <configuration>
                     <generatorName>spring</generatorName>
                     <library>spring-boot</library>
@@ -414,7 +458,6 @@
 
                     <generateModels>true</generateModels>
                     <apiPackage>io.redlink.more.data.api.app.v1.model</apiPackage>
-                    <modelNameSuffix>DTO</modelNameSuffix>
 
                     <generateApiTests>false</generateApiTests>
                     <generateApiDocumentation>true</generateApiDocumentation>

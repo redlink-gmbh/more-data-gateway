@@ -76,7 +76,7 @@ class GarminServiceTest {
         given(studyRepository.filterObservations(eq(routingInfo), eq(true), any())).willReturn(List.of(garminObs));
         given(studyRepository.getParticipantObservationPropertiesByKeyExists(anyLong(), anyInt(), anyString())).willReturn(List.of());
 
-        given(garminConfiguration.basicOAuthUri()).willReturn(URI.create("https://diauth.garmin.test/oauth?client_id=abc&response_type=code"));
+        given(garminConfiguration.basicOAuthUri("https://app.example/request")).willReturn(URI.create("https://diauth.garmin.test/oauth?client_id=abc&response_type=code&redirect_uri=https://app.example/redirect"));
 
         String url = garminService.getSsoUrl(routingInfo, "https://app.example/request");
 
@@ -150,5 +150,4 @@ class GarminServiceTest {
         boolean resultAllOk = garminService.deleteUserIdAndToken(userId);
         assertThat(resultAllOk).isTrue();
     }
-
 }
