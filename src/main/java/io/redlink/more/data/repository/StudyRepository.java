@@ -6,7 +6,7 @@ package io.redlink.more.data.repository;
 import io.redlink.more.data.model.*;
 import io.redlink.more.data.model.scheduler.ScheduleEvent;
 import io.redlink.more.data.schedule.SchedulerUtils;
-import io.redlink.more.data.service.GarminService;
+import io.redlink.more.data.service.garmin.GarminService;
 import io.redlink.more.data.util.MapperUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.dao.DataAccessException;

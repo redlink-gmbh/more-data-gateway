@@ -5,7 +5,7 @@ import io.redlink.more.data.api.app.v1.model.UpdatePermissionsRequestDTO;
 import io.redlink.more.data.api.app.v1.webservices.GarminUserManagementApi;
 import io.redlink.more.data.custom.model.GarminDataPoint;
 import io.redlink.more.data.model.garmin.GarminSummaryType;
-import io.redlink.more.data.service.GarminService;
+import io.redlink.more.data.service.garmin.GarminService;
 import io.redlink.more.data.util.MapperUtils;
 import io.redlink.more.data.util.StringUtils;
 import org.slf4j.Logger;
