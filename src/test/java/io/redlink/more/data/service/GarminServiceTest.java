@@ -1,12 +1,12 @@
 package io.redlink.more.data.service;
 
-import io.redlink.more.data.configuration.GarminConfiguration;
 import io.redlink.more.data.model.Observation;
 import io.redlink.more.data.model.ParticipantKeyValue;
 import io.redlink.more.data.model.ParticipantWithObservationProperties;
 import io.redlink.more.data.model.RoutingInfo;
 import io.redlink.more.data.model.garmin.GarminUserAccessToken;
 import io.redlink.more.data.model.garmin.UserAccessTokenWithData;
+import io.redlink.more.data.properties.GarminProperties;
 import io.redlink.more.data.repository.ParticipantKeyValueRepository;
 import io.redlink.more.data.repository.StudyRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,6 +18,7 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.lang.reflect.Method;
 import java.net.URI;
 import java.time.Instant;
 import java.util.List;
@@ -33,7 +34,7 @@ import static org.mockito.Mockito.*;
 class GarminServiceTest {
 
     @Mock
-    private GarminConfiguration garminConfiguration;
+    private GarminProperties garminProperties;
     @Mock
     private StudyRepository studyRepository;
     @Mock
@@ -61,7 +62,7 @@ class GarminServiceTest {
         given(studyRepository.getParticipantObservationPropertiesByKeyExists(routingInfo.studyId(), routingInfo.participantId(), GarminService.USER_ACCESS_TOKEN_KEY))
                 .willReturn(List.of(pwo));
 
-        given(garminConfiguration.getRedirectUri()).willReturn("https://app.example/redirect");
+        given(garminProperties.getRedirectUri()).willReturn("https://app.example/redirect");
 
         String url = garminService.getSsoUrl(routingInfo, "https://app.example/request");
 
@@ -76,7 +77,7 @@ class GarminServiceTest {
         given(studyRepository.filterObservations(eq(routingInfo), eq(true), any())).willReturn(List.of(garminObs));
         given(studyRepository.getParticipantObservationPropertiesByKeyExists(anyLong(), anyInt(), anyString())).willReturn(List.of());
 
-        given(garminConfiguration.basicOAuthUri("https://app.example/request")).willReturn(URI.create("https://diauth.garmin.test/oauth?client_id=abc&response_type=code&redirect_uri=https://app.example/redirect"));
+        given(garminProperties.basicOAuthUri("https://app.example/request")).willReturn(URI.create("https://diauth.garmin.test/oauth?client_id=abc&response_type=code&redirect_uri=https://app.example/redirect"));
 
         String url = garminService.getSsoUrl(routingInfo, "https://app.example/request");
 
@@ -149,5 +150,56 @@ class GarminServiceTest {
 
         boolean resultAllOk = garminService.deleteUserIdAndToken(userId);
         assertThat(resultAllOk).isTrue();
+    }
+
+    @Test
+    @DisplayName("getAllGarminParticipants: groups participants by UserAccessTokenWithData")
+    void getAllGarminParticipants_groupsParticipantsByUserAccessToken() throws Exception {
+        Observation garminObs = new Observation(100, 1, "Garmin", "garmin", null, null, null,
+                Instant.now(), Instant.now(), false, false);
+
+        UserAccessTokenWithData token1 =
+                UserAccessTokenWithData.createNewFrom(new GarminUserAccessToken("at1", "rt1", "bearer", 3600, "scope", 7200));
+        Map<String, Object> props1 = Map.of(GarminService.USER_ACCESS_TOKEN_KEY, token1.toMap());
+
+        ParticipantWithObservationProperties p1 =
+                new ParticipantWithObservationProperties(10, 1L, garminObs.observationId(), props1);
+        ParticipantWithObservationProperties p2 =
+                new ParticipantWithObservationProperties(11, 1L, garminObs.observationId(), props1);
+
+        UserAccessTokenWithData token2 =
+                UserAccessTokenWithData.createNewFrom(new GarminUserAccessToken("at2", "rt2", "bearer", 3600, "scope", 7200));
+        Map<String, Object> props2 = Map.of(GarminService.USER_ACCESS_TOKEN_KEY, token2.toMap());
+
+        ParticipantWithObservationProperties p3 =
+                new ParticipantWithObservationProperties(12, 1L, garminObs.observationId(), props2);
+
+        given(studyRepository.getParticipantObservationPropertiesByObservationType(anyString()))
+                .willReturn(List.of(p1, p2, p3));
+
+        Method method = GarminService.class.getDeclaredMethod("getAllGarminParticipants");
+        method.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        Map<UserAccessTokenWithData, List<ParticipantWithObservationProperties>> result =
+                (Map<UserAccessTokenWithData, List<ParticipantWithObservationProperties>>) method.invoke(garminService);
+
+        assertThat(result).hasSize(2);
+        assertThat(result.values())
+                .anySatisfy(list -> assertThat(list).containsExactlyInAnyOrder(p1, p2))
+                .anySatisfy(list -> assertThat(list).containsExactlyInAnyOrder(p3));
+
+        verify(studyRepository).getParticipantObservationPropertiesByObservationType(anyString());
+    }
+
+    @Test
+    @DisplayName("refreshAllTokens: completes without error when there are no Garmin participants")
+    void refreshAllTokens_doesNothingWhenNoParticipants() {
+        given(studyRepository.getParticipantObservationPropertiesByObservationType(anyString()))
+                .willReturn(List.of());
+
+        garminService.refreshAllTokens();
+
+        verify(studyRepository).getParticipantObservationPropertiesByObservationType(anyString());
+        verifyNoInteractions(participantKeyValueRepository);
     }
 }
