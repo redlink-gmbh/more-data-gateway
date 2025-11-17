@@ -148,6 +148,14 @@ public class StudyRepository {
     private static final String GET_PARTICIPANT_OBSERVATION_PROPERTIES_BY_KEY_EXISTS =
             "SELECT * FROM participant_observation_properties WHERE participant_id = :participant_id AND study_id = :study_id AND properties ?? :key";
 
+    private static final String GET_ALL_PARTICIPANT_OBSERVATION_PROPERTIES_BY_OBSERVATION_TYPE =
+            """
+                    SELECT p.*
+                    FROM participant_observation_properties AS p
+                    JOIN observations AS o
+                      ON o.observation_id = p.observation_id
+                    WHERE o.observation_type = :observation_type""";
+
     private final JdbcTemplate jdbcTemplate;
     private final NamedParameterJdbcTemplate namedTemplate;
 
@@ -372,6 +380,21 @@ public class StudyRepository {
         }
     }
 
+    public List<ParticipantWithObservationProperties> getParticipantObservationPropertiesByObservationType(String observationType) {
+        try {
+            var params = new MapSqlParameterSource()
+                    .addValue("observation_type", observationType);
+
+            return namedTemplate.query(
+                    GET_ALL_PARTICIPANT_OBSERVATION_PROPERTIES_BY_OBSERVATION_TYPE,
+                    params,
+                    getParticipantWithObservationPropertiesMapper()
+            );
+        } catch (EmptyResultDataAccessException e) {
+            return Collections.emptyList();
+        }
+    }
+
     private static RowMapper<Object> getParticipantObservationPropertiesRowMapper() {
         return (rs, rowNum) -> DbUtils.readObject(rs, "properties");
     }
@@ -515,6 +538,15 @@ public class StudyRepository {
                         row.getBoolean("study_active"),
                         row.getBoolean("participant_active")
                 )
+        );
+    }
+
+    private static RowMapper<ParticipantWithObservationProperties> getParticipantWithObservationPropertiesMapper() {
+        return (row, rowNum) -> new ParticipantWithObservationProperties(
+                row.getInt("participant_id"),
+                row.getLong("study_id"),
+                row.getInt("observation_id"),
+                (Map<String, Object>) MapperUtils.readValue(row.getObject("properties"), Map.class)
         );
     }
 

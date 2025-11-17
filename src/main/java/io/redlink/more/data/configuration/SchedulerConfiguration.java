@@ -1,7 +1,7 @@
-package io.redlink.platformng.configuration;
+package io.redlink.more.data.configuration;
 
+import io.redlink.platformng.configuration.SchedulerProperties;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,7 +16,7 @@ public class SchedulerConfiguration {
 
     SchedulerProperties conf;
 
-    SchedulerConfiguration(SchedulerProperties schedulerProperties){
+    SchedulerConfiguration(SchedulerProperties schedulerProperties) {
         this.conf = schedulerProperties;
     }
 
