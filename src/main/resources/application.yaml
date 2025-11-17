@@ -48,4 +48,4 @@ garmin:
     client-secret: ${GARMIN_CLIENT_SECRET:}
     garmin-callback-redirect-uri: ${GARMIN_CALLBACK_REDIRECT_URI:}
     redirect-url: ${REDIRECT_URL:}
-  token-refresh: 0 5 4 * * ? #check for tokens to be updates every day at 04:05
+  token-refresh: 0 5 4 1 * ? #check for tokens to be updates every first of month at 04:05
