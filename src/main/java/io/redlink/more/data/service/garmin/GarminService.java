@@ -1,6 +1,5 @@
 package io.redlink.more.data.service.garmin;
 
-import io.redlink.more.data.configuration.GarminConfiguration;
 import io.redlink.more.data.custom.model.GarminDataPoint;
 import io.redlink.more.data.event.ParticipantUpdateEvent;
 import io.redlink.more.data.garmin.wellness.ApiClient;
@@ -15,6 +14,7 @@ import io.redlink.more.data.model.garmin.GarminSummaryType;
 import io.redlink.more.data.model.garmin.GarminUserAccessToken;
 import io.redlink.more.data.model.garmin.ParticipantGarminDataPoint;
 import io.redlink.more.data.model.garmin.UserAccessTokenWithData;
+import io.redlink.more.data.properties.GarminProperties;
 import io.redlink.more.data.repository.ParticipantKeyValueRepository;
 import io.redlink.more.data.repository.StudyRepository;
 import io.redlink.more.data.service.ElasticService;
@@ -47,8 +47,9 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
     public final static String USER_ACCESS_TOKEN_KEY = "userAccessToken";
     private final static String USER_ID_TYPE_KEY = "keyType";
     private final static String USER_PERMISSIONS_KEY = "permissions";
-    public final static String GARMIN_KEY_TYPE = "garmin";
-    private final GarminConfiguration garminConfiguration;
+    final static String GARMIN_KEY_TYPE = "garmin";
+    private final static String GARMIN_OBSERVATION_TYPE = "garmin-observation";
+    private final GarminProperties garminProperties;
     private final RestTemplate restTemplate;
     private final StudyRepository studyRepository;
     private final ParticipantKeyValueRepository participantKeyValueRepository;
@@ -59,8 +60,8 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
 
     private final GarminDataTransformationService transformationService;
 
-    public GarminService(GarminConfiguration garminConfiguration, StudyRepository studyRepository, ParticipantKeyValueRepository participantKeyValueRepository, ElasticService elasticService, UserApiApi userApi, UserControllerApi userControllerApi, GarminDataTransformationService transformationService) {
-        this.garminConfiguration = garminConfiguration;
+    public GarminService(GarminProperties properties, StudyRepository studyRepository, ParticipantKeyValueRepository participantKeyValueRepository, ElasticService elasticService, UserApiApi userApi, UserControllerApi userControllerApi, GarminDataTransformationService transformationService) {
+        this.garminProperties = properties;
         this.studyRepository = studyRepository;
         this.participantKeyValueRepository = participantKeyValueRepository;
         this.elasticService = elasticService;
@@ -82,10 +83,10 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
 
         if (hasValidUserAccessToken(routingInfo)) {
             LOG.info("Existing valid Garmin access token found for studyId={}, participantId={}", routingInfo.studyId(), routingInfo.participantId());
-            return garminConfiguration.getRedirectUri();
+            return garminProperties.getRedirectUri();
         }
 
-        URI baseUri = garminConfiguration.basicOAuthUri(requestUrl);
+        URI baseUri = garminProperties.basicOAuthUri(requestUrl);
 
         String codeVerifier = GarminUtils.createCodeVerifier();
         String state = GarminUtils.garminOAuthState();
@@ -187,10 +188,12 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
     public void deregisterParticipant(Long studyId, int participantId) {
         LOG.info("Deregistering Garmin for studyId={}, participantId={}", studyId, participantId);
         try {
-            var data = getUserAccessData(studyId, participantId);
-            if (data.isPresent()) {
+            var token = refreshTokenIfNeeded(studyId, participantId);
+            if (token != null) {
+                addAuthorizationHeader(userApi.getApiClient(), token);
+                addAuthorizationHeader(userControllerApi.getApiClient(), token);
                 LOG.debug("Sending deregistration to Garmin for studyId={}, participantId={}", studyId, participantId);
-                sendDeregistration(data.get());
+                sendDeregistration();
                 boolean tokenDeleted = deleteUserAccessToken(studyId, participantId);
                 LOG.debug("Deleted user access token for studyId={}, participantId={}, result={}", studyId, participantId, tokenDeleted);
             }
@@ -207,7 +210,7 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
     }
 
     public boolean garminRequestIsValid(String userAgent, String cliendId) {
-        return userAgent != null && userAgent.equalsIgnoreCase("Garmin Health API") && cliendId != null && garminConfiguration.clientIdsMatch(cliendId);
+        return userAgent != null && userAgent.equalsIgnoreCase("Garmin Health API") && cliendId != null && garminProperties.clientIdsMatch(cliendId);
     }
 
     public void storeData(Map<GarminSummaryType, List<GarminDataPoint>> data) {
@@ -231,6 +234,13 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
                 ))
                 .forEach((key, value) -> elasticService.storeDataPoints(value, key));
 
+    }
+
+    public void refreshAllTokens() {
+        LOG.info("Refreshing Garmin token refresh task");
+        getAllGarminParticipants()
+                .forEach((key, value) ->
+                        refreshTokenIfNeeded(value, key));
     }
 
     private void storeGarminUserId(Long studyId, int participantId) {
@@ -294,9 +304,8 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
         return result;
     }
 
-    private void sendDeregistration(UserAccessTokenWithData userAccessTokenWithData) {
+    private void sendDeregistration() {
         LOG.info("Calling Garmin deregistration endpoint");
-        addAuthorizationHeader(userApi.getApiClient(), userAccessTokenWithData);
         userApi.dEREG();
         LOG.debug("Garmin deregistration call completed");
     }
@@ -308,29 +317,74 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
         LOG.info("Exchanging Garmin OAuth code for access token: studyId={}, participantId={}", participantWithObservationProperties.studyId(), participantWithObservationProperties.participantId());
         var garminAuthValues = GarminAuthenticationValues.fromMap((Map<String, String>) participantWithObservationProperties.properties().get(AUTH_VALUES_KEY));
 
-        HttpEntity<?> entity = getHttpEntity(code, garminAuthValues);
+        HttpEntity<?> entity = getAuthorizationCodeHttpEntity(code, garminAuthValues);
 
+        return requestAccessToken(entity);
+    }
+
+    // The User access tokens are being accessed and the participants are being grouped by the accessToken, as one access token can be applied to multiple participants
+    private Map<UserAccessTokenWithData, List<ParticipantWithObservationProperties>> getAllGarminParticipants() {
+        var participantWithObservationProperties = studyRepository.getParticipantObservationPropertiesByObservationType(GARMIN_OBSERVATION_TYPE);
+        return participantWithObservationProperties.stream()
+                .map(pop -> Map.entry(pop, getUserAccessData(pop)))
+                .filter(entry -> entry.getValue().isPresent())
+                .map(entry -> Map.entry(entry.getValue().get(), entry.getKey()))
+                .collect(Collectors.groupingBy(
+                        Map.Entry::getKey,
+                        Collectors.mapping(Map.Entry::getValue, Collectors.toList())
+                ));
+    }
+
+    private UserAccessTokenWithData refreshUserAccessToken(UserAccessTokenWithData userAccessTokenWithData) {
+        if (userAccessTokenWithData.isAccessTokenExpired()) {
+            if (!userAccessTokenWithData.isRefreshAccessTokenExpired()) {
+                HttpEntity<?> entity = getRefreshTokenHttpEntity(userAccessTokenWithData.accessToken().refreshToken());
+
+                return requestAccessToken(entity)
+                        .map(UserAccessTokenWithData::createNewFrom)
+                        .orElseThrow(() -> new IllegalStateException("Failed to refresh access token"));
+            }
+            throw new IllegalStateException("Access token is not valid and refreshable!");
+        }
+        return userAccessTokenWithData;
+    }
+
+    private Optional<GarminUserAccessToken> requestAccessToken(HttpEntity<?> entity) {
         ResponseEntity<GarminUserAccessToken> response = restTemplate.exchange(
-                garminConfiguration.garminTokenUri(),
+                garminProperties.garminTokenUri(),
                 HttpMethod.POST,
                 entity,
                 GarminUserAccessToken.class
         );
         LOG.debug("Token exchange HTTP status: {}", response.getStatusCode());
 
-        return Optional.ofNullable(response.getBody());
+        if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+            return Optional.ofNullable(response.getBody());
+        }
+        throw new IllegalStateException("Issue requesting access token with status code " + response.getStatusCode());
     }
 
-    private HttpEntity<?> getHttpEntity(String code, GarminAuthenticationValues garminAuthValues) {
+    private HttpEntity<?> getAuthorizationCodeHttpEntity(String code, GarminAuthenticationValues garminAuthValues) {
         String body = "grant_type=authorization_code" +
-                "&redirect_uri=" + garminConfiguration.getRedirectUri() +
+                "&redirect_uri=" + garminProperties.getRedirectUri() +
                 "&code=" + code +
                 "&code_verifier=" + garminAuthValues.challengeCode();
 
+        return createTokenRequestEntity(body);
+    }
+
+    private HttpEntity<?> getRefreshTokenHttpEntity(String refreshToken) {
+        String body = "grant_type=refresh_token" +
+                "&refresh_token=" + refreshToken;
+
+        return createTokenRequestEntity(body);
+    }
+
+    private HttpEntity<?> createTokenRequestEntity(String body) {
         HttpHeaders headers = new HttpHeaders();
         headers.add(HttpHeaders.CONTENT_TYPE, "application/x-www-form-urlencoded");
-        headers.add(HttpHeaders.AUTHORIZATION, garminConfiguration.authorizationHeader());
-        LOG.debug("Prepared token exchange request with redirectUri={} and code_verifier_present=true", garminConfiguration.getRedirectUri());
+        headers.add(HttpHeaders.AUTHORIZATION, garminProperties.authorizationHeader());
+        LOG.debug("Prepared token exchange request with redirectUri={} and code_verifier_present=true", garminProperties.getRedirectUri());
         return new HttpEntity<>(body, headers);
     }
 
@@ -341,7 +395,7 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
 
     private Boolean hasValidUserAccessToken(Long studyId, int participantId) {
         var userAccessData = getUserAccessData(studyId, participantId);
-        return userAccessData.isPresent() && userAccessData.get().isAccessTokenValid();
+        return userAccessData.isPresent() && userAccessData.get().isAccessTokenValidOrRefreshable();
     }
 
     private Optional<UserAccessTokenWithData> getUserAccessData(Long studyId, int participantId) {
@@ -374,6 +428,36 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
                                 map
                         )
                 );
+
+    }
+
+    private UserAccessTokenWithData refreshTokenIfNeeded(Long studyId, int participantId) {
+        var token = getUserAccessData(studyId, participantId);
+        return token.map(this::refreshTokenIfNeeded).orElse(null);
+    }
+
+    private UserAccessTokenWithData refreshTokenIfNeeded(UserAccessTokenWithData token) {
+        var participantWithObservationPropertiesList = studyRepository.getParticipantByGarminAccessToken(token.accessToken().accessToken());
+        return refreshTokenIfNeeded(participantWithObservationPropertiesList, token);
+    }
+
+    private UserAccessTokenWithData refreshTokenIfNeeded(List<ParticipantWithObservationProperties> participantWithObservationPropertiesList, UserAccessTokenWithData token) {
+        if (!participantWithObservationPropertiesList.isEmpty() && token.isAccessTokenExpired() && !token.isRefreshAccessTokenExpired()) {
+            LOG.info("Access token is expired and refreshable, refreshing token");
+            var newToken = refreshUserAccessToken(token);
+            if (!newToken.getAccessToken().equals(token.accessToken().accessToken())) {
+                LOG.info("Refreshed token...");
+                var participantWithObservationProperties = participantWithObservationPropertiesList.stream().findFirst().orElseThrow();
+                storeUserAccessToken(newToken, participantWithObservationPropertiesList, participantWithObservationProperties);
+                LOG.info("Refreshed token for participantId={} in studyId={}", participantWithObservationProperties.participantId(), participantWithObservationProperties.studyId());
+            }
+            return newToken;
+        } else if (token.isRefreshAccessTokenExpired()) {
+            participantWithObservationPropertiesList.forEach(participantWithObservationProperties ->
+                    deleteUserAccessToken(participantWithObservationProperties.studyId(), participantWithObservationProperties.participantId()));
+            return null;
+        }
+        return token;
     }
 
     private boolean deleteUserAccessToken(Long studyId, int participantId) {

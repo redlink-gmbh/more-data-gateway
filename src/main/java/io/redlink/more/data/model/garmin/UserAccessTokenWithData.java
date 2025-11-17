@@ -22,11 +22,16 @@ public record UserAccessTokenWithData(
 
     public Boolean isAccessTokenExpired() {
         var now = Instant.now();
+        return now.getEpochSecond() - createdAt.getEpochSecond() > accessToken.expiresIn();
+    }
+
+    public Boolean isRefreshAccessTokenExpired() {
+        var now = Instant.now();
         return now.getEpochSecond() - createdAt.getEpochSecond() > accessToken.refreshTokenExpiresIn();
     }
 
-    public Boolean isAccessTokenValid() {
-        return !getAccessToken().isEmpty() && !isAccessTokenExpired();
+    public Boolean isAccessTokenValidOrRefreshable() {
+        return !getAccessToken().isEmpty() && !isAccessTokenExpired() || !isRefreshAccessTokenExpired();
     }
 
     public static UserAccessTokenWithData fromMap(Map<String, Object> map) {
