@@ -47,8 +47,7 @@ public abstract class AbstractGarminTransformer {
     private String uniqueSummaryId(String summaryId, DataType dataType, Instant timestamp) {
         String base = summaryId + "_" + dataType.name() + "_" + timestamp.toEpochMilli();
         String uuid = UUID.randomUUID().toString();
-        String hash = sha256(uuid);
 
-        return base + "_" + hash;
+        return sha256(base + uuid);
     }
 }

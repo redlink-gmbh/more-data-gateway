@@ -2,7 +2,8 @@ package io.redlink.more.data.model;
 
 public enum DataType {
     HEARTRATE("hr"),
-    ACTIVITY("activity");
+    ACTIVITY_START("activity_start"),
+    ACTIVITY_END("activity_end");
 
     public final String dataType;
 

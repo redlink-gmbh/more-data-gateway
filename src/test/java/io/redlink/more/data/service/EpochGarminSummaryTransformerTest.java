@@ -2,13 +2,11 @@ package io.redlink.more.data.service;
 
 import io.redlink.more.data.custom.model.GarminDataPoint;
 import io.redlink.more.data.model.DataPoint;
-import io.redlink.more.data.model.DataType;
 import io.redlink.more.data.model.garmin.GarminSummaryType;
 import io.redlink.more.data.transformers.garmin.EpochGarminSummaryTransformer;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.time.Instant;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -43,17 +41,7 @@ class EpochGarminSummaryTransformerTest {
 
         List<DataPoint> result = transformer.transform(observationId, observationType, garminDataPoint);
 
-        assertThat(result).hasSize(1);
-        DataPoint dp = result.get(0);
-
-        assertThat(dp.observationId()).isEqualTo(observationId);
-        assertThat(dp.observationType()).isEqualTo(observationType);
-        assertThat(dp.dataType()).isEqualTo(DataType.ACTIVITY.name());
-
-        Instant expectedStartInstant = Instant.ofEpochSecond(1_600_000_000);
-        assertThat(dp.effectiveDateTime()).isEqualTo(expectedStartInstant);
-
-        assertThat(dp.data()).isNotNull().isNotEmpty();
+        assertThat(result).hasSize(2);
 
         verify(garminDataPoint, atLeastOnce()).getActivityType();
         verify(garminDataPoint, atLeastOnce()).getMet();

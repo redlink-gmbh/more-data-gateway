@@ -153,11 +153,7 @@ class AbstractGarminTransformerTest {
         assertThat(storedData).containsEntry("someKey", "someValue");
 
         assertThat(createdAt).isBetween(before.minusSeconds(5), after.plusSeconds(5));
-
-        assertThat(id1).contains(summaryId);
-        assertThat(id1).contains(dataType.name());
-        assertThat(id1).contains(Long.toString(timestamp.toEpochMilli()));
-
+        
         DataPoint dataPoint2 = transformer.exposeTransformTimeData(
                 observationId, observationType, summaryId, dataType, timeData
         );

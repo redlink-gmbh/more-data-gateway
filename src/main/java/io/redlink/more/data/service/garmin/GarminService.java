@@ -47,7 +47,7 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
     public final static String USER_ACCESS_TOKEN_KEY = "userAccessToken";
     private final static String USER_ID_TYPE_KEY = "keyType";
     private final static String USER_PERMISSIONS_KEY = "permissions";
-    final static String GARMIN_KEY_TYPE = "garmin";
+    public final static String GARMIN_KEY_TYPE = "garmin";
     private final static String GARMIN_OBSERVATION_TYPE = "garmin-observation";
     private final GarminProperties garminProperties;
     private final RestTemplate restTemplate;

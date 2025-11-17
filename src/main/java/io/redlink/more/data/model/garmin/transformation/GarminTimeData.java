@@ -6,27 +6,21 @@ import java.time.Instant;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 
-public record GarminTimeData<T>(Instant timestamp, Optional<Instant> endTimestamp, T data) {
-    private static final String END_TIMESTAMP_KEY = "endTimestamp";
-
+public record GarminTimeData<T>(Instant timestamp, T data, Map<String, Object> additionalData) {
     public GarminTimeData(Instant timestamp, T data) {
-        this(timestamp, Optional.empty(), data);
+        this(timestamp, data, Collections.emptyMap());
     }
 
     public Map<String, Object> dataToMap(String dataKey) {
         if (data == null) {
-            return Collections.emptyMap();
+            return additionalData;
         }
-        HashMap<String, Object> map = new HashMap<>();
-        endTimestamp.ifPresent(instant -> map.put(END_TIMESTAMP_KEY, instant));
+        HashMap<String, Object> map = new HashMap<>(additionalData);
         if (MapperUtils.isPrimitiveLike(data)) {
             map.put(dataKey, data);
         } else {
-            Map<String, Object> converted =
-                    MapperUtils.convertValue(data, Map.class);
-            map.put(dataKey, converted);
+            map.putAll(MapperUtils.convertValue(data, Map.class));
         }
         return map;
     }

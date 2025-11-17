@@ -9,8 +9,9 @@ import io.redlink.more.data.model.garmin.transformation.GarminTimeData;
 import org.springframework.stereotype.Component;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
 
 @Component
 public class EpochGarminSummaryTransformer extends AbstractGarminTransformer {
@@ -26,27 +27,30 @@ public class EpochGarminSummaryTransformer extends AbstractGarminTransformer {
                 && garminDataPoint.getMet() >= 0
                 && garminDataPoint.getIntensity() != null) {
             var data = extractActivityData(garminDataPoint);
-            return Collections.singletonList(
-                    transformGarminTimeDataToDataPoint(
+            return data.entrySet()
+                    .stream()
+                    .map(entry -> transformGarminTimeDataToDataPoint(
                             observationId,
                             observationType,
                             garminDataPoint.getSummaryId(),
-                            DataType.ACTIVITY,
-                            data
-                    )
-            );
+                            entry.getKey(),
+                            entry.getValue()
+                    )).toList();
         }
         return Collections.emptyList();
     }
 
-    private GarminTimeData<GarminActivityModel> extractActivityData(GarminDataPoint garminDataPoint) {
+    private Map<DataType, GarminTimeData<GarminActivityModel>> extractActivityData(GarminDataPoint garminDataPoint) {
         var activityModel = new GarminActivityModel(garminDataPoint.getActivityType(), garminDataPoint.getMet(), garminDataPoint.getIntensity());
         var startTime = recordingTimestamp(garminDataPoint);
         var endTime = endDateTime(garminDataPoint);
-        return new GarminTimeData<>(
+        var startPoint = new GarminTimeData<>(
                 startTime.toInstant(),
-                Optional.of(endTime.toInstant()),
                 activityModel
         );
+        Map<String, Object> additionalData = new HashMap<>();
+        additionalData.put("startTime", startTime.toInstant());
+        var endPoint = new GarminTimeData<>(endTime.toInstant(), activityModel, additionalData);
+        return Map.of(DataType.ACTIVITY_START, startPoint, DataType.ACTIVITY_END, endPoint);
     }
 }
