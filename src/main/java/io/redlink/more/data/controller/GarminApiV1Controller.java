@@ -68,6 +68,7 @@ public class GarminApiV1Controller implements GarminUserManagementApi {
                 Map<GarminSummaryType, List<GarminDataPoint>> requestDataPoints =
                         requestBody.entrySet()
                                 .stream()
+                                .filter(entry -> GarminSummaryType.fromLabel(entry.getKey()) != null)
                                 .collect(Collectors.toMap(
                                         entry -> GarminSummaryType.fromLabel(entry.getKey()),
                                         entry -> ((List<?>) entry.getValue()).stream()
