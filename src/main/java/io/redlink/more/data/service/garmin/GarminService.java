@@ -1,4 +1,4 @@
-package io.redlink.more.data.service;
+package io.redlink.more.data.service.garmin;
 
 import io.redlink.more.data.custom.model.GarminDataPoint;
 import io.redlink.more.data.event.ParticipantUpdateEvent;
@@ -17,6 +17,7 @@ import io.redlink.more.data.model.garmin.UserAccessTokenWithData;
 import io.redlink.more.data.properties.GarminProperties;
 import io.redlink.more.data.repository.ParticipantKeyValueRepository;
 import io.redlink.more.data.repository.StudyRepository;
+import io.redlink.more.data.service.ElasticService;
 import io.redlink.more.data.util.GarminUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -31,6 +32,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -45,7 +47,7 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
     public final static String USER_ACCESS_TOKEN_KEY = "userAccessToken";
     private final static String USER_ID_TYPE_KEY = "keyType";
     private final static String USER_PERMISSIONS_KEY = "permissions";
-    final static String GARMIN_KEY_TYPE = "garmin";
+    public final static String GARMIN_KEY_TYPE = "garmin";
     private final static String GARMIN_OBSERVATION_TYPE = "garmin-observation";
     private final GarminProperties garminProperties;
     private final RestTemplate restTemplate;
@@ -211,14 +213,29 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
         return userAgent != null && userAgent.equalsIgnoreCase("Garmin Health API") && cliendId != null && garminProperties.clientIdsMatch(cliendId);
     }
 
+    // This method takes all provided data from garmin, transforms it using the GarminTransformationService flattens
+    // the returned list of maps into a single map which it stores into the elastic search
     public void storeData(Map<GarminSummaryType, List<GarminDataPoint>> data) {
-        if (data == null || data.isEmpty() || !data.containsKey(GarminSummaryType.DAILIES)) {
+        if (data == null || data.isEmpty()) {
             return;
         }
-        var dailiesData = data.get(GarminSummaryType.DAILIES);
-        List<ParticipantGarminDataPoint> participantWithData = participantsForUserIds(dailiesData);
+        data.entrySet()
+                .stream()
+                .map(entry -> {
+                    var participants = participantsForUserIds(entry.getValue());
+                    return transformationService.transformData(entry.getKey(), participants);
+                })
+                .flatMap(map -> map.entrySet().stream())
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        e -> new ArrayList<>(e.getValue()),
+                        (left, right) -> {
+                            left.addAll(right); // This flattens the list of maps into a map with combined list of datapoints
+                            return left;
+                        }
+                ))
+                .forEach((key, value) -> elasticService.storeDataPoints(value, key));
 
-        transformationService.transformData(GarminSummaryType.DAILIES, participantWithData).forEach((key, value) -> elasticService.storeDataPoints(value, key));
     }
 
     public void refreshAllTokens() {

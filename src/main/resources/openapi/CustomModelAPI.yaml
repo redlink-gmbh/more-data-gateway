@@ -37,6 +37,19 @@ components:
             type: integer
             format: int16
           description: Heart rate samples keyed by time offset in seconds from startTimeInSeconds
+        activityType:
+          type: string
+          default: "GENERIC"
+          enum: [ WALKING, RUNNING, WHEELCHAIR_PUSHING, SEDENTARY, GENERIC, SLEEP ]
+        met:
+          type: number
+          format: double
+          description: Metabolic equivalent of task (MET)
+        intensity:
+          type: string
+          default: "SEDENTARY"
+          enum: [ SEDENTARY, ACTIVE, HIGHLY_ACTIVE ]
+          description: Intensity level (e.g., ACTIVE, SEDENTARY)
       required:
         - userId
         - summaryId

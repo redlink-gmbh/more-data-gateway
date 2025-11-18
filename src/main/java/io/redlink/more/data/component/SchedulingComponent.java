@@ -1,7 +1,7 @@
 package io.redlink.more.data.component;
 
 import io.redlink.more.data.properties.GarminProperties;
-import io.redlink.more.data.service.GarminService;
+import io.redlink.more.data.service.garmin.GarminService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;

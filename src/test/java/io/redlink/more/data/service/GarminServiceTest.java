@@ -9,6 +9,7 @@ import io.redlink.more.data.model.garmin.UserAccessTokenWithData;
 import io.redlink.more.data.properties.GarminProperties;
 import io.redlink.more.data.repository.ParticipantKeyValueRepository;
 import io.redlink.more.data.repository.StudyRepository;
+import io.redlink.more.data.service.garmin.GarminService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

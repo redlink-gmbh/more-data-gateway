@@ -7,13 +7,15 @@ import io.redlink.more.data.model.Observation;
 import io.redlink.more.data.model.ParticipantKeyValue;
 import io.redlink.more.data.model.RoutingInfo;
 import io.redlink.more.data.model.garmin.GarminSummaryType;
-import io.redlink.more.data.model.garmin.GarminTimeData;
 import io.redlink.more.data.model.garmin.ParticipantGarminDataPoint;
 import io.redlink.more.data.repository.StudyRepository;
+import io.redlink.more.data.service.garmin.GarminDataTransformationService;
+import io.redlink.more.data.service.garmin.GarminService;
+import io.redlink.more.data.transformers.garmin.DailiesGarminSummaryTransformer;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -36,10 +38,20 @@ class GarminDataTransformationServiceTest {
     @Mock
     private StudyRepository studyRepository;
 
-    @InjectMocks
     private GarminDataTransformationService service;
 
-    private final ParticipantKeyValue participantKey = new ParticipantKeyValue(1L, 1, "abc", Collections.emptyMap());
+    private final ParticipantKeyValue participantKey =
+            new ParticipantKeyValue(1L, 1, "abc", Collections.emptyMap());
+
+    @BeforeEach
+    void setUp() {
+        var dailiesTransformer = new DailiesGarminSummaryTransformer();
+
+        service = new GarminDataTransformationService(
+                studyRepository,
+                List.of(dailiesTransformer)
+        );
+    }
 
     private GarminDataPoint createGarminDataPoint(String userId, String summarId, Integer startTime, Integer offset, Integer duration, Map<String, Integer> hrSamples) {
         GarminDataPoint dto = new GarminDataPoint();
@@ -108,47 +120,5 @@ class GarminDataTransformationServiceTest {
 
         Map<RoutingInfo, List<DataPoint>> emptyHr = service.transformData(GarminSummaryType.DAILIES, List.of(pgdp));
         assertThat(emptyHr).isEmpty();
-    }
-
-
-    @Test
-    @DisplayName("transformGarminTimeDataToDataPoint: correctly transforms GarminTimeData to DataPoint")
-    void transformGarminTimeDataToDataPoint_correctlyTransformsData() throws Exception {
-        String observationId = "obs-123";
-        String observationType = "garmin-heartrate-type";
-        String dataId = "data-456";
-        DataType dataType = DataType.HEARTRATE;
-        Instant timestamp = Instant.parse("2024-01-15T10:30:00Z");
-        Integer heartRateValue = 75;
-
-        GarminTimeData<Integer> garminTimeData = new GarminTimeData<>(timestamp, heartRateValue);
-
-        var method = GarminDataTransformationService.class.getDeclaredMethod(
-                "transformGarminTimeDataToDataPoint",
-                String.class, String.class, String.class, DataType.class, GarminTimeData.class
-        );
-        method.setAccessible(true);
-
-        DataPoint result = (DataPoint) method.invoke(
-                service,
-                observationId,
-                observationType,
-                dataId,
-                dataType,
-                garminTimeData
-        );
-
-        assertThat(result).isNotNull();
-        assertThat(result.datapointId()).isEqualTo(dataId);
-        assertThat(result.observationId()).isEqualTo(observationId);
-        assertThat(result.observationType()).isEqualTo(observationType);
-        assertThat(result.dataType()).isEqualTo(dataType.name());
-        assertThat(result.effectiveDateTime()).isEqualTo(timestamp);
-        assertThat(result.serverTime()).isNotNull();
-        assertThat(result.data()).isNotNull();
-        assertThat(result.data()).isInstanceOf(Map.class);
-
-        Map<String, Object> dataMap = result.data();
-        assertThat(dataMap.get(dataType.dataType)).isEqualTo(heartRateValue);
     }
 }

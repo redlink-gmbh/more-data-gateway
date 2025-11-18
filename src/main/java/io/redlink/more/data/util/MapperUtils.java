@@ -28,4 +28,12 @@ public class MapperUtils {
     public static <T> T convertValue(Object o, Class<T> c) {
         return MAPPER.convertValue(o, c);
     }
+
+    public static boolean isPrimitiveLike(Object value) {
+        return value instanceof String
+                || value instanceof Number
+                || value instanceof Boolean
+                || value instanceof Character
+                || value instanceof Enum<?>;
+    }
 }
