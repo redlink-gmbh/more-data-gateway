@@ -213,6 +213,8 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
         return userAgent != null && userAgent.equalsIgnoreCase("Garmin Health API") && cliendId != null && garminProperties.clientIdsMatch(cliendId);
     }
 
+    // This method takes all provided data from garmin, transforms it using the GarminTransformationService flattens
+    // the returned list of maps into a single map which it stores into the elastic search
     public void storeData(Map<GarminSummaryType, List<GarminDataPoint>> data) {
         if (data == null || data.isEmpty()) {
             return;
@@ -228,7 +230,7 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
                         Map.Entry::getKey,
                         e -> new ArrayList<>(e.getValue()),
                         (left, right) -> {
-                            left.addAll(right);
+                            left.addAll(right); // This flattens the list of maps into a map with combined list of datapoints
                             return left;
                         }
                 ))
