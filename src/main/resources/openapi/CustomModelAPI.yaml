@@ -50,6 +50,18 @@ components:
           default: "SEDENTARY"
           enum: [ SEDENTARY, ACTIVE, HIGHLY_ACTIVE ]
           description: Intensity level (e.g., ACTIVE, SEDENTARY)
+        meanMotionIntensity:
+          type: number
+          format: double
+          description: Mean motion intensity
+        maxMotionIntensity:
+          type: number
+          format: double
+          description: Maximum motion intensity
+        activeTimeInSeconds:
+          type: integer
+          format: int64
+          description: Active time in seconds
       required:
         - userId
         - summaryId

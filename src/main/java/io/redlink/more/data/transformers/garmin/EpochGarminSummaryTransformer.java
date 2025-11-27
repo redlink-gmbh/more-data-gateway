@@ -41,7 +41,13 @@ public class EpochGarminSummaryTransformer extends AbstractGarminTransformer {
     }
 
     private Map<DataType, GarminTimeData<GarminActivityModel>> extractActivityData(GarminDataPoint garminDataPoint) {
-        var activityModel = new GarminActivityModel(garminDataPoint.getActivityType(), garminDataPoint.getMet(), garminDataPoint.getIntensity());
+        var activityModel = new GarminActivityModel(
+                garminDataPoint.getActivityType(),
+                garminDataPoint.getMet(),
+                garminDataPoint.getIntensity(),
+                garminDataPoint.getActiveTimeInSeconds(),
+                garminDataPoint.getMeanMotionIntensity(),
+                garminDataPoint.getMaxMotionIntensity());
         var startTime = recordingTimestamp(garminDataPoint);
         var endTime = endDateTime(garminDataPoint);
         var startPoint = new GarminTimeData<>(
