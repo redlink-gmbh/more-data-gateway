@@ -13,6 +13,9 @@ import io.redlink.more.data.custom.model.GarminDataPoint;
 public record GarminActivityModel(
         GarminDataPoint.ActivityTypeEnum activityType,
         Double met,
-        GarminDataPoint.IntensityEnum intensity
+        GarminDataPoint.IntensityEnum intensity,
+        Long activeTimeInSeconds,
+        Double meanMotionIntensity,
+        Double maxMotionIntensity
 ) {
 }
