@@ -1,0 +1,141 @@
+package io.redlink.more.data.service;
+
+
+import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch.core.BulkRequest;
+import co.elastic.clients.elasticsearch.core.BulkResponse;
+import co.elastic.clients.elasticsearch.core.DeleteByQueryRequest;
+import co.elastic.clients.elasticsearch.core.DeleteByQueryResponse;
+import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem;
+import io.redlink.more.data.model.DataPoint;
+import io.redlink.more.data.model.RoutingInfo;
+import io.redlink.more.data.model.garmin.transformation.GarminTimeData;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.lang.reflect.Method;
+import java.util.List;
+import java.util.Map;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
+
+@ExtendWith(MockitoExtension.class)
+class ElasticServiceTest {
+
+    @Mock
+    private ElasticsearchClient client;
+
+    @InjectMocks
+    private ElasticService elasticService;
+
+    private RoutingInfo routingInfo;
+
+    @BeforeEach
+    void setUp() {
+        routingInfo = new RoutingInfo(1L, 10, 1, true, true);
+    }
+
+    @Test
+    @DisplayName("storeDataPoints: deletes existing Garmin datapoints and returns successfully stored ids")
+    void storeDataPoints_deletesExistingAndReturnsIds() throws Exception {
+        DataPoint dp1 = mock(DataPoint.class);
+        DataPoint dp2 = mock(DataPoint.class);
+
+        Map<String, Object> data1 = Map.of(GarminTimeData.GARMIN_SUMMARY_ID_KEY, "sum-1");
+        Map<String, Object> data2 = Map.of(GarminTimeData.GARMIN_SUMMARY_ID_KEY, "sum-2");
+        when(dp1.data()).thenReturn(data1);
+        when(dp2.data()).thenReturn(data2);
+        when(dp1.datapointId()).thenReturn("1");
+        when(dp2.datapointId()).thenReturn("2");
+
+        List<DataPoint> bulk = List.of(dp1, dp2);
+
+        String uidPrefix = "1_10_";
+        BulkResponseItem item1 = mock(BulkResponseItem.class);
+        BulkResponseItem item2 = mock(BulkResponseItem.class);
+        when(item1.id()).thenReturn(uidPrefix + "1");
+        when(item2.id()).thenReturn(uidPrefix + "2");
+        when(item1.error()).thenReturn(null);
+        when(item2.error()).thenReturn(null);
+
+        BulkResponse bulkResponse = mock(BulkResponse.class);
+        when(bulkResponse.errors()).thenReturn(false);
+        when(bulkResponse.items()).thenReturn(List.of(item1, item2));
+
+        DeleteByQueryResponse deleteResponse = mock(DeleteByQueryResponse.class);
+        when(deleteResponse.deleted()).thenReturn(2L);
+
+        when(client.bulk(any(BulkRequest.class))).thenReturn(bulkResponse);
+        when(client.deleteByQuery(any(DeleteByQueryRequest.class))).thenReturn(deleteResponse);
+
+        List<String> ids = elasticService.storeDataPoints(bulk, routingInfo);
+
+        assertThat(ids).containsExactlyInAnyOrder("1", "2");
+        verify(client).deleteByQuery(any(DeleteByQueryRequest.class));
+        verify(client).bulk(any(BulkRequest.class));
+    }
+
+    @Test
+    @DisplayName("storeDataPoints: does not call deleteByQuery when there are no Garmin summary ids")
+    void storeDataPoints_doesNotDelete_whenNoGarminSummaryIds() throws Exception {
+        DataPoint dp = mock(DataPoint.class);
+        when(dp.data()).thenReturn(Map.of("other", "value"));
+        when(dp.datapointId()).thenReturn("42");
+
+        String uidPrefix = "1_10_";
+        BulkResponseItem item = mock(BulkResponseItem.class);
+        when(item.id()).thenReturn(uidPrefix + "42");
+        when(item.error()).thenReturn(null);
+
+        BulkResponse bulkResponse = mock(BulkResponse.class);
+        when(bulkResponse.errors()).thenReturn(false);
+        when(bulkResponse.items()).thenReturn(List.of(item));
+
+        when(client.bulk(any(BulkRequest.class))).thenReturn(bulkResponse);
+
+        List<String> result = elasticService.storeDataPoints(List.of(dp), routingInfo);
+
+        assertThat(result).containsExactly("42");
+        verify(client, never()).deleteByQuery(any(DeleteByQueryRequest.class));
+        verify(client).bulk(any(BulkRequest.class));
+    }
+
+    @Test
+    @DisplayName("storeDataPoints: returns empty list when bulk request fails")
+    void storeDataPoints_returnsEmpty_whenBulkThrows() throws Exception {
+        DataPoint dp = mock(DataPoint.class);
+        when(dp.data()).thenReturn(Map.of());
+        when(dp.datapointId()).thenReturn("1");
+
+        when(client.bulk(any(BulkRequest.class))).thenThrow(new java.io.IOException("boom"));
+
+        List<String> result = elasticService.storeDataPoints(List.of(dp), routingInfo);
+
+        assertThat(result).isEmpty();
+        verify(client).bulk(any(BulkRequest.class));
+    }
+
+    @Test
+    @DisplayName("ElasticService private helpers: generateUidPrefix and getElasticIndexName")
+    void privateHelpers_generateUidPrefix_and_getElasticIndexName() throws Exception {
+        Method prefixMethod = ElasticService.class.getDeclaredMethod("generateUidPrefix", RoutingInfo.class);
+        prefixMethod.setAccessible(true);
+        String prefix = (String) prefixMethod.invoke(elasticService, routingInfo);
+
+        assertThat(prefix).isEqualTo("1_10_");
+
+        Method indexMethod = ElasticService.class.getDeclaredMethod("getElasticIndexName", RoutingInfo.class);
+        indexMethod.setAccessible(true);
+        String indexName = (String) indexMethod.invoke(elasticService, routingInfo);
+
+        assertThat(indexName).isEqualTo("study_" + routingInfo.studyId());
+    }
+}

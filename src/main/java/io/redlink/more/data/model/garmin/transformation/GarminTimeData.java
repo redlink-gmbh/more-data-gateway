@@ -8,15 +8,20 @@ import java.util.HashMap;
 import java.util.Map;
 
 public record GarminTimeData<T>(Instant timestamp, T data, Map<String, Object> additionalData) {
+    public static String GARMIN_SUMMARY_ID_KEY = "summary_id";
+
     public GarminTimeData(Instant timestamp, T data) {
         this(timestamp, data, Collections.emptyMap());
     }
 
-    public Map<String, Object> dataToMap(String dataKey) {
-        if (data == null) {
-            return additionalData;
-        }
+    public Map<String, Object> dataToMap(String dataKey, String summaryId) {
         HashMap<String, Object> map = new HashMap<>(additionalData);
+        if (summaryId != null && !summaryId.isEmpty()) {
+            map.put(GARMIN_SUMMARY_ID_KEY, summaryId);
+        }
+        if (data == null) {
+            return map;
+        }
         if (MapperUtils.isPrimitiveLike(data)) {
             map.put(dataKey, data);
         } else {

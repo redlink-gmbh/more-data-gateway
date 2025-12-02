@@ -27,7 +27,7 @@ public abstract class AbstractGarminTransformer {
                 dataType.name(),
                 Instant.now(),
                 data.timestamp(),
-                data.dataToMap(dataType.dataType)
+                data.dataToMap(dataType.dataType, summaryId)
         );
     }
 

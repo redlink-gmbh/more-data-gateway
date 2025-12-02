@@ -113,7 +113,7 @@ class AbstractGarminTransformerTest {
         @SuppressWarnings("unchecked")
         GarminTimeData<Object> timeData = (GarminTimeData<Object>) mock(GarminTimeData.class);
         when(timeData.timestamp()).thenReturn(timestamp);
-        when(timeData.dataToMap(any())).thenReturn(Map.of("someKey", "someValue"));
+        when(timeData.dataToMap(any(), any())).thenReturn(Map.of("someKey", "someValue"));
 
         Instant before = Instant.now();
         DataPoint dataPoint1 = transformer.exposeTransformTimeData(
@@ -153,7 +153,7 @@ class AbstractGarminTransformerTest {
         assertThat(storedData).containsEntry("someKey", "someValue");
 
         assertThat(createdAt).isBetween(before.minusSeconds(5), after.plusSeconds(5));
-        
+
         DataPoint dataPoint2 = transformer.exposeTransformTimeData(
                 observationId, observationType, summaryId, dataType, timeData
         );

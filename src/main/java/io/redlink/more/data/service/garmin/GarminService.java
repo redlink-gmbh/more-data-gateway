@@ -230,7 +230,7 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
                         Map.Entry::getKey,
                         e -> new ArrayList<>(e.getValue()),
                         (left, right) -> {
-                            left.addAll(right); // This flattens the list of maps into a map with combined list of datapoints
+                            left.addAll(right);
                             return left;
                         }
                 ))
