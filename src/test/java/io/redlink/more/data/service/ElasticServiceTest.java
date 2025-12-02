@@ -21,6 +21,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -44,8 +45,8 @@ class ElasticServiceTest {
     }
 
     @Test
-    @DisplayName("storeDataPoints: deletes existing Garmin datapoints and returns successfully stored ids")
-    void storeDataPoints_deletesExistingAndReturnsIds() throws Exception {
+    @DisplayName("storeDataPoints: returns successfully stored ids")
+    void storeDataPoints_returnsIds() throws Exception {
         DataPoint dp1 = mock(DataPoint.class);
         DataPoint dp2 = mock(DataPoint.class);
 
@@ -70,22 +71,17 @@ class ElasticServiceTest {
         when(bulkResponse.errors()).thenReturn(false);
         when(bulkResponse.items()).thenReturn(List.of(item1, item2));
 
-        DeleteByQueryResponse deleteResponse = mock(DeleteByQueryResponse.class);
-        when(deleteResponse.deleted()).thenReturn(2L);
-
         when(client.bulk(any(BulkRequest.class))).thenReturn(bulkResponse);
-        when(client.deleteByQuery(any(DeleteByQueryRequest.class))).thenReturn(deleteResponse);
 
         List<String> ids = elasticService.storeDataPoints(bulk, routingInfo);
 
         assertThat(ids).containsExactlyInAnyOrder("1", "2");
-        verify(client).deleteByQuery(any(DeleteByQueryRequest.class));
         verify(client).bulk(any(BulkRequest.class));
     }
 
     @Test
-    @DisplayName("storeDataPoints: does not call deleteByQuery when there are no Garmin summary ids")
-    void storeDataPoints_doesNotDelete_whenNoGarminSummaryIds() throws Exception {
+    @DisplayName("storeDataPoints: stores datapoints without Garmin summary ids")
+    void storeDataPoints_storesWithoutGarminSummaryIds() throws Exception {
         DataPoint dp = mock(DataPoint.class);
         when(dp.data()).thenReturn(Map.of("other", "value"));
         when(dp.datapointId()).thenReturn("42");
@@ -104,8 +100,24 @@ class ElasticServiceTest {
         List<String> result = elasticService.storeDataPoints(List.of(dp), routingInfo);
 
         assertThat(result).containsExactly("42");
-        verify(client, never()).deleteByQuery(any(DeleteByQueryRequest.class));
         verify(client).bulk(any(BulkRequest.class));
+    }
+
+    @Test
+    @DisplayName("deleteDataPoints: calls deleteByQuery and returns deleted count")
+    void deleteDataPoints_callsDeleteByQueryAndReturnsDeletedCount() throws Exception {
+        DeleteByQueryResponse deleteResponse = mock(DeleteByQueryResponse.class);
+        when(deleteResponse.deleted()).thenReturn(2L);
+        when(client.deleteByQuery(any(DeleteByQueryRequest.class))).thenReturn(deleteResponse);
+
+        long deleted = elasticService.deleteDataPoints(
+                routingInfo,
+                "data_" + GarminTimeData.GARMIN_SUMMARY_ID_KEY + ".keyword",
+                Set.of("sum-1", "sum-2")
+        );
+
+        assertThat(deleted).isEqualTo(2L);
+        verify(client).deleteByQuery(any(DeleteByQueryRequest.class));
     }
 
     @Test

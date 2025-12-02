@@ -5,6 +5,7 @@ import io.redlink.more.data.event.ParticipantUpdateEvent;
 import io.redlink.more.data.garmin.wellness.ApiClient;
 import io.redlink.more.data.garmin.wellness.client.UserApiApi;
 import io.redlink.more.data.garmin.wellness.client.UserControllerApi;
+import io.redlink.more.data.model.DataPoint;
 import io.redlink.more.data.model.Observation;
 import io.redlink.more.data.model.ParticipantKeyValue;
 import io.redlink.more.data.model.ParticipantWithObservationProperties;
@@ -14,6 +15,7 @@ import io.redlink.more.data.model.garmin.GarminSummaryType;
 import io.redlink.more.data.model.garmin.GarminUserAccessToken;
 import io.redlink.more.data.model.garmin.ParticipantGarminDataPoint;
 import io.redlink.more.data.model.garmin.UserAccessTokenWithData;
+import io.redlink.more.data.model.garmin.transformation.GarminTimeData;
 import io.redlink.more.data.properties.GarminProperties;
 import io.redlink.more.data.repository.ParticipantKeyValueRepository;
 import io.redlink.more.data.repository.StudyRepository;
@@ -31,12 +33,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -230,11 +234,14 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
                         Map.Entry::getKey,
                         e -> new ArrayList<>(e.getValue()),
                         (left, right) -> {
-                            left.addAll(right);
+                            left.addAll(right); // This flattens the list of maps into a map with combined list of datapoints
                             return left;
                         }
                 ))
-                .forEach((key, value) -> elasticService.storeDataPoints(value, key));
+                .forEach((key, value) -> {
+                    deduplicateDataPoints(value, key);
+                    elasticService.storeDataPoints(value, key);
+                });
 
     }
 
@@ -255,6 +262,20 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
         Map<String, Object> data = Map.of(USER_ID_TYPE_KEY, "garmin", USER_PERMISSIONS_KEY, permissions);
         participantKeyValueRepository.upsert(studyId, participantId, userId.get(), data);
         LOG.info("Stored/updated Garmin userId mapping for studyId={}, participantId={} with {} permission(s)", studyId, participantId, permissions != null ? permissions.size() : 0);
+    }
+
+    private void deduplicateDataPoints(List<DataPoint> dataBulk, RoutingInfo routingInfo) {
+        Set<String> garminSummaryIdDataBulk = dataBulk.stream()
+                .filter(dp -> dp.data().containsKey(GarminTimeData.GARMIN_SUMMARY_ID_KEY))
+                .map(dp -> (String) dp.data().get(GarminTimeData.GARMIN_SUMMARY_ID_KEY))
+                .collect(Collectors.toSet());
+        final String summaryField = "data_" + GarminTimeData.GARMIN_SUMMARY_ID_KEY + ".keyword";
+        try {
+            long deleted = elasticService.deleteDataPoints(routingInfo, summaryField, garminSummaryIdDataBulk);
+            LOG.info("Deleted {} duplicate datapoints for studyId={}, participantId={}", deleted, routingInfo.studyId(), routingInfo.participantId());
+        } catch (IOException e) {
+            LOG.error("Could not delete duplicate datapoints for studyId={}, participantId={}", routingInfo.studyId(), routingInfo.participantId(), e);
+        }
     }
 
     private Optional<String> getUserId() {

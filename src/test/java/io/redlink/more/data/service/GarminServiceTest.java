@@ -1,11 +1,13 @@
 package io.redlink.more.data.service;
 
+import io.redlink.more.data.model.DataPoint;
 import io.redlink.more.data.model.Observation;
 import io.redlink.more.data.model.ParticipantKeyValue;
 import io.redlink.more.data.model.ParticipantWithObservationProperties;
 import io.redlink.more.data.model.RoutingInfo;
 import io.redlink.more.data.model.garmin.GarminUserAccessToken;
 import io.redlink.more.data.model.garmin.UserAccessTokenWithData;
+import io.redlink.more.data.model.garmin.transformation.GarminTimeData;
 import io.redlink.more.data.properties.GarminProperties;
 import io.redlink.more.data.repository.ParticipantKeyValueRepository;
 import io.redlink.more.data.repository.StudyRepository;
@@ -24,6 +26,7 @@ import java.net.URI;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -43,6 +46,9 @@ class GarminServiceTest {
 
     @InjectMocks
     private GarminService garminService;
+
+    @Mock
+    private ElasticService elasticService;
 
     private RoutingInfo routingInfo;
 
@@ -190,6 +196,37 @@ class GarminServiceTest {
                 .anySatisfy(list -> assertThat(list).containsExactlyInAnyOrder(p3));
 
         verify(studyRepository).getParticipantObservationPropertiesByObservationType(anyString());
+    }
+
+    @Test
+    @DisplayName("deduplicateDataPoints: deletes existing Garmin datapoints by summary id")
+    void deduplicateDataPoints_deletesExistingBySummaryId() throws Exception {
+        DataPoint dp1 = mock(DataPoint.class);
+        DataPoint dp2 = mock(DataPoint.class);
+
+        Map<String, Object> data1 = Map.of(GarminTimeData.GARMIN_SUMMARY_ID_KEY, "sum-1");
+        Map<String, Object> data2 = Map.of(GarminTimeData.GARMIN_SUMMARY_ID_KEY, "sum-2");
+
+        when(dp1.data()).thenReturn(data1);
+        when(dp2.data()).thenReturn(data2);
+
+        RoutingInfo routingInfo = new RoutingInfo(1L, 10, 1, true, true);
+
+        when(elasticService.deleteDataPoints(
+                eq(routingInfo),
+                anyString(),
+                any(Set.class)
+        )).thenReturn(2L);
+
+        Method method = GarminService.class.getDeclaredMethod("deduplicateDataPoints", List.class, RoutingInfo.class);
+        method.setAccessible(true);
+        method.invoke(garminService, List.of(dp1, dp2), routingInfo);
+
+        verify(elasticService).deleteDataPoints(
+                eq(routingInfo),
+                eq("data_" + GarminTimeData.GARMIN_SUMMARY_ID_KEY + ".keyword"),
+                eq(Set.of("sum-1", "sum-2"))
+        );
     }
 
     @Test
