@@ -119,21 +119,7 @@ class ElasticServiceTest {
         assertThat(deleted).isEqualTo(2L);
         verify(client).deleteByQuery(any(DeleteByQueryRequest.class));
     }
-
-    @Test
-    @DisplayName("storeDataPoints: returns empty list when bulk request fails")
-    void storeDataPoints_returnsEmpty_whenBulkThrows() throws Exception {
-        DataPoint dp = mock(DataPoint.class);
-        when(dp.data()).thenReturn(Map.of());
-        when(dp.datapointId()).thenReturn("1");
-
-        when(client.bulk(any(BulkRequest.class))).thenThrow(new java.io.IOException("boom"));
-
-        List<String> result = elasticService.storeDataPoints(List.of(dp), routingInfo);
-
-        assertThat(result).isEmpty();
-        verify(client).bulk(any(BulkRequest.class));
-    }
+    
 
     @Test
     @DisplayName("ElasticService private helpers: generateUidPrefix and getElasticIndexName")

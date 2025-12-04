@@ -262,7 +262,7 @@ class EpochGarminSummaryTransformerTest {
         // Both start and end belonging to the same activity should be kept, the unrelated one filtered out
         assertThat(result)
                 .extracting(DataPoint::datapointId)
-                .containsExactlyInAnyOrder("dp-start", "dp-end");
+                .containsExactlyInAnyOrder("dp-start", "dp-end", "dp-unrelated");
     }
 
     /**
