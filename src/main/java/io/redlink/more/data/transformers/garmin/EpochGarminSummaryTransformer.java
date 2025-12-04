@@ -46,23 +46,7 @@ public class EpochGarminSummaryTransformer extends AbstractGarminTransformer {
 
     @Override
     protected List<DataPoint> filterDataPointByTimeRange(List<Range<Instant>> validTimeRanges, List<DataPoint> dataBulk) {
-        var observationIdsWithOverlap = dataBulk.stream()
-                .filter(dataPoint -> dataPoint.data().containsKey(START_TIME_KEY))
-                .filter(dataPoint -> {
-                    Instant start = (Instant) dataPoint.data().get(START_TIME_KEY);
-                    var dataRange = Range.of(start, dataPoint.effectiveDateTime());
-                    return validTimeRanges.stream().anyMatch(range -> range.isOverlappedBy(dataRange));
-                })
-                .toList();
-
-        return dataBulk.stream()
-                .filter(dataPoint ->
-                        observationIdsWithOverlap.stream()
-                                .anyMatch(filteredDataPoint ->
-                                        dataPoint.datapointId().equals(filteredDataPoint.datapointId())
-                                                || dataPoint.observationId().equals(filteredDataPoint.observationId())
-                                                && (dataPoint.effectiveDateTime() == filteredDataPoint.data().get(START_TIME_KEY))))
-                .toList();
+        return dataBulk;
     }
 
 
