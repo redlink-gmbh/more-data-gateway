@@ -144,7 +144,7 @@ class AbstractGarminTransformerTest {
         @SuppressWarnings("unchecked")
         GarminTimeData<Object> timeData = (GarminTimeData<Object>) mock(GarminTimeData.class);
         when(timeData.timestamp()).thenReturn(timestamp);
-        when(timeData.dataToMap(any())).thenReturn(Map.of("someKey", "someValue"));
+        when(timeData.dataToMap(any(), any())).thenReturn(Map.of("someKey", "someValue"));
 
         Instant before = Instant.now();
 

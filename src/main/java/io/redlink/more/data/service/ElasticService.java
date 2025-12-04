@@ -10,19 +10,25 @@ package io.redlink.more.data.service;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.ElasticsearchException;
+import co.elastic.clients.elasticsearch._types.FieldValue;
 import co.elastic.clients.elasticsearch.core.BulkRequest;
 import co.elastic.clients.elasticsearch.core.BulkResponse;
+import co.elastic.clients.elasticsearch.core.DeleteByQueryRequest;
+import co.elastic.clients.elasticsearch.core.DeleteByQueryResponse;
 import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem;
 import io.redlink.more.data.api.StorageService;
 import io.redlink.more.data.elastic.model.ElasticDataPoint;
 import io.redlink.more.data.model.DataPoint;
 import io.redlink.more.data.model.RoutingInfo;
-import java.io.IOException;
-import java.util.List;
+import io.redlink.more.data.util.ElasticUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.Set;
 
 @Service
 public class ElasticService implements StorageService {
@@ -83,6 +89,31 @@ public class ElasticService implements StorageService {
             return List.of();
         }
     }
+
+
+    public long deleteDataPoints(RoutingInfo routingInfo, String key, Set<String> filteredByValues) throws IOException {
+        if (filteredByValues.isEmpty() || key == null) {
+            return 0L;
+        }
+        Set<FieldValue> fieldValues = filteredByValues.stream()
+                .map(FieldValue::of)
+                .collect(java.util.stream.Collectors.toSet());
+        DeleteByQueryRequest request = new DeleteByQueryRequest.Builder()
+                .index(ElasticUtils.getStudyIdString(routingInfo.studyId()))
+                .query(ElasticUtils.getDeleteDataPointsFilter(
+                                routingInfo.studyId(),
+                                routingInfo.participantId(),
+                                key,
+                                fieldValues
+                        )
+                )
+                .build();
+
+
+        DeleteByQueryResponse response = client.deleteByQuery(request);
+        return response.deleted() == null ? 0L : response.deleted();
+    }
+
 
     private String generateUidPrefix(RoutingInfo routingInfo) {
         return String.format("%s_%s_", routingInfo.studyId(), routingInfo.participantId());
