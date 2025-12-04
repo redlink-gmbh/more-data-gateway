@@ -3,8 +3,10 @@ package io.redlink.more.data.transformers.garmin;
 import io.redlink.more.data.custom.model.GarminDataPoint;
 import io.redlink.more.data.model.DataPoint;
 import io.redlink.more.data.model.DataType;
+import io.redlink.more.data.model.Observation;
 import io.redlink.more.data.model.garmin.GarminSummaryType;
 import io.redlink.more.data.model.garmin.transformation.GarminTimeData;
+import org.apache.commons.lang3.Range;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
@@ -24,23 +26,35 @@ public class DailiesGarminSummaryTransformer extends AbstractGarminTransformer {
     }
 
     @Override
-    public List<DataPoint> transform(String observationId, String observationType, GarminDataPoint garminDataPoint) {
+    public List<DataPoint> transformToDataPoint(List<Observation> observations, GarminDataPoint garminDataPoint) {
         var recordedDateTime = super.recordingTimestamp(garminDataPoint);
 
         if (garminDataPoint.getTimeOffsetHeartRateSamples() != null
                 && !garminDataPoint.getTimeOffsetHeartRateSamples().isEmpty()) {
             return extractHrDataWithThreshold(recordedDateTime, garminDataPoint.getTimeOffsetHeartRateSamples())
                     .stream()
-                    .map(data -> super.transformGarminTimeDataToDataPoint(
-                            observationId,
-                            observationType,
-                            garminDataPoint.getSummaryId(),
-                            DataType.HEARTRATE,
-                            data))
+                    .flatMap(data -> super.transformGarminTimeDataToDataPoint(
+                                    observations,
+                                    garminDataPoint.getSummaryId(),
+                                    DataType.HEARTRATE,
+                                    data)
+                            .stream())
                     .toList();
         }
         return Collections.emptyList();
     }
+
+    @Override
+    protected List<DataPoint> filterDataPointByTimeRange(List<Range<Instant>> validTimeRanges, List<DataPoint> dataBulk) {
+        return dataBulk
+                .stream()
+                .filter(dataPoint ->
+                        validTimeRanges
+                                .stream()
+                                .anyMatch(range -> range.contains(dataPoint.effectiveDateTime())))
+                .toList();
+    }
+
 
     private List<GarminTimeData<Integer>> extractHrDataWithThreshold(OffsetDateTime startDateTime, Map<String, Integer> hrTimeOffset) {
         if (hrTimeOffset == null) {

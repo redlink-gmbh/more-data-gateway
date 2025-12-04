@@ -25,4 +25,5 @@ public record DataPoint(
         data = Map.copyOf(data);
     }
 
+    
 }

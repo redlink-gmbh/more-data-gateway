@@ -9,7 +9,8 @@ import java.util.Set;
 public class ElasticUtils {
     public static class Constants {
         public static final String GARMIN_SUMMARY_ID_KEY = "summary_id";
-        public static final String GARMIN_SUMMARY_KEYWORD_FIELD = "data_" + GARMIN_SUMMARY_ID_KEY + ".keyword";
+        public static final String GARMIN_SUMMARY_DATA_FIELD = "data_" + GARMIN_SUMMARY_ID_KEY;
+        public static final String GARMIN_SUMMARY_KEYWORD_FIELD = GARMIN_SUMMARY_DATA_FIELD + ".keyword";
         public static final String STUDY_FIELD = "study_";
         public static final String STUDY_KEYWORD_FIELD = STUDY_FIELD + "id.keyword";
         public static final String PARTICIPANT_FIELD = "participant_";

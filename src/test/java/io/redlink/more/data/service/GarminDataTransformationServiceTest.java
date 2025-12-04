@@ -6,8 +6,10 @@ import io.redlink.more.data.model.DataType;
 import io.redlink.more.data.model.Observation;
 import io.redlink.more.data.model.ParticipantKeyValue;
 import io.redlink.more.data.model.RoutingInfo;
+import io.redlink.more.data.model.SimpleParticipant;
 import io.redlink.more.data.model.garmin.GarminSummaryType;
 import io.redlink.more.data.model.garmin.ParticipantGarminDataPoint;
+import io.redlink.more.data.model.scheduler.Event;
 import io.redlink.more.data.repository.StudyRepository;
 import io.redlink.more.data.service.garmin.GarminDataTransformationService;
 import io.redlink.more.data.service.garmin.GarminService;
@@ -24,6 +26,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -64,21 +67,36 @@ class GarminDataTransformationServiceTest {
         return dto;
     }
 
+
     @Test
     @DisplayName("transformData(dailies): builds HEARTRATE DataPoints per participant/observation and inserts gap sentinels")
     void transformData_dailiesWithHrSamples_buildsDataPointsAndGapSentinels() {
+        Event schedule = new Event()
+                .setDateStart(Instant.parse("2024-01-01T00:00:00Z"))
+                .setDateEnd(Instant.parse("2024-12-31T23:59:59Z"));
+
         Observation garminObs = new Observation(
                 1, 1, "Garmin", "some-" + GarminService.GARMIN_KEY_TYPE + "-type",
-                null, null, null, Instant.now(), Instant.now(), false, false
+                null, null, schedule, Instant.now(), Instant.now(), false, false
         );
-        given(studyRepository.filterObservations(eq(1L), eq(1), any()))
+
+        SimpleParticipant simpleParticipant = new SimpleParticipant(
+                1, "1",
+                Instant.parse("2024-01-01T00:00:00Z"),
+                Instant.parse("2024-12-31T23:59:59Z")
+        );
+
+        given(studyRepository.findParticipant(any(RoutingInfo.class)))
+                .willReturn(Optional.of(simpleParticipant));
+
+        given(studyRepository.filterObservations(any(RoutingInfo.class), eq(false), any()))
                 .willReturn(List.of(garminObs));
 
         Map<String, Integer> hr = new LinkedHashMap<>();
         hr.put("0", 70);
         hr.put("10", 72);
         hr.put("40", 90);
-        GarminDataPoint dto = createGarminDataPoint("abc", "sum-1", (int) Instant.parse("2024-01-01T00:00:00Z").getEpochSecond(), 0, 0, hr);
+        GarminDataPoint dto = createGarminDataPoint("abc", "sum-1", (int) Instant.parse("2024-01-02T00:00:00Z").getEpochSecond(), 0, 0, hr);
         dto.setTimeOffsetHeartRateSamples(hr);
 
         ParticipantGarminDataPoint pgdp = new ParticipantGarminDataPoint(participantKey, List.of(dto));
@@ -99,19 +117,14 @@ class GarminDataTransformationServiceTest {
             assertThat(dp.data()).isInstanceOf(Map.class);
         });
 
-        verify(studyRepository, times(1)).filterObservations(eq(1L), eq(1), any());
+        verify(studyRepository, times(1)).findParticipant(any(RoutingInfo.class));
+        verify(studyRepository, times(1)).filterObservations(any(RoutingInfo.class), eq(false), any());
     }
+
 
     @Test
     @DisplayName("transformData: returns empty when summaryType != dailies or when HR samples are empty")
     void transformData_nonDailiesOrNoHr_yieldsEmptyMap() {
-        Observation garminObs = new Observation(
-                5, 1, "Garmin", "x-" + GarminService.GARMIN_KEY_TYPE + "-y",
-                null, null, null, Instant.now(), Instant.now(), false, false
-        );
-        given(studyRepository.filterObservations(eq(1L), eq(1), any()))
-                .willReturn(List.of(garminObs));
-
         GarminDataPoint dto = createGarminDataPoint("abc", "sum-1", (int) Instant.parse("2024-01-01T00:00:00Z").getEpochSecond(), 0, 0, Collections.emptyMap());
         ParticipantGarminDataPoint pgdp = new ParticipantGarminDataPoint(participantKey, List.of(dto));
 

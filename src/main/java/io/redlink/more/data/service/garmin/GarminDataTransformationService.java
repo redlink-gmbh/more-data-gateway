@@ -8,6 +8,8 @@ import io.redlink.more.data.model.garmin.GarminSummaryType;
 import io.redlink.more.data.model.garmin.ParticipantGarminDataPoint;
 import io.redlink.more.data.repository.StudyRepository;
 import io.redlink.more.data.transformers.garmin.AbstractGarminTransformer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.Collections;
@@ -18,7 +20,7 @@ import java.util.stream.Collectors;
 
 @Service
 public class GarminDataTransformationService {
-
+    private static final Logger LOG = LoggerFactory.getLogger(GarminDataTransformationService.class);
     private final StudyRepository studyRepository;
     private final Map<GarminSummaryType, AbstractGarminTransformer> transformerByType;
 
@@ -43,30 +45,38 @@ public class GarminDataTransformationService {
         return participantGarminDataPoints
                 .stream()
                 .map(participantGarminDataPoint -> {
-                    var participant = participantGarminDataPoint.participantKeyValue();
+                    var routingInfo = participantKeyValueToRoutingInfo(participantGarminDataPoint.participantKeyValue());
+
+                    var simpleParticipant = studyRepository.findParticipant(routingInfo);
+                    if (simpleParticipant.isEmpty()) {
+                        LOG.warn("No participant found for {}", routingInfo);
+                        return Map.entry(routingInfo, Collections.<DataPoint>emptyList());
+                    }
+                    var participantStart = simpleParticipant.get().start();
+                    var participantEnd = simpleParticipant.get().end();
+
+                    if (participantStart == null || participantEnd == null || participantStart.toEpochMilli() >= participantEnd.toEpochMilli()) {
+                        LOG.warn("Participant start or end time is invalid: {}", simpleParticipant);
+                        return Map.entry(routingInfo, Collections.<DataPoint>emptyList());
+                    }
 
                     List<Observation> observations =
                             studyRepository.filterObservations(
-                                    participant.studyId(),
-                                    participant.participantId(),
+                                    routingInfo,
+                                    false,
                                     observation -> observation.type().contains(GarminService.GARMIN_KEY_TYPE)
                             );
 
                     List<DataPoint> dataPoints = participantGarminDataPoint.garminDataPoints()
                             .parallelStream()
-                            .flatMap(data -> observations.stream()
-                                    .flatMap(observation ->
-                                            transformer.transform(
-                                                    String.valueOf(observation.observationId()),
-                                                    observation.type(),
-                                                    data
-                                            ).stream()
-                                    )
+                            .flatMap(data -> transformer
+                                    .transform(observations, data, participantStart, participantEnd)
+                                    .stream()
                             )
                             .toList();
 
                     return Map.entry(
-                            participantKeyValueToRoutingInfo(participant),
+                            routingInfo,
                             dataPoints
                     );
                 })
