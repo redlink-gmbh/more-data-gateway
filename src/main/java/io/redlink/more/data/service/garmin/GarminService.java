@@ -15,7 +15,6 @@ import io.redlink.more.data.model.garmin.GarminSummaryType;
 import io.redlink.more.data.model.garmin.GarminUserAccessToken;
 import io.redlink.more.data.model.garmin.ParticipantGarminDataPoint;
 import io.redlink.more.data.model.garmin.UserAccessTokenWithData;
-import io.redlink.more.data.model.garmin.transformation.GarminTimeData;
 import io.redlink.more.data.properties.GarminProperties;
 import io.redlink.more.data.repository.ParticipantKeyValueRepository;
 import io.redlink.more.data.repository.StudyRepository;
@@ -43,6 +42,9 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import static io.redlink.more.data.util.ElasticUtils.Constants.GARMIN_SUMMARY_ID_KEY;
+import static io.redlink.more.data.util.ElasticUtils.Constants.GARMIN_SUMMARY_KEYWORD_FIELD;
 
 @Service
 public class GarminService implements ApplicationListener<ParticipantUpdateEvent> {
@@ -219,11 +221,12 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
 
     // This method takes all provided data from garmin, transforms it using the GarminTransformationService flattens
     // the returned list of maps into a single map which it stores into the elastic search
-    public void storeData(Map<GarminSummaryType, List<GarminDataPoint>> data) {
+    public void storeData(Map<GarminSummaryType, List<GarminDataPoint>> data) throws IOException {
         if (data == null || data.isEmpty()) {
             return;
         }
-        data.entrySet()
+
+        var entries = data.entrySet()
                 .stream()
                 .map(entry -> {
                     var participants = participantsForUserIds(entry.getValue());
@@ -237,12 +240,14 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
                             left.addAll(right); // This flattens the list of maps into a map with combined list of datapoints
                             return left;
                         }
-                ))
-                .forEach((key, value) -> {
-                    deduplicateDataPoints(value, key);
-                    elasticService.storeDataPoints(value, key);
-                });
+                )).entrySet();
 
+        for (Map.Entry<RoutingInfo, ArrayList<DataPoint>> mapEntry : entries) {
+            RoutingInfo key = mapEntry.getKey();
+            ArrayList<DataPoint> value = mapEntry.getValue();
+            deduplicateDataPoints(value, key);
+            elasticService.storeDataPoints(value, key);
+        }
     }
 
     public void refreshAllTokens() {
@@ -264,18 +269,13 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
         LOG.info("Stored/updated Garmin userId mapping for studyId={}, participantId={} with {} permission(s)", studyId, participantId, permissions != null ? permissions.size() : 0);
     }
 
-    private void deduplicateDataPoints(List<DataPoint> dataBulk, RoutingInfo routingInfo) {
+    private void deduplicateDataPoints(List<DataPoint> dataBulk, RoutingInfo routingInfo) throws IOException {
         Set<String> garminSummaryIdDataBulk = dataBulk.stream()
-                .filter(dp -> dp.data().containsKey(GarminTimeData.GARMIN_SUMMARY_ID_KEY))
-                .map(dp -> (String) dp.data().get(GarminTimeData.GARMIN_SUMMARY_ID_KEY))
+                .filter(dp -> dp.data().containsKey(GARMIN_SUMMARY_ID_KEY))
+                .map(dp -> (String) dp.data().get(GARMIN_SUMMARY_ID_KEY))
                 .collect(Collectors.toSet());
-        final String summaryField = "data_" + GarminTimeData.GARMIN_SUMMARY_ID_KEY + ".keyword";
-        try {
-            long deleted = elasticService.deleteDataPoints(routingInfo, summaryField, garminSummaryIdDataBulk);
-            LOG.info("Deleted {} duplicate datapoints for studyId={}, participantId={}", deleted, routingInfo.studyId(), routingInfo.participantId());
-        } catch (IOException e) {
-            LOG.error("Could not delete duplicate datapoints for studyId={}, participantId={}", routingInfo.studyId(), routingInfo.participantId(), e);
-        }
+        long deleted = elasticService.deleteDataPoints(routingInfo, GARMIN_SUMMARY_KEYWORD_FIELD, garminSummaryIdDataBulk);
+        LOG.debug("Cleared {} datapoints for studyId={}, participantId={} for Garmin summaryIds={}", deleted, routingInfo.studyId(), routingInfo.participantId(), garminSummaryIdDataBulk);
     }
 
     private Optional<String> getUserId() {

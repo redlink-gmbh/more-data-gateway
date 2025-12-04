@@ -9,7 +9,6 @@ import co.elastic.clients.elasticsearch.core.DeleteByQueryResponse;
 import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem;
 import io.redlink.more.data.model.DataPoint;
 import io.redlink.more.data.model.RoutingInfo;
-import io.redlink.more.data.model.garmin.transformation.GarminTimeData;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -23,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static io.redlink.more.data.util.ElasticUtils.Constants.GARMIN_SUMMARY_ID_KEY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -50,8 +50,8 @@ class ElasticServiceTest {
         DataPoint dp1 = mock(DataPoint.class);
         DataPoint dp2 = mock(DataPoint.class);
 
-        Map<String, Object> data1 = Map.of(GarminTimeData.GARMIN_SUMMARY_ID_KEY, "sum-1");
-        Map<String, Object> data2 = Map.of(GarminTimeData.GARMIN_SUMMARY_ID_KEY, "sum-2");
+        Map<String, Object> data1 = Map.of(GARMIN_SUMMARY_ID_KEY, "sum-1");
+        Map<String, Object> data2 = Map.of(GARMIN_SUMMARY_ID_KEY, "sum-2");
         when(dp1.data()).thenReturn(data1);
         when(dp2.data()).thenReturn(data2);
         when(dp1.datapointId()).thenReturn("1");
@@ -112,7 +112,7 @@ class ElasticServiceTest {
 
         long deleted = elasticService.deleteDataPoints(
                 routingInfo,
-                "data_" + GarminTimeData.GARMIN_SUMMARY_ID_KEY + ".keyword",
+                "data_" + GARMIN_SUMMARY_ID_KEY + ".keyword",
                 Set.of("sum-1", "sum-2")
         );
 

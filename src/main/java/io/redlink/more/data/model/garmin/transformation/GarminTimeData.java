@@ -7,8 +7,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
+import static io.redlink.more.data.util.ElasticUtils.Constants.GARMIN_SUMMARY_ID_KEY;
+
 public record GarminTimeData<T>(Instant timestamp, T data, Map<String, Object> additionalData) {
-    public static String GARMIN_SUMMARY_ID_KEY = "summary_id";
 
     public GarminTimeData(Instant timestamp, T data) {
         this(timestamp, data, Collections.emptyMap());

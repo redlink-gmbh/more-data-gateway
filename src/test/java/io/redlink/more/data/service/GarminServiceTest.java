@@ -7,7 +7,6 @@ import io.redlink.more.data.model.ParticipantWithObservationProperties;
 import io.redlink.more.data.model.RoutingInfo;
 import io.redlink.more.data.model.garmin.GarminUserAccessToken;
 import io.redlink.more.data.model.garmin.UserAccessTokenWithData;
-import io.redlink.more.data.model.garmin.transformation.GarminTimeData;
 import io.redlink.more.data.properties.GarminProperties;
 import io.redlink.more.data.repository.ParticipantKeyValueRepository;
 import io.redlink.more.data.repository.StudyRepository;
@@ -28,6 +27,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static io.redlink.more.data.util.ElasticUtils.Constants.GARMIN_SUMMARY_ID_KEY;
+import static io.redlink.more.data.util.ElasticUtils.Constants.GARMIN_SUMMARY_KEYWORD_FIELD;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.*;
@@ -204,8 +205,8 @@ class GarminServiceTest {
         DataPoint dp1 = mock(DataPoint.class);
         DataPoint dp2 = mock(DataPoint.class);
 
-        Map<String, Object> data1 = Map.of(GarminTimeData.GARMIN_SUMMARY_ID_KEY, "sum-1");
-        Map<String, Object> data2 = Map.of(GarminTimeData.GARMIN_SUMMARY_ID_KEY, "sum-2");
+        Map<String, Object> data1 = Map.of(GARMIN_SUMMARY_ID_KEY, "sum-1");
+        Map<String, Object> data2 = Map.of(GARMIN_SUMMARY_ID_KEY, "sum-2");
 
         when(dp1.data()).thenReturn(data1);
         when(dp2.data()).thenReturn(data2);
@@ -224,7 +225,7 @@ class GarminServiceTest {
 
         verify(elasticService).deleteDataPoints(
                 eq(routingInfo),
-                eq("data_" + GarminTimeData.GARMIN_SUMMARY_ID_KEY + ".keyword"),
+                eq(GARMIN_SUMMARY_KEYWORD_FIELD),
                 eq(Set.of("sum-1", "sum-2"))
         );
     }

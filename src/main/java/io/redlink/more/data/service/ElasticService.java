@@ -20,6 +20,7 @@ import io.redlink.more.data.api.StorageService;
 import io.redlink.more.data.elastic.model.ElasticDataPoint;
 import io.redlink.more.data.model.DataPoint;
 import io.redlink.more.data.model.RoutingInfo;
+import io.redlink.more.data.util.ElasticUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -94,26 +95,16 @@ public class ElasticService implements StorageService {
         if (filteredByValues.isEmpty() || key == null) {
             return 0L;
         }
-        final String indexName = "study_" + routingInfo.studyId();
+        Set<FieldValue> fieldValues = filteredByValues.stream()
+                .map(FieldValue::of)
+                .collect(java.util.stream.Collectors.toSet());
         DeleteByQueryRequest request = new DeleteByQueryRequest.Builder()
-                .index(indexName)
-                .query(q -> q
-                        .bool(b -> b
-                                .must(m -> m.term(t -> t.field("study_id")
-                                        .value("study_" + routingInfo.studyId())))
-                                .must(m -> m.term(t -> t.field("participant_id")
-                                        .value("participant_" + routingInfo.participantId())))
-                                .must(m -> m.bool(bb -> bb
-                                        .should(s -> s.terms(t -> t
-                                                .field(key)
-                                                .terms(v -> v.value(
-                                                        filteredByValues.stream()
-                                                                .map(FieldValue::of)
-                                                                .toList()
-                                                ))
-                                        ))
-                                        .minimumShouldMatch("1")
-                                ))
+                .index(ElasticUtils.getStudyIdString(routingInfo.studyId()))
+                .query(ElasticUtils.getDeleteDataPointsFilter(
+                                routingInfo.studyId(),
+                                routingInfo.participantId(),
+                                key,
+                                fieldValues
                         )
                 )
                 .build();
