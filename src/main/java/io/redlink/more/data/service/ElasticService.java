@@ -109,9 +109,16 @@ public class ElasticService implements StorageService {
                 )
                 .build();
 
-
-        DeleteByQueryResponse response = client.deleteByQuery(request);
-        return response.deleted() == null ? 0L : response.deleted();
+        try {
+            DeleteByQueryResponse response = client.deleteByQuery(request);
+            return response.deleted() == null ? 0L : response.deleted();
+        } catch (ElasticsearchException e) {
+            if ("index_not_found_exception".equals(e.error().type())) {
+                LOG.debug("Index {} does not exist, nothing to delete", ElasticUtils.getStudyIdString(routingInfo.studyId()));
+                return 0L;
+            }
+            throw e;
+        }
     }
 
 
