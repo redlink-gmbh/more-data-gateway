@@ -19,6 +19,8 @@ import java.util.UUID;
 import static io.redlink.more.data.util.StringUtils.sha256;
 
 public abstract class AbstractGarminTransformer {
+    protected static final String START_TIME_KEY = "startTime";
+
     public abstract GarminSummaryType getSupportedType();
 
     protected abstract List<DataPoint> transformToDataPoint(List<Observation> observations, GarminDataPoint garminDataPoint);
@@ -38,18 +40,21 @@ public abstract class AbstractGarminTransformer {
     }
 
     protected List<DataPoint> transformGarminTimeDataToDataPoint(List<Observation> observations, String summaryId, DataType dataType, GarminTimeData<?> data) {
-        return observations.stream().map(observation ->
-                        new DataPoint(
-                                uniqueSummaryId(summaryId, dataType, data.timestamp()),
-                                String.valueOf(observation.observationId()),
-                                observation.type(),
-                                dataType.name(),
-                                Instant.now(),
-                                data.timestamp(),
-                                data.dataToMap(dataType.dataType, summaryId)
-                        )
-                )
-                .toList();
+        if (data != null) {
+            return observations.stream().map(observation ->
+                            new DataPoint(
+                                    uniqueSummaryId(summaryId, dataType, data.timestamp()),
+                                    String.valueOf(observation.observationId()),
+                                    observation.type(),
+                                    dataType.name(),
+                                    Instant.now(),
+                                    data.timestamp(),
+                                    data.dataToMap(dataType.dataType, summaryId)
+                            )
+                    )
+                    .toList();
+        }
+        return Collections.emptyList();
     }
 
     protected OffsetDateTime recordingTimestamp(GarminDataPoint garminDataPoint) {

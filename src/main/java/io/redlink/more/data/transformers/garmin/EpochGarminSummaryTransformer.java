@@ -18,7 +18,6 @@ import java.util.Map;
 
 @Component
 public class EpochGarminSummaryTransformer extends AbstractGarminTransformer {
-    private static final String START_TIME_KEY = "startTime";
 
     @Override
     public GarminSummaryType getSupportedType() {

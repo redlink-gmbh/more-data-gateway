@@ -6,6 +6,7 @@ import java.time.Instant;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static io.redlink.more.data.util.ElasticUtils.Constants.GARMIN_SUMMARY_ID_KEY;
 
@@ -28,6 +29,8 @@ public record GarminTimeData<T>(Instant timestamp, T data, Map<String, Object> a
         } else {
             map.putAll(MapperUtils.convertValue(data, Map.class));
         }
-        return map;
+        return map.entrySet().stream()
+                .filter(e -> e.getValue() != null)
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 }

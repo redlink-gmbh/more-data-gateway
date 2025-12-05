@@ -62,9 +62,117 @@ components:
           type: integer
           format: int64
           description: Active time in seconds
+        calendarDate:
+          type: string
+          format: date
+          description: Local date in with the format (YYYY-MM-DD)
+        totalNapDurationInSeconds:
+          type: integer
+          format: int64
+          description: Total nap duration in seconds
+        unmeasurableSleepInSeconds:
+          type: integer
+          format: int64
+          description: Duration of unmeasurable sleep in seconds
+        deepSleepDurationInSeconds:
+          type: integer
+          format: int64
+          description: Deep sleep duration in seconds
+        lightSleepDurationInSeconds:
+          type: integer
+          format: int64
+          description: Light sleep duration in seconds
+        remSleepInSeconds:
+          type: integer
+          format: int64
+          description: REM sleep duration in seconds
+        awakeDurationInSeconds:
+          type: integer
+          format: int64
+          description: Awake duration in seconds
+        validation:
+          type: string
+          description: Validation type (e.g., AUTO_FINAL, MANUAL, DEVICE)
+        timeOffsetSleepSpo2:
+          type: object
+          additionalProperties:
+            type: integer
+          description: SpO2 values during sleep keyed by time offset in seconds
+        overallSleepScoreValue:
+          type: integer
+          description: Numeric overall sleep score value
+        overallSleepScore:
+          $ref: '#/components/schemas/SleepScore'
+        sleepScores:
+          $ref: '#/components/schemas/SleepScoreBreakdown'
+        naps:
+          type: array
+          items:
+            $ref: '#/components/schemas/NapData'
+          description: List of naps during the day
+        otherSleepData:
+          type: object
+          additionalProperties: true
       required:
         - userId
         - summaryId
         - startTimeInSeconds
         - startTimeOffsetInSeconds
         - durationInSeconds
+
+
+    SleepScore:
+      type: object
+      properties:
+        value:
+          type: integer
+          description: Numeric sleep score value
+        qualifierKey:
+          type: string
+          enum: [ EXCELLENT, GOOD, FAIR, POOR ]
+          description: Qualitative sleep score (e.g., EXCELLENT, GOOD, FAIR, POOR)
+
+    SleepScoreBreakdown:
+      type: object
+      properties:
+        totalDuration:
+          $ref: '#/components/schemas/SleepScoreQualifier'
+        stress:
+          $ref: '#/components/schemas/SleepScoreQualifier'
+        awakeCount:
+          $ref: '#/components/schemas/SleepScoreQualifier'
+        remPercentage:
+          $ref: '#/components/schemas/SleepScoreQualifier'
+        restlessness:
+          $ref: '#/components/schemas/SleepScoreQualifier'
+        lightPercentage:
+          $ref: '#/components/schemas/SleepScoreQualifier'
+        deepPercentage:
+          $ref: '#/components/schemas/SleepScoreQualifier'
+
+    SleepScoreQualifier:
+      type: object
+      properties:
+        qualifierKey:
+          type: string
+          description: Qualitative score (e.g., EXCELLENT, GOOD, FAIR, POOR)
+
+    NapData:
+      type: object
+      description: |
+        Information about individual naps during the day.
+      properties:
+        napStartTimeInSeconds:
+          type: integer
+          format: int64
+          description: Nap start time as Unix timestamp
+        napOffsetInSeconds:
+          type: integer
+          description: Timezone offset in seconds for the nap
+        napDurationInSeconds:
+          type: integer
+          format: int64
+          description: Nap duration in seconds
+        napValidation:
+          type: string
+          description: Validation type for the nap (e.g., MANUAL, DEVICE, AUTO_FINAL)
