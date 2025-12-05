@@ -37,7 +37,7 @@ public class SleepSummaryTransformer extends AbstractGarminTransformer {
 
     @Override
     protected List<DataPoint> filterDataPointByTimeRange(List<Range<Instant>> validTimeRanges, List<DataPoint> dataBulk) {
-        return dataBulk;
+        return dataBulk; //NOTE: filtering on GraminDataPoint level is sufficient
     }
 
     private Map<DataType, GarminTimeData<GarminSleepData>> dataToSleep(GarminDataPoint dataPoint) {
