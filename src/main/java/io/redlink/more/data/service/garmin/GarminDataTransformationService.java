@@ -22,23 +22,26 @@ import java.util.stream.Collectors;
 public class GarminDataTransformationService {
     private static final Logger LOG = LoggerFactory.getLogger(GarminDataTransformationService.class);
     private final StudyRepository studyRepository;
-    private final Map<GarminSummaryType, AbstractGarminTransformer> transformerByType;
+    private final Map<GarminSummaryType, List<AbstractGarminTransformer>> transformersByType;
 
     public GarminDataTransformationService(
             StudyRepository studyRepository,
             List<AbstractGarminTransformer> transformers
     ) {
         this.studyRepository = studyRepository;
-        this.transformerByType = transformers.stream()
-                .collect(Collectors.toMap(AbstractGarminTransformer::getSupportedType, t -> t));
+        this.transformersByType = transformers.stream()
+                .collect(Collectors.groupingBy(AbstractGarminTransformer::getSupportedType));
     }
 
     public Map<RoutingInfo, List<DataPoint>> transformData(
             GarminSummaryType summaryType,
             List<ParticipantGarminDataPoint> participantGarminDataPoints) {
 
-        AbstractGarminTransformer transformer = transformerByType.get(summaryType);
-        if (transformer == null) {
+        LOG.debug("Transforming Garmin summary type {} to data points", summaryType);
+        List<AbstractGarminTransformer> transformers = transformersByType.get(summaryType);
+
+        if (transformers == null || transformers.isEmpty()) {
+            LOG.debug("No transformer found for type {}", summaryType);
             return Collections.emptyMap();
         }
 
@@ -69,9 +72,9 @@ public class GarminDataTransformationService {
 
                     List<DataPoint> dataPoints = participantGarminDataPoint.garminDataPoints()
                             .parallelStream()
-                            .flatMap(data -> transformer
-                                    .transform(observations, data, participantStart, participantEnd)
+                            .flatMap(data -> transformers
                                     .stream()
+                                    .flatMap(t -> t.transform(observations, data, participantStart, participantEnd).stream())
                             )
                             .toList();
 
