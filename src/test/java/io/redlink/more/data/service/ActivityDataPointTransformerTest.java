@@ -5,7 +5,7 @@ import io.redlink.more.data.model.DataPoint;
 import io.redlink.more.data.model.Observation;
 import io.redlink.more.data.model.garmin.GarminSummaryType;
 import io.redlink.more.data.model.scheduler.Event;
-import io.redlink.more.data.transformers.garmin.EpochGarminSummaryTransformer;
+import io.redlink.more.data.transformers.garmin.ActivityDataPointTransformer;
 import org.apache.commons.lang3.Range;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -18,17 +18,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
 
-class EpochGarminSummaryTransformerTest {
+class ActivityDataPointTransformerTest {
 
-    private static class TestEpochGarminSummaryTransformer extends EpochGarminSummaryTransformer {
+    private static class TestActivityDataPointTransformer extends ActivityDataPointTransformer {
 
         List<DataPoint> exposeFilterByTimeRange(List<Range<Instant>> validTimeRanges, List<DataPoint> dataBulk) {
             return super.filterDataPointByTimeRange(validTimeRanges, dataBulk);
         }
     }
 
-    private final EpochGarminSummaryTransformer transformer = new EpochGarminSummaryTransformer();
-    private final TestEpochGarminSummaryTransformer testTransformer = new TestEpochGarminSummaryTransformer();
+    private final ActivityDataPointTransformer transformer = new ActivityDataPointTransformer();
+    private final TestActivityDataPointTransformer testTransformer = new TestActivityDataPointTransformer();
 
     @Test
     @DisplayName("getSupportedType returns EPOCHS")
@@ -266,7 +266,7 @@ class EpochGarminSummaryTransformerTest {
     }
 
     /**
-     * Small helper to avoid leaking the START_TIME_KEY constant from EpochGarminSummaryTransformer
+     * Small helper to avoid leaking the START_TIME_KEY constant from ActivityDataPointTransformer
      * while still using the same map key in the test data.
      */
     private static final class EpochGarminSummaryTransformerTestHelper {

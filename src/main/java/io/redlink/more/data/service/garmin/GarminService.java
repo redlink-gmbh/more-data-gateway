@@ -242,11 +242,17 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
                         }
                 )).entrySet();
 
+        if (entries.isEmpty()) {
+            LOG.debug("No data to store from Garmin...");
+            return;
+        }
+
         for (Map.Entry<RoutingInfo, ArrayList<DataPoint>> mapEntry : entries) {
             RoutingInfo key = mapEntry.getKey();
             ArrayList<DataPoint> value = mapEntry.getValue();
             deduplicateDataPoints(value, key);
             elasticService.storeDataPoints(value, key);
+            LOG.debug("Stored {} datapoints for user {}", value.size(), key);
         }
     }
 

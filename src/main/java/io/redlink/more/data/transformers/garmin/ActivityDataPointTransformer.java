@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Map;
 
 @Component
-public class EpochGarminSummaryTransformer extends AbstractGarminTransformer {
+public class ActivityDataPointTransformer extends AbstractGarminTransformer {
 
     @Override
     public GarminSummaryType getSupportedType() {

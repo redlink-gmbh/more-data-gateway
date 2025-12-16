@@ -62,7 +62,7 @@ class AbstractGarminTransformerTest {
         protected List<DataPoint> filterDataPointByTimeRange(List<Range<Instant>> validTimeRanges, List<DataPoint> dataBulk) {
             // Only keep datapoints whose effectiveDateTime falls into at least
             // one of the valid ranges. This mirrors the behaviour of
-            // DailiesGarminSummaryTransformer and allows us to verify that
+            // HeartRateTransformers and allows us to verify that
             // AbstractGarminTransformer#transform applies time range
             // filtering.
             return dataBulk.stream()

@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.Map;
 
 @Component
-public class SleepSummaryTransformer extends AbstractGarminTransformer {
+public class SleepDataTransformer extends AbstractGarminTransformer {
     @Override
     public GarminSummaryType getSupportedType() {
         return GarminSummaryType.SLEEPS;

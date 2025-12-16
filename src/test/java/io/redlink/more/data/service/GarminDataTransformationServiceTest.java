@@ -13,7 +13,7 @@ import io.redlink.more.data.model.scheduler.Event;
 import io.redlink.more.data.repository.StudyRepository;
 import io.redlink.more.data.service.garmin.GarminDataTransformationService;
 import io.redlink.more.data.service.garmin.GarminService;
-import io.redlink.more.data.transformers.garmin.DailiesGarminSummaryTransformer;
+import io.redlink.more.data.transformers.garmin.HeartRateTransformers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -48,7 +48,7 @@ class GarminDataTransformationServiceTest {
 
     @BeforeEach
     void setUp() {
-        var dailiesTransformer = new DailiesGarminSummaryTransformer();
+        var dailiesTransformer = new HeartRateTransformers();
 
         service = new GarminDataTransformationService(
                 studyRepository,

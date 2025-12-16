@@ -5,7 +5,7 @@ import io.redlink.more.data.model.DataType;
 import io.redlink.more.data.model.Observation;
 import io.redlink.more.data.model.garmin.transformation.GarminTimeData;
 import io.redlink.more.data.transformers.garmin.AbstractGarminTransformer;
-import io.redlink.more.data.transformers.garmin.DailiesGarminSummaryTransformer;
+import io.redlink.more.data.transformers.garmin.HeartRateTransformers;
 import org.apache.commons.lang3.Range;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -16,17 +16,17 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class DailiesGarminSummaryTransformerTest {
+class HeartRateTransformersTest {
 
-    private static class TestDailiesGarminSummaryTransformer extends DailiesGarminSummaryTransformer {
+    private static class TestHeartRateTransformers extends HeartRateTransformers {
 
         List<DataPoint> exposeFilterByTimeRange(List<Range<Instant>> validTimeRanges, List<DataPoint> dataBulk) {
             return super.filterDataPointByTimeRange(validTimeRanges, dataBulk);
         }
     }
 
-    private final DailiesGarminSummaryTransformer transformer = new DailiesGarminSummaryTransformer();
-    private final TestDailiesGarminSummaryTransformer testTransformer = new TestDailiesGarminSummaryTransformer();
+    private final HeartRateTransformers transformer = new HeartRateTransformers();
+    private final TestHeartRateTransformers testTransformer = new TestHeartRateTransformers();
 
     @Test
     @DisplayName("transformGarminTimeDataToDataPoint: correctly transforms GarminTimeData to DataPoint")

@@ -6,7 +6,7 @@ import io.redlink.more.data.model.DataType;
 import io.redlink.more.data.model.Observation;
 import io.redlink.more.data.model.garmin.GarminSummaryType;
 import io.redlink.more.data.model.scheduler.Event;
-import io.redlink.more.data.transformers.garmin.SleepSummaryTransformer;
+import io.redlink.more.data.transformers.garmin.SleepDataTransformer;
 import org.apache.commons.lang3.Range;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -18,17 +18,17 @@ import java.util.Objects;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class SleepSummaryTransformerTest {
+class SleepDataTransformerTest {
 
-    private static class TestSleepSummaryTransformer extends SleepSummaryTransformer {
+    private static class TestSleepDataTransformer extends SleepDataTransformer {
 
         List<DataPoint> exposeFilterByTimeRange(List<Range<Instant>> validTimeRanges, List<DataPoint> dataBulk) {
             return filterDataPointByTimeRange(validTimeRanges, dataBulk);
         }
     }
 
-    private final SleepSummaryTransformer transformer = new SleepSummaryTransformer();
-    private final TestSleepSummaryTransformer testTransformer = new TestSleepSummaryTransformer();
+    private final SleepDataTransformer transformer = new SleepDataTransformer();
+    private final TestSleepDataTransformer testTransformer = new TestSleepDataTransformer();
 
     @Test
     @DisplayName("getSupportedType returns SLEEPS")
@@ -182,7 +182,7 @@ class SleepSummaryTransformerTest {
         List<DataPoint> result = testTransformer.exposeFilterByTimeRange(validTimeRanges, dataPoints);
 
         // Then
-        // SleepSummaryTransformer's filterDataPointByTimeRange always returns the full list
+        // SleepDataTransformer's filterDataPointByTimeRange always returns the full list
         assertEquals(2, result.size());
         assertTrue(result.containsAll(dataPoints));
     }
@@ -222,7 +222,7 @@ class SleepSummaryTransformerTest {
     }
 
     /**
-     * Small helper to avoid leaking the START_TIME_KEY constant from SleepSummaryTransformer
+     * Small helper to avoid leaking the START_TIME_KEY constant from SleepDataTransformer
      * while still using the same map key in the test data.
      */
     private static final class SleepSummaryTransformerTestHelper {
