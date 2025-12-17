@@ -5,7 +5,8 @@ public enum DataType {
     ACTIVITY_START("activity_start"),
     ACTIVITY_END("activity_end"),
     SLEEP_START("sleep_start"),
-    SLEEP_END("sleep_end");
+    SLEEP_END("sleep_end"),
+    BLOOD_PRESSURE("blood_pressure");
 
     public final String dataType;
 

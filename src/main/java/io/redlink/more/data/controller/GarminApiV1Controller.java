@@ -73,7 +73,14 @@ public class GarminApiV1Controller implements GarminUserManagementApi {
                                 .collect(Collectors.toMap(
                                         entry -> GarminSummaryType.fromLabel(entry.getKey()),
                                         entry -> ((List<?>) entry.getValue()).stream()
-                                                .map(item -> MapperUtils.convertValue(item, GarminDataPoint.class))
+                                                .map(item -> MapperUtils.convertValueWithAliases(
+                                                        item,
+                                                        GarminDataPoint.class,
+                                                        Map.of(
+                                                                "startTimeInSeconds", "measurementTimeInSeconds",
+                                                                "startTimeOffsetInSeconds", "measurementTimeOffsetInSeconds"
+                                                        )
+                                                ))
                                                 .collect(Collectors.toList())
                                 ));
                 garminService.storeData(requestDataPoints);

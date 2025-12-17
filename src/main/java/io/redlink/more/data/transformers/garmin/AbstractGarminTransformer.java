@@ -7,11 +7,11 @@ import io.redlink.more.data.model.Observation;
 import io.redlink.more.data.model.garmin.GarminSummaryType;
 import io.redlink.more.data.model.garmin.transformation.GarminTimeData;
 import io.redlink.more.data.schedule.SchedulerUtils;
+import io.redlink.more.data.util.DateTimeUtils;
 import org.apache.commons.lang3.Range;
 
 import java.time.Instant;
 import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -58,16 +58,12 @@ public abstract class AbstractGarminTransformer {
     }
 
     protected OffsetDateTime recordingTimestamp(GarminDataPoint garminDataPoint) {
-        Instant unixTimestamp = Instant.ofEpochSecond(garminDataPoint.getStartTimeInSeconds());
-        ZoneOffset offset = ZoneOffset.ofTotalSeconds(garminDataPoint.getStartTimeOffsetInSeconds());
-        return unixTimestamp.atOffset(offset);
+        return DateTimeUtils.offsetDateTimeFromEpochSeconds(garminDataPoint.getStartTimeInSeconds(), garminDataPoint.getStartTimeOffsetInSeconds());
     }
 
     protected OffsetDateTime endDateTime(GarminDataPoint garminDataPoint) {
         int endTimestamp = garminDataPoint.getStartTimeInSeconds() + garminDataPoint.getDurationInSeconds();
-        Instant unixTimestamp = Instant.ofEpochSecond(endTimestamp);
-        ZoneOffset offset = ZoneOffset.ofTotalSeconds(garminDataPoint.getStartTimeOffsetInSeconds());
-        return unixTimestamp.atOffset(offset);
+        return DateTimeUtils.offsetDateTimeFromEpochSeconds(endTimestamp, garminDataPoint.getStartTimeOffsetInSeconds());
     }
 
     protected Range<Instant> getGarminDataPointTimeRange(GarminDataPoint garminDataPoint) {

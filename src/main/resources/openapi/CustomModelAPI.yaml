@@ -113,6 +113,26 @@ components:
         otherSleepData:
           type: object
           additionalProperties: true
+        systolic:
+          type: integer
+          format: int32
+          description: The systolic value of the blood pressure reading.
+        diastolic:
+          type: integer
+          format: int32
+          description: The diastolic value of the blood pressure reading.
+        pulse:
+          type: integer
+          format: int32
+          description: Pulse rate at the time the blood pressure reading
+        sourceType:
+          type: string
+          enum: [ MANUAL, DEVICE ]
+          default: "MANUAL"
+          description: |
+            This field is used to determine if blood pressure data was entered manually or synced from aGarmin Device. Possible values:
+            MANUAL: The user entered blood pressure information manually through a web form.
+            DEVICE: The user used a Garmin device to perform a blood pressure reading.
       required:
         - userId
         - summaryId
