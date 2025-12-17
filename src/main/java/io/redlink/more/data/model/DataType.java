@@ -7,7 +7,8 @@ public enum DataType {
     SLEEP_START("sleep_start"),
     SLEEP_END("sleep_end"),
     DAILY_STEPS("daily_steps"),
-    EPOCH_STEPS("epoch_steps");
+    EPOCH_STEPS("epoch_steps"),
+    BLOOD_PRESSURE("blood_pressure");
 
     public final String dataType;
 

@@ -9,7 +9,8 @@ public enum GarminSummaryType {
     STRESSDETAILS,
     PULSEOX,
     SLEEPS,
-    HRV;
+    HRV,
+    BLOODPRESSURES;
 
     public final String label;
 
