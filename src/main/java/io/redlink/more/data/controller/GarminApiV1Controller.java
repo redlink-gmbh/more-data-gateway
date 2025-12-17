@@ -4,6 +4,7 @@ import io.redlink.more.data.api.app.v1.model.DeregistrationRequestDTO;
 import io.redlink.more.data.api.app.v1.model.UpdatePermissionsRequestDTO;
 import io.redlink.more.data.api.app.v1.webservices.GarminUserManagementApi;
 import io.redlink.more.data.custom.model.GarminDataPoint;
+import io.redlink.more.data.model.Alias;
 import io.redlink.more.data.model.garmin.GarminSummaryType;
 import io.redlink.more.data.service.garmin.GarminService;
 import io.redlink.more.data.util.MapperUtils;
@@ -29,6 +30,11 @@ public class GarminApiV1Controller implements GarminUserManagementApi {
     private static final Logger LOG = LoggerFactory.getLogger(GarminApiV1Controller.class);
 
     private final GarminService garminService;
+
+    private final List<Alias> aliases = List.of(
+            new Alias("measurementTimeInSeconds", "startTimeInSeconds"),
+            new Alias("measurementTimeOffsetInSeconds", "startTimeOffsetInSeconds")
+    );
 
     public GarminApiV1Controller(GarminService garminService) {
         this.garminService = garminService;
@@ -76,10 +82,7 @@ public class GarminApiV1Controller implements GarminUserManagementApi {
                                                 .map(item -> MapperUtils.convertValueWithAliases(
                                                         item,
                                                         GarminDataPoint.class,
-                                                        Map.of(
-                                                                "startTimeInSeconds", "measurementTimeInSeconds",
-                                                                "startTimeOffsetInSeconds", "measurementTimeOffsetInSeconds"
-                                                        )
+                                                        aliases
                                                 ))
                                                 .collect(Collectors.toList())
                                 ));

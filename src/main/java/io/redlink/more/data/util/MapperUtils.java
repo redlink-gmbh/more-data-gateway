@@ -4,8 +4,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.redlink.more.data.exception.BadRequestException;
+import io.redlink.more.data.model.Alias;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class MapperUtils {
@@ -32,15 +34,15 @@ public class MapperUtils {
         return MAPPER.convertValue(o, c);
     }
 
-    public static <T> T convertValueWithAliases(Object o, Class<T> targetClass, Map<String, String> aliases) {
+    public static <T> T convertValueWithAliases(Object o, Class<T> targetClass, List<Alias> aliases) {
         if (o == null) return null;
 
         Map<String, Object> sourceMap = convertValue(o, Map.class);
         Map<String, Object> mappedData = new HashMap<>(sourceMap);
 
-        aliases.forEach((targetKey, sourceKey) -> {
-            if (!mappedData.containsKey(targetKey) && mappedData.containsKey(sourceKey)) {
-                mappedData.put(targetKey, mappedData.get(sourceKey));
+        aliases.forEach((alias) -> {
+            if (!mappedData.containsKey(alias.replacement()) && mappedData.containsKey(alias.key())) {
+                mappedData.put(alias.replacement(), mappedData.get(alias.key()));
             }
         });
 
