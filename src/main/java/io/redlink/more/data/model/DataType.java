@@ -5,7 +5,9 @@ public enum DataType {
     ACTIVITY_START("activity_start"),
     ACTIVITY_END("activity_end"),
     SLEEP_START("sleep_start"),
-    SLEEP_END("sleep_end");
+    SLEEP_END("sleep_end"),
+    DAILY_STEPS("daily_steps"),
+    EPOCH_STEPS("epoch_steps");
 
     public final String dataType;
 

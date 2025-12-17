@@ -113,6 +113,16 @@ components:
         otherSleepData:
           type: object
           additionalProperties: true
+        steps:
+          type: integer
+          description: Number of steps
+        distanceInMeters:
+          type: number
+          format: double
+          description: Distance traveled in meters
+        stepsGoal:
+          type: integer
+          description: Daily steps goal
       required:
         - userId
         - summaryId
