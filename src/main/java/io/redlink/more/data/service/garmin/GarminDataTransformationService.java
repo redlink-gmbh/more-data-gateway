@@ -92,6 +92,7 @@ public class GarminDataTransformationService {
                 participantKeyValue.studyId(),
                 participantKeyValue.participantId(),
                 OptionalInt.empty(),
+                null,
                 true,
                 true
         );

@@ -23,6 +23,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.lang.reflect.Method;
 import java.net.URI;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -55,7 +56,7 @@ class GarminServiceTest {
 
     @BeforeEach
     void setUp() {
-        routingInfo = new RoutingInfo(1L, 10, 1, true, true);
+        routingInfo = new RoutingInfo(1L, 10, 1, Collections.emptySet(), true, true);
     }
 
     @Test
@@ -211,7 +212,7 @@ class GarminServiceTest {
         when(dp1.data()).thenReturn(data1);
         when(dp2.data()).thenReturn(data2);
 
-        RoutingInfo routingInfo = new RoutingInfo(1L, 10, 1, true, true);
+        RoutingInfo routingInfo = new RoutingInfo(1L, 10, 1, Collections.emptySet(), true, true);
 
         when(elasticService.deleteDataPoints(
                 eq(routingInfo),

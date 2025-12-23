@@ -30,6 +30,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class ExternalService {
@@ -114,8 +115,8 @@ public class ExternalService {
         }
     }
 
-    public List<Participant> listParticipants(Long studyId, OptionalInt studyGroupId) {
-        return repository.listParticipants(studyId, studyGroupId);
+    public List<Participant> listParticipants(Long studyId, OptionalInt studyGroupId, OptionalInt observationGroupId) {
+        return repository.listParticipants(studyId, studyGroupId, observationGroupId.stream().boxed().collect(Collectors.toSet()));
     }
 
     private List<Interval> createSchedulesFromRelativeEvent(RelativeEvent event, Instant start) {

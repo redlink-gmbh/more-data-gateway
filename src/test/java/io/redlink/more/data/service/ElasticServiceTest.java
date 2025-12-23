@@ -18,6 +18,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.lang.reflect.Method;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -41,7 +42,7 @@ class ElasticServiceTest {
 
     @BeforeEach
     void setUp() {
-        routingInfo = new RoutingInfo(1L, 10, 1, true, true);
+        routingInfo = new RoutingInfo(1L, 10, 1, Collections.emptySet(), true, true);
     }
 
     @Test
