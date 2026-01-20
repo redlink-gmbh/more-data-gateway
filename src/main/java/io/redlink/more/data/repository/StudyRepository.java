@@ -156,6 +156,14 @@ public class StudyRepository {
                       ON o.observation_id = p.observation_id
                     WHERE o.observation_type = :observation_type""";
 
+    private static final String GET_PARTICIPANT_STATE =
+            """
+                    SELECT status FROM participants WHERE study_id = ? AND participant_id = ?""";
+
+    private static final String GET_STUDY_STATE =
+            """
+                    SELECT status FROM studies WHERE study_id = ?""";
+
     private final JdbcTemplate jdbcTemplate;
     private final NamedParameterJdbcTemplate namedTemplate;
 
@@ -246,6 +254,27 @@ public class StudyRepository {
                         .addValue("study_id", studyId)
                         .addValue("study_group_id", groupId.isPresent() ? groupId.getAsInt() : null),
                 getParticipantRowMapper());
+    }
+
+    public Optional<String> getParticipantState(long studyId, int participantId) {
+        return jdbcTemplate.query(
+                        GET_PARTICIPANT_STATE,
+                        (rs, rowNum) ->
+                                rs.getString("status"),
+                        studyId,
+                        participantId)
+                .stream()
+                .findFirst();
+    }
+
+    public Optional<String> getStudyState(long studyId) {
+        return jdbcTemplate.query(
+                        GET_STUDY_STATE,
+                        (rs, rowNum) ->
+                                rs.getString("status"),
+                        studyId)
+                .stream()
+                .findFirst();
     }
 
     private List<Observation> listObservations(long studyId, int groupId, int participantId, boolean filterByGroup) {
