@@ -128,7 +128,7 @@ public record ElasticDataPoint(
                                         dataPoint.observationType(),
                                         dataPoint.dataType(),
                                         h.timestamp(),
-                                        dataPoint.effectiveDateTime(),
+                                        h.timestamp(),
                                         Map.of(
                                                 "hr",h.hr
                                         )
@@ -151,7 +151,7 @@ public record ElasticDataPoint(
                                         dataPoint.observationType(),
                                         dataPoint.dataType(),
                                         h.timestamp(),
-                                        dataPoint.effectiveDateTime(),
+                                        h.timestamp(),
                                         Map.of(
                                                 "hr",h.hr
                                         )
@@ -194,7 +194,7 @@ public record ElasticDataPoint(
                                         dataPoint.observationType(),
                                         dataPoint.dataType(),
                                         a.timestamp(),
-                                        dataPoint.effectiveDateTime(),
+                                        a.timestamp(),
                                         Map.of(
                                                 "x", a.x,
                                                 "y", a.y,
@@ -218,7 +218,7 @@ public record ElasticDataPoint(
                                         dataPoint.observationType(),
                                         dataPoint.dataType(),
                                         a.timestamp(),
-                                        dataPoint.effectiveDateTime(),
+                                        a.timestamp(),
                                         Map.of(
                                                 "x", a.x,
                                                 "y", a.y,
@@ -258,7 +258,7 @@ public record ElasticDataPoint(
                                         dataPoint.observationType(),
                                         dataPoint.dataType(),
                                         t.timestamp(),
-                                        dataPoint.effectiveDateTime(),
+                                        t.timestamp(),
                                         Map.of(
                                                "temperature",t.temp
                                         )
@@ -280,7 +280,7 @@ public record ElasticDataPoint(
                                         dataPoint.observationType(),
                                         dataPoint.dataType(),
                                         t.timestamp(),
-                                        dataPoint.effectiveDateTime(),
+                                        t.timestamp(),
                                         Map.of(
                                                "temperature",t.temp
                                         )
@@ -321,7 +321,7 @@ public record ElasticDataPoint(
                                         dataPoint.observationType(),
                                         dataPoint.dataType(),
                                         p.timestamp(),
-                                        dataPoint.effectiveDateTime(),
+                                        p.timestamp(),
                                         Map.of(
                                                "hr", p.hr,
                                                 "ppiInMs",p.ppiInMs,
@@ -345,7 +345,7 @@ public record ElasticDataPoint(
                                         dataPoint.observationType(),
                                         dataPoint.dataType(),
                                         p.timestamp(),
-                                        dataPoint.effectiveDateTime(),
+                                        p.timestamp(),
                                         Map.of(
                                                "hr", p.hr,
                                                 "ppiInMs",p.ppiInMs,
