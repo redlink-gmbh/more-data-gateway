@@ -6,8 +6,8 @@ import io.redlink.more.data.model.DataType;
 import io.redlink.more.data.model.Observation;
 import io.redlink.more.data.model.garmin.GarminSummaryType;
 import io.redlink.more.data.model.garmin.transformation.GarminTimeData;
-import io.redlink.more.data.schedule.SchedulerUtils;
 import io.redlink.more.data.util.DateTimeUtils;
+import io.redlink.more.data.util.SchedulerUtils;
 import org.apache.commons.lang3.Range;
 
 import java.time.Instant;
@@ -28,13 +28,26 @@ public abstract class AbstractGarminTransformer {
     protected abstract List<DataPoint> filterDataPointByTimeRange(List<Range<Instant>> validTimeRanges, List<DataPoint> dataBulk);
 
     public List<DataPoint> transform(List<Observation> observations, GarminDataPoint garminDataPoint, Instant participantStart, Instant participantEnd) {
-        var validObservations = filterObservations(observations, garminDataPoint, participantStart, participantEnd);
+        return transform(observations, garminDataPoint, participantStart, participantEnd, null, null);
+    }
+
+    public List<DataPoint> transform(List<Observation> observations, GarminDataPoint garminDataPoint, Instant participantStart, Instant participantEnd, Long studyId, Integer participantId) {
+        var validObservations = filterObservations(observations, garminDataPoint, participantStart, participantEnd, studyId, participantId);
         if (validObservations.isEmpty()) {
             return Collections.emptyList();
         }
         var range = observations
                 .stream()
-                .flatMap(observation -> SchedulerUtils.parseToObservationSchedules(observation.observationSchedule(), participantStart, participantEnd).stream()).toList();
+                .flatMap(observation ->
+                        SchedulerUtils.parseToObservationSchedules(
+                                observation.observationSchedule(),
+                                participantStart,
+                                participantEnd,
+                                studyId,
+                                participantId,
+                                observation.observationId()
+                        ).stream())
+                .toList();
         var dataPoints = transformToDataPoint(validObservations, garminDataPoint);
         return filterDataPointByTimeRange(range, dataPoints);
     }
@@ -70,12 +83,12 @@ public abstract class AbstractGarminTransformer {
         return Range.of(recordingTimestamp(garminDataPoint).toInstant(), endDateTime(garminDataPoint).toInstant());
     }
 
-    private List<Observation> filterObservations(List<Observation> observations, GarminDataPoint garminDataPoint, Instant participantStart, Instant participantEnd) {
+    private List<Observation> filterObservations(List<Observation> observations, GarminDataPoint garminDataPoint, Instant participantStart, Instant participantEnd, Long studyId, Integer participantId) {
         Range<Instant> garminDataTimeRange = getGarminDataPointTimeRange(garminDataPoint);
         return observations
                 .stream()
                 .filter(observation -> {
-                    var instantRanges = SchedulerUtils.parseToObservationSchedules(observation.observationSchedule(), participantStart, participantEnd);
+                    var instantRanges = SchedulerUtils.parseToObservationSchedules(observation.observationSchedule(), participantStart, participantEnd, studyId, participantId, observation.observationId());
                     return instantRanges.stream().anyMatch(range -> range.isOverlappedBy(garminDataTimeRange));
                 })
                 .toList();

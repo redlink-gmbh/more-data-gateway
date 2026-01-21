@@ -22,14 +22,18 @@ import io.redlink.more.data.model.scheduler.Interval;
 import io.redlink.more.data.model.scheduler.RelativeEvent;
 import io.redlink.more.data.model.scheduler.ScheduleEvent;
 import io.redlink.more.data.repository.StudyRepository;
-import io.redlink.more.data.schedule.SchedulerUtils;
+import io.redlink.more.data.util.SchedulerUtils;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.List;
+import java.util.Optional;
+import java.util.OptionalInt;
 
 @Service
 public class ExternalService {
@@ -90,7 +94,7 @@ public class ExternalService {
                 intervalList.add(Interval.from((Event) scheduleEvent));
             } else if (scheduleEvent instanceof RelativeEvent) {
                 Optional<Instant> studyStart = repository.getStudyStartFor(studyId, participantId);
-                studyStart.ifPresent(instant -> intervalList.addAll(createSchedulesFromRelativeEvent((RelativeEvent) scheduleEvent, instant)));
+                studyStart.ifPresent(instant -> intervalList.addAll(createSchedulesFromRelativeEvent((RelativeEvent) scheduleEvent, instant, studyId, participantId, observationId)));
             } else {
                 throw new BadRequestException("Unsupported ScheduleEvent type: " + scheduleEvent.getClass());
             }
@@ -118,7 +122,9 @@ public class ExternalService {
         return repository.listParticipants(studyId, studyGroupId);
     }
 
-    private List<Interval> createSchedulesFromRelativeEvent(RelativeEvent event, Instant start) {
-        return Interval.fromRanges(SchedulerUtils.parseToObservationSchedulesForRelativeEvent(event, start));
+    private List<Interval> createSchedulesFromRelativeEvent(RelativeEvent event, Instant start, Long studyId, Integer participantId, Integer observationId) {
+        var ranges = SchedulerUtils.parseToObservationSchedulesForRelativeEvent(event, start);
+        var randomRanges = SchedulerUtils.randomSchedule(event, ranges, studyId, participantId, observationId);
+        return Interval.fromRanges(randomRanges);
     }
 }

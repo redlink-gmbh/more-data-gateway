@@ -8,10 +8,19 @@
  */
 package io.redlink.more.data.model;
 
+import io.redlink.more.data.api.app.v1.model.ContactInfoDTO;
+
 public record Contact(
         String institute,
         String person,
         String email,
         String phoneNumber
 ) {
+    public ContactInfoDTO toDTO() {
+        return new ContactInfoDTO()
+                .institute(institute)
+                .person(person)
+                .email(email)
+                .phoneNumber(phoneNumber);
+    }
 }

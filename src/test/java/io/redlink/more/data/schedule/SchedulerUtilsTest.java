@@ -9,7 +9,14 @@
 package io.redlink.more.data.schedule;
 
 import io.redlink.more.data.model.Observation;
-import io.redlink.more.data.model.scheduler.*;
+import io.redlink.more.data.model.scheduler.Duration;
+import io.redlink.more.data.model.scheduler.Event;
+import io.redlink.more.data.model.scheduler.RecurrenceRule;
+import io.redlink.more.data.model.scheduler.RelativeDate;
+import io.redlink.more.data.model.scheduler.RelativeEvent;
+import io.redlink.more.data.model.scheduler.RelativeRecurrenceRule;
+import io.redlink.more.data.model.scheduler.ScheduleEvent;
+import io.redlink.more.data.util.SchedulerUtils;
 import org.apache.commons.lang3.Range;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
@@ -26,7 +33,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static io.redlink.more.data.schedule.SchedulerUtils.shiftStartIfObservationAlreadyEnded;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -398,13 +404,13 @@ public class SchedulerUtilsTest {
         when(observationDay1At13.observationSchedule()).thenReturn(day1At13);
         when(observationDay2At10.observationSchedule()).thenReturn(day2At10);
 
-        Instant s1 = shiftStartIfObservationAlreadyEnded(start, List.of(observationDay1At10, observationDay1At12, observationDay2At10));
+        Instant s1 = SchedulerUtils.shiftStartIfObservationAlreadyEnded(start, List.of(observationDay1At10, observationDay1At12, observationDay2At10));
         Assertions.assertNotEquals(s1.toEpochMilli(), start.toEpochMilli());
 
-        Instant s2 = shiftStartIfObservationAlreadyEnded(start, List.of(observationDay1At12, observationDay2At10));
+        Instant s2 = SchedulerUtils.shiftStartIfObservationAlreadyEnded(start, List.of(observationDay1At12, observationDay2At10));
         Assertions.assertEquals(s2.toEpochMilli(), start.toEpochMilli());
 
-        Instant s3 = shiftStartIfObservationAlreadyEnded(start, List.of(observationDay1At13, observationDay2At10));
+        Instant s3 = SchedulerUtils.shiftStartIfObservationAlreadyEnded(start, List.of(observationDay1At13, observationDay2At10));
         Assertions.assertEquals(s3.toEpochMilli(), start.toEpochMilli());
     }
 

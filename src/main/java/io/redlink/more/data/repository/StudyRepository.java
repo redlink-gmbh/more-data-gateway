@@ -5,9 +5,10 @@ package io.redlink.more.data.repository;
 
 import io.redlink.more.data.model.*;
 import io.redlink.more.data.model.scheduler.ScheduleEvent;
-import io.redlink.more.data.schedule.SchedulerUtils;
 import io.redlink.more.data.service.garmin.GarminService;
 import io.redlink.more.data.util.MapperUtils;
+import io.redlink.more.data.util.SchedulerUtils;
+import jakarta.annotation.PostConstruct;
 import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -148,6 +149,8 @@ public class StudyRepository {
     private static final String GET_PARTICIPANT_OBSERVATION_PROPERTIES_BY_KEY_EXISTS =
             "SELECT * FROM participant_observation_properties WHERE participant_id = :participant_id AND study_id = :study_id AND properties ?? :key";
 
+    private static final String GET_PARTICIPANT_OBSERVATION_PROPERTIES = "SELECT properties FROM participant_observation_properties WHERE participant_id = :participant_id AND study_id = :study_id AND observation_id = :observation_id";
+
     private static final String GET_ALL_PARTICIPANT_OBSERVATION_PROPERTIES_BY_OBSERVATION_TYPE =
             """
                     SELECT pop.*
@@ -166,10 +169,16 @@ public class StudyRepository {
 
     private final JdbcTemplate jdbcTemplate;
     private final NamedParameterJdbcTemplate namedTemplate;
+    private static StudyRepository instance;
 
     public StudyRepository(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
         this.namedTemplate = new NamedParameterJdbcTemplate(jdbcTemplate);
+    }
+
+    @PostConstruct
+    public void afterPropertiesSet() {
+        instance = this;
     }
 
     public Optional<RoutingInfo> getRoutingInfo(Long studyId, Integer participantId) {
@@ -310,12 +319,15 @@ public class StudyRepository {
                 .orElse(observation);
     }
 
-    public void setParticipantProperties(Long studyId, Integer participantId, Integer observationId, Map<String, Object> properties) {
+    public void mergeParticipantProperties(Long studyId, Integer participantId, Integer observationId, Map<String, Object> properties) {
+        var oldProps = getParticipantWithObservationProperties(studyId, participantId, observationId);
         MapSqlParameterSource data = new MapSqlParameterSource()
                 .addValue("study_id", studyId)
                 .addValue("participant_id", participantId)
                 .addValue("observation_id", observationId)
-                .addValue("properties", MapperUtils.writeValueAsString(properties));
+                .addValue("properties", MapperUtils.writeValueAsString(
+                        DbUtils.mergeObjects(oldProps.orElse(Map.of()), properties))
+                );
 
         namedTemplate.update(SET_OBSERVATION_PROPERTIES_FOR_PARTICIPANT, data);
     }
@@ -368,6 +380,22 @@ public class StudyRepository {
                     getParticipantWithObservationPropertiesRowMapper());
         } catch (EmptyResultDataAccessException e) {
             return Collections.emptyList();
+        }
+    }
+
+    public Optional<Map<String, Object>> getParticipantWithObservationProperties(Long studyId, Integer participantId, Integer observationId) {
+        try {
+            return namedTemplate.query(
+                    GET_PARTICIPANT_OBSERVATION_PROPERTIES,
+                    new MapSqlParameterSource()
+                            .addValue("study_id", studyId)
+                            .addValue("participant_id", participantId)
+                            .addValue("observation_id", observationId),
+                    (rs, rowNum) ->
+                            (Map<String, Object>) MapperUtils.readValue(rs.getObject("properties"), Map.class)
+            ).stream().findFirst();
+        } catch (EmptyResultDataAccessException e) {
+            return Optional.empty();
         }
     }
 
@@ -631,5 +659,9 @@ public class StudyRepository {
                                 .addGroupDuration(Pair.of(rs.getInt("groupid"), DbUtils.readDuration(rs, "groupduration"))
                                 )), studyId).stream()
                 .reduce((prev, curr) -> prev.addGroupDuration(curr.getGroupDurations().get(0)));
+    }
+
+    public static StudyRepository getStaticInstance() {
+        return instance;
     }
 }

@@ -76,7 +76,7 @@ class GarminServiceTest {
         String url = garminService.getSsoUrl(routingInfo, "https://app.example/request");
 
         assertThat(url).isEqualTo("https://app.example/redirect");
-        verify(studyRepository, never()).setParticipantProperties(anyLong(), anyInt(), anyInt(), anyMap());
+        verify(studyRepository, never()).mergeParticipantProperties(anyLong(), anyInt(), anyInt(), anyMap());
     }
 
     @Test
@@ -94,7 +94,7 @@ class GarminServiceTest {
                 .contains("code_challenge=")
                 .contains("code_challenge_method=S256")
                 .contains("state=");
-        verify(studyRepository, atLeastOnce()).setParticipantProperties(eq(routingInfo.studyId()), eq(routingInfo.participantId()), eq(garminObs.observationId()), anyMap());
+        verify(studyRepository, atLeastOnce()).mergeParticipantProperties(eq(routingInfo.studyId()), eq(routingInfo.participantId()), eq(garminObs.observationId()), anyMap());
     }
 
     @Test
@@ -117,7 +117,7 @@ class GarminServiceTest {
         assertThatThrownBy(() -> garminService.ssoCallback("state-2", "code"))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("No Garmin Access Token");
-        verify(studyRepository, never()).setParticipantProperties(anyLong(), anyInt(), anyInt(), anyMap());
+        verify(studyRepository, never()).mergeParticipantProperties(anyLong(), anyInt(), anyInt(), anyMap());
         verify(participantKeyValueRepository, never()).insert(anyLong(), anyInt(), anyString(), anyMap());
     }
 

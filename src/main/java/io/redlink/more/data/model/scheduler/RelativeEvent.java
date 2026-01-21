@@ -4,13 +4,13 @@ public class RelativeEvent implements ScheduleEvent {
 
     public static final String TYPE = "RelativeEvent";
 
-    private String type;
-
     private RelativeDate dtstart;
 
     private RelativeDate dtend;
 
     private RelativeRecurrenceRule rrrule;
+
+    private Randomization randomization;
 
     public RelativeEvent() {
     }
@@ -18,11 +18,6 @@ public class RelativeEvent implements ScheduleEvent {
     @Override
     public String getType() {
         return TYPE;
-    }
-
-    public RelativeEvent setType(String type) {
-        this.type = type;
-        return this;
     }
 
     public RelativeDate getDtstart() {
@@ -49,6 +44,15 @@ public class RelativeEvent implements ScheduleEvent {
 
     public RelativeEvent setRrrule(RelativeRecurrenceRule rrrule) {
         this.rrrule = rrrule;
+        return this;
+    }
+
+    public Randomization getRandomization() {
+        return randomization;
+    }
+
+    public RelativeEvent setRandomization(Randomization randomization) {
+        this.randomization = randomization;
         return this;
     }
 }

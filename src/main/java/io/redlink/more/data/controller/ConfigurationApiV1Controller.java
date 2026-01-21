@@ -10,18 +10,19 @@ import io.redlink.more.data.api.app.v1.model.StudyDTO;
 import io.redlink.more.data.api.app.v1.webservices.ConfigurationApi;
 import io.redlink.more.data.configuration.AuthenticationFacade;
 import io.redlink.more.data.controller.transformer.NotificationServiceTransformer;
-import io.redlink.more.data.controller.transformer.StudyTransformer;
 import io.redlink.more.data.model.GatewayUserDetails;
+import io.redlink.more.data.model.Study;
 import io.redlink.more.data.service.GatewayUserDetailService;
 import io.redlink.more.data.service.PushNotificationService;
 import io.redlink.more.data.service.RegistrationService;
 import io.redlink.more.data.util.LoggingUtils;
-import java.util.List;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @Controller
 @RestController
@@ -47,7 +48,7 @@ public class ConfigurationApiV1Controller implements ConfigurationApi {
         try (LoggingUtils.LoggingContext ctx = LoggingUtils.createContext(userDetails.getRoutingInfo())) {
             return ResponseEntity.of(
                     registrationService.loadStudyByRoutingInfo(userDetails.getRoutingInfo())
-                            .map(StudyTransformer::toDTO)
+                            .map(Study::toDTO)
             );
         }
     }
