@@ -8,14 +8,22 @@
  */
 package io.redlink.more.data.model.scheduler;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonSetter;
+import com.fasterxml.jackson.annotation.Nulls;
+
 import java.time.Instant;
 
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class Event implements ScheduleEvent {
     public static final String TYPE = "Event";
+    private String type;
+    
     private Instant dateStart;
     private Instant dateEnd;
     private RecurrenceRule recurrenceRule;
-    private Randomization randomization;
+    private Randomization randomization = Randomization.none;
 
     @Override
     public String getType() {
@@ -53,6 +61,7 @@ public class Event implements ScheduleEvent {
         return randomization;
     }
 
+    @JsonSetter(value = "randomization", nulls = Nulls.SKIP)
     public Event setRandomization(Randomization randomization) {
         this.randomization = randomization;
         return this;
