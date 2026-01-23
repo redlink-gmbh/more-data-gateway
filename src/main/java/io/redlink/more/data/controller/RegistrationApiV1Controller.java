@@ -12,11 +12,11 @@ import io.redlink.more.data.api.app.v1.model.StudyDTO;
 import io.redlink.more.data.api.app.v1.webservices.RegistrationApi;
 import io.redlink.more.data.configuration.AuthenticationFacade;
 import io.redlink.more.data.controller.transformer.ErrorTransformer;
+import io.redlink.more.data.controller.transformer.StudyTransformer;
 import io.redlink.more.data.exception.RegistrationNotPossibleException;
 import io.redlink.more.data.model.ApiCredentials;
 import io.redlink.more.data.model.GatewayUserDetails;
 import io.redlink.more.data.model.ParticipantConsent;
-import io.redlink.more.data.model.Study;
 import io.redlink.more.data.properties.MoreProperties;
 import io.redlink.more.data.service.GatewayUserDetailService;
 import io.redlink.more.data.service.RegistrationService;
@@ -55,15 +55,17 @@ public class RegistrationApiV1Controller implements RegistrationApi {
 
     @Override
     public ResponseEntity<StudyDTO> getStudyRegistrationInfo(String moreRegistrationToken) {
-        return registrationService.loadStudyByRegistrationToken(moreRegistrationToken)
-                .map(Study::toDTO)
-                .map(study -> ResponseEntity.ok()
-                        // For better debugging: return the token for chaining
-                        .header("More-Registration-Token", moreRegistrationToken)
-                        .body(study)
-                )
-                .orElseGet(() -> ResponseEntity.notFound().build())
-                ;
+        var study = registrationService.loadStudyByRegistrationToken(moreRegistrationToken);
+        if (study.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        var seeds = registrationService.getParticipantObservationSeeds(study.get().studyId(), study.get().participant().id());
+        var studyDto = StudyTransformer.toDTO(study.get(), seeds);
+        return ResponseEntity.ok()
+                // For better debugging: return the token for chaining
+                .header("More-Registration-Token", moreRegistrationToken)
+                .body(studyDto);
+        
     }
 
     @Override

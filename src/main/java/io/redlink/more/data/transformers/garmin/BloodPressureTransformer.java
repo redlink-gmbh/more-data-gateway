@@ -16,6 +16,10 @@ import java.util.List;
 
 @Component
 public class BloodPressureTransformer extends AbstractGarminTransformer {
+    public BloodPressureTransformer() {
+        super();
+    }
+
     @Override
     public GarminSummaryType getSupportedType() {
         return GarminSummaryType.BLOODPRESSURES;

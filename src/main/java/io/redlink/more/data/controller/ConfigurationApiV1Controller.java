@@ -10,8 +10,8 @@ import io.redlink.more.data.api.app.v1.model.StudyDTO;
 import io.redlink.more.data.api.app.v1.webservices.ConfigurationApi;
 import io.redlink.more.data.configuration.AuthenticationFacade;
 import io.redlink.more.data.controller.transformer.NotificationServiceTransformer;
+import io.redlink.more.data.controller.transformer.StudyTransformer;
 import io.redlink.more.data.model.GatewayUserDetails;
-import io.redlink.more.data.model.Study;
 import io.redlink.more.data.service.GatewayUserDetailService;
 import io.redlink.more.data.service.PushNotificationService;
 import io.redlink.more.data.service.RegistrationService;
@@ -46,9 +46,13 @@ public class ConfigurationApiV1Controller implements ConfigurationApi {
         final GatewayUserDetails userDetails = authenticationFacade
                 .assertAuthority(GatewayUserDetailService.APP_ROLE);
         try (LoggingUtils.LoggingContext ctx = LoggingUtils.createContext(userDetails.getRoutingInfo())) {
+            var participantObservationProperties = registrationService
+                    .getParticipantObservationSeeds(userDetails.getRoutingInfo().studyId(), userDetails.getRoutingInfo().participantId())
+                    .stream()
+                    .toList();
             return ResponseEntity.of(
                     registrationService.loadStudyByRoutingInfo(userDetails.getRoutingInfo())
-                            .map(Study::toDTO)
+                            .map(study -> StudyTransformer.toDTO(study, participantObservationProperties))
             );
         }
     }

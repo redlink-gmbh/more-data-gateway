@@ -16,12 +16,14 @@ import io.redlink.more.data.exception.NotFoundException;
 import io.redlink.more.data.exception.TimeFrameException;
 import io.redlink.more.data.model.ApiRoutingInfo;
 import io.redlink.more.data.model.Participant;
+import io.redlink.more.data.model.ParticipantObservationSeed;
 import io.redlink.more.data.model.RoutingInfo;
 import io.redlink.more.data.model.scheduler.Event;
 import io.redlink.more.data.model.scheduler.Interval;
 import io.redlink.more.data.model.scheduler.RelativeEvent;
 import io.redlink.more.data.model.scheduler.ScheduleEvent;
 import io.redlink.more.data.repository.StudyRepository;
+import io.redlink.more.data.util.RandomSchedulerUtils;
 import io.redlink.more.data.util.SchedulerUtils;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.access.AccessDeniedException;
@@ -32,6 +34,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 
@@ -123,8 +126,10 @@ public class ExternalService {
     }
 
     private List<Interval> createSchedulesFromRelativeEvent(RelativeEvent event, Instant start, Long studyId, Integer participantId, Integer observationId) {
+        var properties = repository.getParticipantWithObservationProperties(studyId, participantId, observationId).orElse(Map.of());
+        var seed = new ParticipantObservationSeed(studyId, participantId, observationId, (Long) properties.getOrDefault(RandomSchedulerUtils.OBSERVATION_SCHEDULE_SEED_KEY, 0L));
         var ranges = SchedulerUtils.parseToObservationSchedulesForRelativeEvent(event, start);
-        var randomRanges = SchedulerUtils.randomSchedule(event, ranges, studyId, participantId, observationId);
+        var randomRanges = SchedulerUtils.randomSchedule(seed, event, ranges);
         return Interval.fromRanges(randomRanges);
     }
 }

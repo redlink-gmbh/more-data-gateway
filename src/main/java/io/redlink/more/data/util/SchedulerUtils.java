@@ -14,13 +14,13 @@ import biweekly.util.Frequency;
 import biweekly.util.Recurrence;
 import biweekly.util.com.google.ical.compat.javautil.DateIterator;
 import io.redlink.more.data.model.Observation;
+import io.redlink.more.data.model.ParticipantObservationSeed;
 import io.redlink.more.data.model.scheduler.Event;
 import io.redlink.more.data.model.scheduler.RecurrenceRule;
 import io.redlink.more.data.model.scheduler.RelativeDate;
 import io.redlink.more.data.model.scheduler.RelativeEvent;
 import io.redlink.more.data.model.scheduler.RelativeRecurrenceRule;
 import io.redlink.more.data.model.scheduler.ScheduleEvent;
-import io.redlink.more.data.repository.StudyRepository;
 import org.apache.commons.lang3.Range;
 
 import java.sql.Date;
@@ -30,13 +30,10 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.TimeZone;
-import java.util.UUID;
 
 public class SchedulerUtils {
-    private static final String OBSERVATION_SCHEDULE_SEED_KEY = "observation_schedule_seed";
 
     public static List<Range<Instant>> parseToObservationSchedulesForRelativeEvent(
             RelativeEvent event, Instant start) {
@@ -93,11 +90,7 @@ public class SchedulerUtils {
         return List.copyOf(observationSchedules);
     }
 
-    public static List<Range<Instant>> parseToObservationSchedules(ScheduleEvent scheduleEvent, Instant start, Instant end) {
-        return parseToObservationSchedules(scheduleEvent, start, end, null, null, null);
-    }
-
-    public static List<Range<Instant>> parseToObservationSchedules(ScheduleEvent scheduleEvent, Instant start, Instant end, Long studyId, Integer participantId, Integer observationId) {
+    public static List<Range<Instant>> parseToObservationSchedules(ParticipantObservationSeed participantObservationSeed, ScheduleEvent scheduleEvent, Instant start, Instant end) {
         if (scheduleEvent == null) return Collections.emptyList();
         List<Range<Instant>> ranges = Collections.emptyList();
         if (scheduleEvent instanceof Event event) {
@@ -105,7 +98,7 @@ public class SchedulerUtils {
         } else if (scheduleEvent instanceof RelativeEvent relativeEvent) {
             ranges = parseToObservationSchedulesForRelativeEvent(relativeEvent, start);
         }
-        return randomSchedule(scheduleEvent, ranges, studyId, participantId, observationId);
+        return randomSchedule(participantObservationSeed, scheduleEvent, ranges);
     }
 
     public static Instant shiftStartIfObservationAlreadyEnded(Instant start, List<Observation> observations) {
@@ -185,25 +178,13 @@ public class SchedulerUtils {
         if (byMonthDay != null) builder.byMonthDay(byMonthDay);
     }
 
-    public static List<Range<Instant>> randomSchedule(ScheduleEvent event, List<Range<Instant>> ranges, Long studyId, Integer participantId, Integer observationId) {
-        if (event.getRandomization() == null || !event.getRandomization().state() || event.getRandomization().duration() <= 0) {
+    public static List<Range<Instant>> randomSchedule(ParticipantObservationSeed participantObservationSeeds, ScheduleEvent event, List<Range<Instant>> ranges) {
+        if (participantObservationSeeds == null || participantObservationSeeds.seed() == 0L || event.getRandomization() == null || !event.getRandomization().state() || event.getRandomization().duration() <= 0) {
             return ranges;
         }
         if (ranges == null || ranges.isEmpty()) {
             return Collections.emptyList();
         }
-        var repository = StudyRepository.getStaticInstance();
-        boolean validDetails = studyId != null && participantId != null && observationId != null;
-        var properties = validDetails ? repository.getParticipantWithObservationProperties(studyId, participantId, observationId).orElse(Map.of()) : Map.of();
-        Long seed = (Long) properties.get(OBSERVATION_SCHEDULE_SEED_KEY);
-        if (seed == null) {
-            String userId = validDetails ? studyId + "_" + participantId + "_" + observationId : UUID.randomUUID().toString();
-            seed = RandomSchedulerUtils.generateSeedFromSchedule(event, userId);
-            Map<String, Object> seedObject = Map.of(OBSERVATION_SCHEDULE_SEED_KEY, seed);
-            if (validDetails) {
-                repository.mergeParticipantProperties(studyId, participantId, observationId, seedObject);
-            }
-        }
-        return RandomSchedulerUtils.parseScheduleWithSeed(seed, ranges, event.getRandomization().duration());
+        return RandomSchedulerUtils.parseScheduleWithSeed(participantObservationSeeds.seed(), ranges, event.getRandomization().duration());
     }
 }

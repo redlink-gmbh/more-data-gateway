@@ -25,12 +25,21 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-class AbstractGarminTransformerTest {
+class AbstractGarminTransformerTest extends AbstractGarminTransformerTestBase<AbstractGarminTransformerTest.TestGarminTransformer> {
+
+    @Override
+    protected TestGarminTransformer createTransformer() {
+        return new TestGarminTransformer();
+    }
 
     /**
      * Simple concrete subclass to expose the protected / private behaviour for testing.
      */
-    private static class TestGarminTransformer extends AbstractGarminTransformer {
+    public static class TestGarminTransformer extends AbstractGarminTransformer {
+
+        private TestGarminTransformer() {
+            super();
+        }
 
         @Override
         public GarminSummaryType getSupportedType() {
@@ -85,8 +94,6 @@ class AbstractGarminTransformerTest {
             return endDateTime(garminDataPoint);
         }
     }
-
-    private final TestGarminTransformer transformer = new TestGarminTransformer();
 
     @Test
     @DisplayName("recordingTimestamp: builds OffsetDateTime from startTimeInSeconds and offset")

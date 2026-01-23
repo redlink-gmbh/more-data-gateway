@@ -17,17 +17,20 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
+class ActivityDataPointTransformerTest extends AbstractGarminTransformerTestBase<ActivityDataPointTransformerTest.TestActivityDataPointTransformer> {
 
-class ActivityDataPointTransformerTest {
+    @Override
+    protected TestActivityDataPointTransformer createTransformer() {
+        return new TestActivityDataPointTransformer();
+    }
 
-    private static class TestActivityDataPointTransformer extends ActivityDataPointTransformer {
+    public static class TestActivityDataPointTransformer extends ActivityDataPointTransformer {
 
         List<DataPoint> exposeFilterByTimeRange(List<Range<Instant>> validTimeRanges, List<DataPoint> dataBulk) {
             return super.filterDataPointByTimeRange(validTimeRanges, dataBulk);
         }
     }
 
-    private final ActivityDataPointTransformer transformer = new ActivityDataPointTransformer();
     private final TestActivityDataPointTransformer testTransformer = new TestActivityDataPointTransformer();
 
     @Test
@@ -84,9 +87,6 @@ class ActivityDataPointTransformerTest {
     @DisplayName("transform: returns empty list when activityType is null")
     void transform_ToDataPoint_returnsEmpty_whenActivityTypeNull() {
         GarminDataPoint garminDataPoint = mock(GarminDataPoint.class);
-        when(garminDataPoint.getActivityType()).thenReturn(null);
-        when(garminDataPoint.getMet()).thenReturn(1.5);
-        when(garminDataPoint.getIntensity()).thenReturn(GarminDataPoint.IntensityEnum.ACTIVE);
 
         Instant start = Instant.ofEpochSecond(1_600_000_000);
         Instant end = start.plusSeconds(600);
@@ -118,9 +118,6 @@ class ActivityDataPointTransformerTest {
     @DisplayName("transform: returns empty list when MET is null")
     void transform_ToDataPoint_returnsEmpty_whenMetNull() {
         GarminDataPoint garminDataPoint = mock(GarminDataPoint.class);
-        when(garminDataPoint.getActivityType()).thenReturn(GarminDataPoint.ActivityTypeEnum.WALKING);
-        when(garminDataPoint.getMet()).thenReturn(null);
-        when(garminDataPoint.getIntensity()).thenReturn(GarminDataPoint.IntensityEnum.ACTIVE);
 
         Instant start = Instant.ofEpochSecond(1_600_000_000);
         Instant end = start.plusSeconds(600);
@@ -152,9 +149,6 @@ class ActivityDataPointTransformerTest {
     @DisplayName("transform: returns empty list when MET is negative")
     void transform_ToDataPoint_returnsEmpty_whenMetNegative() {
         GarminDataPoint garminDataPoint = mock(GarminDataPoint.class);
-        when(garminDataPoint.getActivityType()).thenReturn(GarminDataPoint.ActivityTypeEnum.RUNNING);
-        when(garminDataPoint.getMet()).thenReturn(-0.1);
-        when(garminDataPoint.getIntensity()).thenReturn(GarminDataPoint.IntensityEnum.HIGHLY_ACTIVE);
 
         Instant start = Instant.ofEpochSecond(1_600_000_000);
         Instant end = start.plusSeconds(600);
@@ -186,9 +180,6 @@ class ActivityDataPointTransformerTest {
     @DisplayName("transform: returns empty list when intensity is null")
     void transform_ToDataPoint_returnsEmpty_whenIntensityNull() {
         GarminDataPoint garminDataPoint = mock(GarminDataPoint.class);
-        when(garminDataPoint.getActivityType()).thenReturn(GarminDataPoint.ActivityTypeEnum.WALKING);
-        when(garminDataPoint.getMet()).thenReturn(2.0);
-        when(garminDataPoint.getIntensity()).thenReturn(null);
 
         Instant start = Instant.ofEpochSecond(1_600_000_000);
         Instant end = start.plusSeconds(600);

@@ -20,6 +20,10 @@ import java.util.stream.Collectors;
 @Component
 public class HeartRateTransformers extends AbstractGarminTransformer {
 
+    public HeartRateTransformers() {
+        super();
+    }
+
     @Override
     public GarminSummaryType getSupportedType() {
         return GarminSummaryType.DAILIES;

@@ -16,17 +16,19 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class HeartRateTransformersTest {
+class HeartRateTransformersTest extends AbstractGarminTransformerTestBase<HeartRateTransformersTest.TestHeartRateTransformers> {
 
-    private static class TestHeartRateTransformers extends HeartRateTransformers {
+    public static class TestHeartRateTransformers extends HeartRateTransformers {
 
         List<DataPoint> exposeFilterByTimeRange(List<Range<Instant>> validTimeRanges, List<DataPoint> dataBulk) {
             return super.filterDataPointByTimeRange(validTimeRanges, dataBulk);
         }
     }
 
-    private final HeartRateTransformers transformer = new HeartRateTransformers();
-    private final TestHeartRateTransformers testTransformer = new TestHeartRateTransformers();
+    @Override
+    protected TestHeartRateTransformers createTransformer() {
+        return new TestHeartRateTransformers();
+    }
 
     @Test
     @DisplayName("transformGarminTimeDataToDataPoint: correctly transforms GarminTimeData to DataPoint")
@@ -115,7 +117,7 @@ class HeartRateTransformersTest {
                 Map.of()
         );
 
-        List<DataPoint> result = testTransformer.exposeFilterByTimeRange(List.of(validRange), List.of(inRange, outOfRange));
+        List<DataPoint> result = transformer.exposeFilterByTimeRange(List.of(validRange), List.of(inRange, outOfRange));
 
         assertThat(result)
                 .hasSize(1)
@@ -151,7 +153,7 @@ class HeartRateTransformersTest {
                 Map.of()
         );
 
-        List<DataPoint> result = testTransformer.exposeFilterByTimeRange(List.of(validRange), List.of(outOfRange1, outOfRange2));
+        List<DataPoint> result = transformer.exposeFilterByTimeRange(List.of(validRange), List.of(outOfRange1, outOfRange2));
 
         assertThat(result).isEmpty();
     }

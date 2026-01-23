@@ -20,13 +20,15 @@ import java.util.Objects;
 import java.util.stream.IntStream;
 
 public class RandomSchedulerUtils {
-    public static long generateSeedFromSchedule(ScheduleEvent schedule) {
+    public static final String OBSERVATION_SCHEDULE_SEED_KEY = "observation_schedule_seed";
+
+    public static Long generateSeedFromSchedule(ScheduleEvent schedule) {
         return generateSeedFromSchedule(schedule, null);
     }
 
-    public static long generateSeedFromSchedule(ScheduleEvent schedule, String userId) {
+    public static Long generateSeedFromSchedule(ScheduleEvent schedule, String userId) {
         if (schedule == null || schedule.getRandomization() == null || !schedule.getRandomization().state()) {
-            return 0;
+            return null;
         }
 
         if (Objects.equals(schedule.getType(), Event.TYPE)) {
@@ -35,10 +37,10 @@ public class RandomSchedulerUtils {
             return generateSeedForRelativeEvent((RelativeEvent) schedule, userId);
         }
 
-        return 0;
+        return null;
     }
 
-    private static long generateSeedForEvent(Event event, String userId) {
+    private static Long generateSeedForEvent(Event event, String userId) {
         Long windowStart = event.getDateStart() != null ? event.getDateStart().getEpochSecond() : null;
         Long windowEnd = event.getDateEnd() != null ? event.getDateEnd().getEpochSecond() : null;
         Integer duration = event.getRandomization() != null ? event.getRandomization().duration() : null;
@@ -52,6 +54,7 @@ public class RandomSchedulerUtils {
 
         // Only include userId if provided; tests for generateSeedFromSchedule(event) expect a seed
         // derived purely from the schedule definition.
+        // This comparision is needed, as a null userId effects the outcome
         if (userId != null) {
             return stableHash64(
                     userId,

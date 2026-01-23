@@ -8,8 +8,6 @@
  */
 package io.redlink.more.data.model;
 
-import io.redlink.more.data.api.app.v1.model.SimpleParticipantDTO;
-
 import java.time.Instant;
 
 public record SimpleParticipant(
@@ -18,9 +16,5 @@ public record SimpleParticipant(
         Instant start,
         Instant end
 ) {
-    public SimpleParticipantDTO toDTO() {
-        return new SimpleParticipantDTO()
-                .id(id)
-                .alias(alias);
-    }
+
 }

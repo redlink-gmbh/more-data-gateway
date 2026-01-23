@@ -7,8 +7,8 @@ import io.redlink.more.data.model.*;
 import io.redlink.more.data.model.scheduler.ScheduleEvent;
 import io.redlink.more.data.service.garmin.GarminService;
 import io.redlink.more.data.util.MapperUtils;
+import io.redlink.more.data.util.RandomSchedulerUtils;
 import io.redlink.more.data.util.SchedulerUtils;
-import jakarta.annotation.PostConstruct;
 import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -32,9 +32,11 @@ import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import static io.redlink.more.data.repository.DbUtils.toInstant;
 import static io.redlink.more.data.repository.DbUtils.toLocalDate;
+import static io.redlink.more.data.util.RandomSchedulerUtils.OBSERVATION_SCHEDULE_SEED_KEY;
 
 @Service
 public class StudyRepository {
@@ -149,7 +151,9 @@ public class StudyRepository {
     private static final String GET_PARTICIPANT_OBSERVATION_PROPERTIES_BY_KEY_EXISTS =
             "SELECT * FROM participant_observation_properties WHERE participant_id = :participant_id AND study_id = :study_id AND properties ?? :key";
 
+    private static final String GET_PARTICIPANT_OBSERVATIONS_PROPERTIES = "SELECT * FROM participant_observation_properties WHERE participant_id = :participant_id AND study_id = :study_id";
     private static final String GET_PARTICIPANT_OBSERVATION_PROPERTIES = "SELECT properties FROM participant_observation_properties WHERE participant_id = :participant_id AND study_id = :study_id AND observation_id = :observation_id";
+
 
     private static final String GET_ALL_PARTICIPANT_OBSERVATION_PROPERTIES_BY_OBSERVATION_TYPE =
             """
@@ -169,16 +173,10 @@ public class StudyRepository {
 
     private final JdbcTemplate jdbcTemplate;
     private final NamedParameterJdbcTemplate namedTemplate;
-    private static StudyRepository instance;
 
     public StudyRepository(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
         this.namedTemplate = new NamedParameterJdbcTemplate(jdbcTemplate);
-    }
-
-    @PostConstruct
-    public void afterPropertiesSet() {
-        instance = this;
     }
 
     public Optional<RoutingInfo> getRoutingInfo(Long studyId, Integer participantId) {
@@ -232,7 +230,11 @@ public class StudyRepository {
         final SimpleParticipant participant = findParticipant(routingInfo).orElse(null);
 
         try (var stream = jdbcTemplate.queryForStream(SQL_FIND_STUDY_BY_ID, getStudyRowMapper(observations, participant), routingInfo.studyId())) {
-            return stream.findFirst();
+            var study = stream.findFirst();
+            if (study.isPresent()) {
+                generateRandomEventSchedulesForParticipant(routingInfo, observations);
+            }
+            return study;
         }
     }
 
@@ -383,10 +385,24 @@ public class StudyRepository {
         }
     }
 
-    public Optional<Map<String, Object>> getParticipantWithObservationProperties(Long studyId, Integer participantId, Integer observationId) {
+    public List<ParticipantWithObservationProperties> getAllParticpantObservationProperties(Long studyId, Integer participantId) {
         try {
             return namedTemplate.query(
-                    GET_PARTICIPANT_OBSERVATION_PROPERTIES,
+                    GET_PARTICIPANT_OBSERVATIONS_PROPERTIES,
+                    new MapSqlParameterSource()
+                            .addValue("study_id", studyId)
+                            .addValue("participant_id", participantId),
+                    getParticipantWithObservationPropertiesRowMapper()
+            ).stream().toList();
+        } catch (EmptyResultDataAccessException e) {
+            return Collections.emptyList();
+        }
+    }
+
+    public Optional<Map<String, Object>> getParticipantWithObservationProperties(Long studyId, Integer participantId, int observationId) {
+        try {
+            return namedTemplate.query(
+                    GET_PARTICIPANT_OBSERVATIONS_PROPERTIES,
                     new MapSqlParameterSource()
                             .addValue("study_id", studyId)
                             .addValue("participant_id", participantId)
@@ -661,7 +677,30 @@ public class StudyRepository {
                 .reduce((prev, curr) -> prev.addGroupDuration(curr.getGroupDurations().get(0)));
     }
 
-    public static StudyRepository getStaticInstance() {
-        return instance;
+    private void generateRandomEventSchedulesForParticipant(RoutingInfo routingInfo, List<Observation> observations) {
+        var participantObservationProperties = getAllParticpantObservationProperties(routingInfo.studyId(), routingInfo.participantId())
+                .stream()
+                .filter(p ->
+                        !p.properties().containsKey(OBSERVATION_SCHEDULE_SEED_KEY)
+                                || p.properties().get(OBSERVATION_SCHEDULE_SEED_KEY) == null
+                                || ((Long) p.properties().get(OBSERVATION_SCHEDULE_SEED_KEY)) == 0L)
+                .map(ParticipantWithObservationProperties::observationId)
+                .collect(Collectors.toSet());
+        observations
+                .stream()
+                .filter(observation -> participantObservationProperties.contains(observation.observationId()))
+                .forEach(observation -> {
+                    ScheduleEvent event = observation.observationSchedule();
+                    if (event == null || !event.getRandomization().state()) {
+                        return;
+                    }
+                    String userId = routingInfo.studyId() + "_" + routingInfo.participantId() + "_" + observation.observationId();
+                    Long seed = RandomSchedulerUtils.generateSeedFromSchedule(event, userId);
+                    if (seed == null) {
+                        return;
+                    }
+                    Map<String, Object> seedObject = Map.of(OBSERVATION_SCHEDULE_SEED_KEY, seed);
+                    mergeParticipantProperties(routingInfo.studyId(), routingInfo.participantId(), observation.observationId(), seedObject);
+                });
     }
 }
