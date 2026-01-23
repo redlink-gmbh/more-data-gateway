@@ -53,7 +53,7 @@ public class RegistrationService {
         return properties
                 .stream()
                 .map(StudyTransformer::toParticipantObservationSeed)
-                .filter(seed -> seed.seed() != 0L)
+                .filter(seed -> seed.seed() != null)
                 .toList();
     }
 

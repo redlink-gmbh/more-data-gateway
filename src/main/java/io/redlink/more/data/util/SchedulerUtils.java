@@ -179,7 +179,7 @@ public class SchedulerUtils {
     }
 
     public static List<Range<Instant>> randomSchedule(ParticipantObservationSeed participantObservationSeeds, ScheduleEvent event, List<Range<Instant>> ranges) {
-        if (participantObservationSeeds == null || participantObservationSeeds.seed() == 0L || event.getRandomization() == null || !event.getRandomization().state() || event.getRandomization().duration() <= 0) {
+        if (participantObservationSeeds == null || participantObservationSeeds.seed() == null || event.getRandomization() == null || !event.getRandomization().state() || event.getRandomization().duration() <= 0) {
             return ranges;
         }
         if (ranges == null || ranges.isEmpty()) {

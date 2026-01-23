@@ -117,6 +117,6 @@ public final class StudyTransformer {
                 participantWithObservationProperties.studyId(),
                 participantWithObservationProperties.participantId(),
                 participantWithObservationProperties.observationId(),
-                (Long) participantWithObservationProperties.properties().getOrDefault(RandomSchedulerUtils.OBSERVATION_SCHEDULE_SEED_KEY, 0L));
+                (Long) participantWithObservationProperties.properties().getOrDefault(RandomSchedulerUtils.OBSERVATION_SCHEDULE_SEED_KEY, null));
     }
 }
