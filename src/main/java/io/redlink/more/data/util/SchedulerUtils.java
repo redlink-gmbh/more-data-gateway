@@ -185,6 +185,7 @@ public class SchedulerUtils {
         if (ranges == null || ranges.isEmpty()) {
             return Collections.emptyList();
         }
-        return RandomSchedulerUtils.parseScheduleWithSeed(participantObservationSeeds.seed(), ranges, event.getRandomization().duration());
+        Long durationInSeconds = event.getRandomization().duration() * 60L;
+        return RandomSchedulerUtils.parseScheduleWithSeed(participantObservationSeeds.seed(), ranges, durationInSeconds);
     }
 }

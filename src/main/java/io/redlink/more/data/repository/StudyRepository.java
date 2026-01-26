@@ -681,14 +681,13 @@ public class StudyRepository {
         var participantObservationProperties = getAllParticpantObservationProperties(routingInfo.studyId(), routingInfo.participantId())
                 .stream()
                 .filter(p ->
-                        !p.properties().containsKey(OBSERVATION_SCHEDULE_SEED_KEY)
-                                || p.properties().get(OBSERVATION_SCHEDULE_SEED_KEY) == null
-                                || ((Long) p.properties().get(OBSERVATION_SCHEDULE_SEED_KEY)) == 0L)
+                        p.properties().containsKey(OBSERVATION_SCHEDULE_SEED_KEY)
+                                && p.properties().get(OBSERVATION_SCHEDULE_SEED_KEY) != null)
                 .map(ParticipantWithObservationProperties::observationId)
                 .collect(Collectors.toSet());
         observations
                 .stream()
-                .filter(observation -> participantObservationProperties.contains(observation.observationId()))
+                .filter(observation -> !participantObservationProperties.contains(observation.observationId()))
                 .forEach(observation -> {
                     ScheduleEvent event = observation.observationSchedule();
                     if (event == null || !event.getRandomization().state()) {

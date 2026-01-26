@@ -202,8 +202,8 @@ public class RandomSchedulerUtils {
      * <p>If {@code end} is provided, the returned ranges are filtered to those that overlap the
      * interval [start,end].</p>
      */
-    public static List<Range<Instant>> parseScheduleWithSeed(Long seed, List<Range<Instant>> ranges, long duration) {
-        if (seed == null || ranges == null || ranges.isEmpty()) {
+    public static List<Range<Instant>> parseScheduleWithSeed(Long seed, List<Range<Instant>> ranges, Long duration) {
+        if (seed == null || ranges == null || ranges.isEmpty() || duration == null || duration <= 0) {
             return Collections.emptyList();
         }
         return IntStream.range(0, ranges.size())

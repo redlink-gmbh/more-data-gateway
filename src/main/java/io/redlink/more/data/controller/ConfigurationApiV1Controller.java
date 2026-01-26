@@ -46,13 +46,16 @@ public class ConfigurationApiV1Controller implements ConfigurationApi {
         final GatewayUserDetails userDetails = authenticationFacade
                 .assertAuthority(GatewayUserDetailService.APP_ROLE);
         try (LoggingUtils.LoggingContext ctx = LoggingUtils.createContext(userDetails.getRoutingInfo())) {
+            var study = registrationService.loadStudyByRoutingInfo(userDetails.getRoutingInfo());
+            if (study.isEmpty()) {
+                return ResponseEntity.notFound().build();
+            }
             var participantObservationProperties = registrationService
                     .getParticipantObservationSeeds(userDetails.getRoutingInfo().studyId(), userDetails.getRoutingInfo().participantId())
                     .stream()
                     .toList();
             return ResponseEntity.of(
-                    registrationService.loadStudyByRoutingInfo(userDetails.getRoutingInfo())
-                            .map(study -> StudyTransformer.toDTO(study, participantObservationProperties))
+                    study.map(s -> StudyTransformer.toDTO(s, participantObservationProperties))
             );
         }
     }

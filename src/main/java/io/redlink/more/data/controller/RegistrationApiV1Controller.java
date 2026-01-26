@@ -17,6 +17,7 @@ import io.redlink.more.data.exception.RegistrationNotPossibleException;
 import io.redlink.more.data.model.ApiCredentials;
 import io.redlink.more.data.model.GatewayUserDetails;
 import io.redlink.more.data.model.ParticipantConsent;
+import io.redlink.more.data.model.ParticipantObservationSeed;
 import io.redlink.more.data.properties.MoreProperties;
 import io.redlink.more.data.service.GatewayUserDetailService;
 import io.redlink.more.data.service.RegistrationService;
@@ -32,6 +33,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
+import java.util.Collections;
 import java.util.List;
 
 @Controller
@@ -59,13 +61,13 @@ public class RegistrationApiV1Controller implements RegistrationApi {
         if (study.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
-        var seeds = registrationService.getParticipantObservationSeeds(study.get().studyId(), study.get().participant().id());
+        List<ParticipantObservationSeed> seeds = study.get().active() ? registrationService.getParticipantObservationSeeds(study.get().studyId(), study.get().participant().id()) : Collections.emptyList();
         var studyDto = StudyTransformer.toDTO(study.get(), seeds);
         return ResponseEntity.ok()
                 // For better debugging: return the token for chaining
                 .header("More-Registration-Token", moreRegistrationToken)
                 .body(studyDto);
-        
+
     }
 
     @Override
