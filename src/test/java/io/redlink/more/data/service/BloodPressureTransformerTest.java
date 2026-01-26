@@ -22,9 +22,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-class BloodPressureTransformerTest {
+class BloodPressureTransformerTest extends AbstractGarminTransformerTestBase<BloodPressureTransformerTest.TestTransformer> {
 
-    private final BloodPressureTransformer transformer = new BloodPressureTransformer();
+    @Override
+    protected TestTransformer createTransformer() {
+        return new TestTransformer();
+    }
 
     @Test
     @DisplayName("getSupportedType: returns BLOODPRESSURES")
@@ -32,17 +35,22 @@ class BloodPressureTransformerTest {
         assertThat(transformer.getSupportedType()).isEqualTo(GarminSummaryType.BLOODPRESSURES);
     }
 
+    static class TestTransformer extends BloodPressureTransformer {
+        public List<DataPoint> expose(List<Observation> observations, String summaryId, GarminTimeData<?> data) {
+            return super.transformGarminTimeDataToDataPoint(observations, summaryId, DataType.BLOOD_PRESSURE, data);
+        }
+
+        public List<DataPoint> exposeFilter(List<Range<Instant>> ranges, List<DataPoint> bulk) {
+            return super.filterDataPointByTimeRange(ranges, bulk);
+        }
+    }
+
+
     @Test
     @DisplayName("transformGarminTimeDataToDataPoint: builds DataPoint with BP data and summary id")
     void transformGarminTimeDataToDataPoint_buildsDataPoint() {
         // Subclass to expose protected helper
-        class TestTransformer extends BloodPressureTransformer {
-            public List<DataPoint> expose(List<Observation> observations, String summaryId, GarminTimeData<?> data) {
-                return super.transformGarminTimeDataToDataPoint(observations, summaryId, DataType.BLOOD_PRESSURE, data);
-            }
-        }
 
-        TestTransformer t = new TestTransformer();
 
         Observation observation = new Observation(
                 1,
@@ -62,7 +70,7 @@ class BloodPressureTransformerTest {
         Instant ts = Instant.parse("2024-03-01T12:34:56Z");
         GarminTimeData<GarminBloodPressure> timeData = new GarminTimeData<>(ts, bp);
 
-        List<DataPoint> results = t.expose(List.of(observation), "sum-123", timeData);
+        List<DataPoint> results = this.transformer.expose(List.of(observation), "sum-123", timeData);
 
         assertThat(results).hasSize(1);
         DataPoint dp = results.get(0);
@@ -143,20 +151,11 @@ class BloodPressureTransformerTest {
     @Test
     @DisplayName("filterDataPointByTimeRange: returns data as-is (no filtering)")
     void filterDataPointByTimeRange_returnsInput() throws Exception {
-        // expose method via small subclass to call protected method
-        class TestTransformer extends BloodPressureTransformer {
-            public List<DataPoint> exposeFilter(List<Range<Instant>> ranges, List<DataPoint> bulk) {
-                return super.filterDataPointByTimeRange(ranges, bulk);
-            }
-        }
-
-        TestTransformer t = new TestTransformer();
-
         DataPoint dp1 = new DataPoint("id1", "1", "garmin-bp", DataType.BLOOD_PRESSURE.name(), Instant.now(), Instant.now(), Map.of());
         DataPoint dp2 = new DataPoint("id2", "2", "garmin-bp", DataType.BLOOD_PRESSURE.name(), Instant.now(), Instant.now(), Map.of());
 
         List<DataPoint> input = List.of(dp1, dp2);
-        List<DataPoint> out = t.exposeFilter(List.of(Range.of(Instant.EPOCH, Instant.now())), input);
+        List<DataPoint> out = transformer.exposeFilter(List.of(Range.of(Instant.EPOCH, Instant.now())), input);
 
         assertThat(out).containsExactlyElementsOf(input);
     }
@@ -176,7 +175,6 @@ class BloodPressureTransformerTest {
 
         when(garmin.getStartTimeInSeconds()).thenReturn((int) Instant.parse("2024-03-01T12:02:00Z").getEpochSecond());
         when(garmin.getStartTimeOffsetInSeconds()).thenReturn(0);
-        when(garmin.getSummaryId()).thenReturn("sum-none");
 
         // No overlap: observation is before Garmin time range
         Event event = new Event()

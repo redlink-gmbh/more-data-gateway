@@ -106,7 +106,7 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
         Map<String, Object> properties = Map.of(AUTH_VALUES_KEY, authenticationValues.toMap());
         LOG.debug("Storing Garmin OAuth state for {} observations: studyId={}, participantId={}, state={}", observations.size(), routingInfo.studyId(), routingInfo.participantId(), state);
         observations.forEach(observation ->
-                studyRepository.setParticipantProperties(routingInfo.studyId(), routingInfo.participantId(), observation.observationId(), properties)
+                studyRepository.mergeParticipantProperties(routingInfo.studyId(), routingInfo.participantId(), observation.observationId(), properties)
         );
 
         String codeChallenge = GarminUtils.createCodeChallenge(codeVerifier);
@@ -502,7 +502,7 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
                 .filter(properties -> properties.participantId().equals(participantWithObservationProperties.participantId()))
                 .map(ParticipantWithObservationProperties::observationId)
                 .forEach(observationId -> studyRepository
-                        .setParticipantProperties(
+                        .mergeParticipantProperties(
                                 participantWithObservationProperties.studyId(),
                                 participantWithObservationProperties.participantId(),
                                 observationId,

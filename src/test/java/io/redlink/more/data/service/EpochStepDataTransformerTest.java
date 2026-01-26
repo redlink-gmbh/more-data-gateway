@@ -19,16 +19,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-class EpochStepDataTransformerTest {
+class EpochStepDataTransformerTest extends AbstractGarminTransformerTestBase<EpochStepDataTransformerTest.TestEpochStepDataTransformer> {
 
-    private static class TestEpochStepDataTransformer extends EpochStepDataTransformer {
+    @Override
+    protected TestEpochStepDataTransformer createTransformer() {
+        return new TestEpochStepDataTransformer();
+    }
+
+    public static class TestEpochStepDataTransformer extends EpochStepDataTransformer {
         List<DataPoint> exposeFilterByTimeRange(List<Range<Instant>> validTimeRanges, List<DataPoint> dataBulk) {
             return super.filterDataPointByTimeRange(validTimeRanges, dataBulk);
         }
     }
-
-    private final EpochStepDataTransformer transformer = new EpochStepDataTransformer();
-    private final TestEpochStepDataTransformer testTransformer = new TestEpochStepDataTransformer();
 
     @Test
     @DisplayName("getSupportedType returns EPOCHS")
@@ -91,7 +93,7 @@ class EpochStepDataTransformerTest {
         DataPoint b = new DataPoint("b", "1", "type", DataType.EPOCH_STEPS.name(), Instant.now(), Instant.now(), Map.of());
         List<DataPoint> input = List.of(a, b);
 
-        List<DataPoint> out = testTransformer.exposeFilterByTimeRange(List.of(Range.of(Instant.EPOCH, Instant.now())), input);
+        List<DataPoint> out = transformer.exposeFilterByTimeRange(List.of(Range.of(Instant.EPOCH, Instant.now())), input);
         assertThat(out).isEqualTo(input);
     }
 }

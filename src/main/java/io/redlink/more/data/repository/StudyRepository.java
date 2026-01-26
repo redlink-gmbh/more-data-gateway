@@ -5,9 +5,10 @@ package io.redlink.more.data.repository;
 
 import io.redlink.more.data.model.*;
 import io.redlink.more.data.model.scheduler.ScheduleEvent;
-import io.redlink.more.data.schedule.SchedulerUtils;
 import io.redlink.more.data.service.garmin.GarminService;
 import io.redlink.more.data.util.MapperUtils;
+import io.redlink.more.data.util.RandomSchedulerUtils;
+import io.redlink.more.data.util.SchedulerUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -31,9 +32,11 @@ import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import static io.redlink.more.data.repository.DbUtils.toInstant;
 import static io.redlink.more.data.repository.DbUtils.toLocalDate;
+import static io.redlink.more.data.util.RandomSchedulerUtils.OBSERVATION_SCHEDULE_SEED_KEY;
 
 @Service
 public class StudyRepository {
@@ -148,6 +151,10 @@ public class StudyRepository {
     private static final String GET_PARTICIPANT_OBSERVATION_PROPERTIES_BY_KEY_EXISTS =
             "SELECT * FROM participant_observation_properties WHERE participant_id = :participant_id AND study_id = :study_id AND properties ?? :key";
 
+    private static final String GET_PARTICIPANT_OBSERVATIONS_PROPERTIES = "SELECT * FROM participant_observation_properties WHERE participant_id = :participant_id AND study_id = :study_id";
+    private static final String GET_PARTICIPANT_OBSERVATION_PROPERTIES = "SELECT properties FROM participant_observation_properties WHERE participant_id = :participant_id AND study_id = :study_id AND observation_id = :observation_id";
+
+
     private static final String GET_ALL_PARTICIPANT_OBSERVATION_PROPERTIES_BY_OBSERVATION_TYPE =
             """
                     SELECT pop.*
@@ -223,7 +230,11 @@ public class StudyRepository {
         final SimpleParticipant participant = findParticipant(routingInfo).orElse(null);
 
         try (var stream = jdbcTemplate.queryForStream(SQL_FIND_STUDY_BY_ID, getStudyRowMapper(observations, participant), routingInfo.studyId())) {
-            return stream.findFirst();
+            var study = stream.findFirst();
+            if (study.isPresent()) {
+                generateRandomEventSchedulesForParticipant(routingInfo, observations);
+            }
+            return study;
         }
     }
 
@@ -310,12 +321,15 @@ public class StudyRepository {
                 .orElse(observation);
     }
 
-    public void setParticipantProperties(Long studyId, Integer participantId, Integer observationId, Map<String, Object> properties) {
+    public void mergeParticipantProperties(Long studyId, Integer participantId, Integer observationId, Map<String, Object> properties) {
+        var oldProps = getParticipantWithObservationProperties(studyId, participantId, observationId);
         MapSqlParameterSource data = new MapSqlParameterSource()
                 .addValue("study_id", studyId)
                 .addValue("participant_id", participantId)
                 .addValue("observation_id", observationId)
-                .addValue("properties", MapperUtils.writeValueAsString(properties));
+                .addValue("properties", MapperUtils.writeValueAsString(
+                        DbUtils.mergeObjects(oldProps.orElse(Map.of()), properties))
+                );
 
         namedTemplate.update(SET_OBSERVATION_PROPERTIES_FOR_PARTICIPANT, data);
     }
@@ -368,6 +382,36 @@ public class StudyRepository {
                     getParticipantWithObservationPropertiesRowMapper());
         } catch (EmptyResultDataAccessException e) {
             return Collections.emptyList();
+        }
+    }
+
+    public List<ParticipantWithObservationProperties> getAllParticpantObservationProperties(Long studyId, Integer participantId) {
+        try {
+            return namedTemplate.query(
+                    GET_PARTICIPANT_OBSERVATIONS_PROPERTIES,
+                    new MapSqlParameterSource()
+                            .addValue("study_id", studyId)
+                            .addValue("participant_id", participantId),
+                    getParticipantWithObservationPropertiesRowMapper()
+            ).stream().toList();
+        } catch (EmptyResultDataAccessException e) {
+            return Collections.emptyList();
+        }
+    }
+
+    public Optional<Map<String, Object>> getParticipantWithObservationProperties(Long studyId, Integer participantId, int observationId) {
+        try {
+            return namedTemplate.query(
+                    GET_PARTICIPANT_OBSERVATIONS_PROPERTIES,
+                    new MapSqlParameterSource()
+                            .addValue("study_id", studyId)
+                            .addValue("participant_id", participantId)
+                            .addValue("observation_id", observationId),
+                    (rs, rowNum) ->
+                            (Map<String, Object>) MapperUtils.readValue(rs.getObject("properties"), Map.class)
+            ).stream().findFirst();
+        } catch (EmptyResultDataAccessException e) {
+            return Optional.empty();
         }
     }
 
@@ -631,5 +675,31 @@ public class StudyRepository {
                                 .addGroupDuration(Pair.of(rs.getInt("groupid"), DbUtils.readDuration(rs, "groupduration"))
                                 )), studyId).stream()
                 .reduce((prev, curr) -> prev.addGroupDuration(curr.getGroupDurations().get(0)));
+    }
+
+    private void generateRandomEventSchedulesForParticipant(RoutingInfo routingInfo, List<Observation> observations) {
+        var participantObservationProperties = getAllParticpantObservationProperties(routingInfo.studyId(), routingInfo.participantId())
+                .stream()
+                .filter(p ->
+                        p.properties().containsKey(OBSERVATION_SCHEDULE_SEED_KEY)
+                                && p.properties().get(OBSERVATION_SCHEDULE_SEED_KEY) != null)
+                .map(ParticipantWithObservationProperties::observationId)
+                .collect(Collectors.toSet());
+        observations
+                .stream()
+                .filter(observation -> !participantObservationProperties.contains(observation.observationId()))
+                .forEach(observation -> {
+                    ScheduleEvent event = observation.observationSchedule();
+                    if (event == null || !event.getRandomization().state()) {
+                        return;
+                    }
+                    String userId = routingInfo.studyId() + "_" + routingInfo.participantId() + "_" + observation.observationId();
+                    Long seed = RandomSchedulerUtils.generateSeedFromSchedule(event, userId);
+                    if (seed == null) {
+                        return;
+                    }
+                    Map<String, Object> seedObject = Map.of(OBSERVATION_SCHEDULE_SEED_KEY, seed);
+                    mergeParticipantProperties(routingInfo.studyId(), routingInfo.participantId(), observation.observationId(), seedObject);
+                });
     }
 }

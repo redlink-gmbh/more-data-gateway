@@ -1,14 +1,18 @@
 package io.redlink.more.data.transformers.garmin;
 
+import io.redlink.more.data.controller.transformer.StudyTransformer;
 import io.redlink.more.data.custom.model.GarminDataPoint;
 import io.redlink.more.data.model.DataPoint;
 import io.redlink.more.data.model.DataType;
 import io.redlink.more.data.model.Observation;
+import io.redlink.more.data.model.ParticipantObservationSeed;
 import io.redlink.more.data.model.garmin.GarminSummaryType;
 import io.redlink.more.data.model.garmin.transformation.GarminTimeData;
-import io.redlink.more.data.schedule.SchedulerUtils;
+import io.redlink.more.data.repository.StudyRepository;
 import io.redlink.more.data.util.DateTimeUtils;
+import io.redlink.more.data.util.SchedulerUtils;
 import org.apache.commons.lang3.Range;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -21,6 +25,9 @@ import static io.redlink.more.data.util.StringUtils.sha256;
 public abstract class AbstractGarminTransformer {
     protected static final String START_TIME_KEY = "startTime";
 
+    @Autowired
+    private StudyRepository studyRepository;
+
     public abstract GarminSummaryType getSupportedType();
 
     protected abstract List<DataPoint> transformToDataPoint(List<Observation> observations, GarminDataPoint garminDataPoint);
@@ -28,13 +35,32 @@ public abstract class AbstractGarminTransformer {
     protected abstract List<DataPoint> filterDataPointByTimeRange(List<Range<Instant>> validTimeRanges, List<DataPoint> dataBulk);
 
     public List<DataPoint> transform(List<Observation> observations, GarminDataPoint garminDataPoint, Instant participantStart, Instant participantEnd) {
-        var validObservations = filterObservations(observations, garminDataPoint, participantStart, participantEnd);
+        return transform(observations, garminDataPoint, participantStart, participantEnd, null, null);
+    }
+
+    public List<DataPoint> transform(List<Observation> observations, GarminDataPoint garminDataPoint, Instant participantStart, Instant participantEnd, Long studyId, Integer participantId) {
+        var participantObservationProperties = studyRepository
+                .getAllParticpantObservationProperties(studyId, participantId).stream().map(StudyTransformer::toParticipantObservationSeed).toList();
+        var validObservations = filterObservations(participantObservationProperties, observations, garminDataPoint, participantStart, participantEnd);
         if (validObservations.isEmpty()) {
             return Collections.emptyList();
         }
         var range = observations
                 .stream()
-                .flatMap(observation -> SchedulerUtils.parseToObservationSchedules(observation.observationSchedule(), participantStart, participantEnd).stream()).toList();
+                .flatMap(observation -> {
+                    var seed = participantObservationProperties
+                            .stream()
+                            .filter(p -> p.observationId().equals(observation.observationId()))
+                            .findFirst()
+                            .orElse(null);
+                    return SchedulerUtils.parseToObservationSchedules(
+                            seed,
+                            observation.observationSchedule(),
+                            participantStart,
+                            participantEnd
+                    ).stream();
+                })
+                .toList();
         var dataPoints = transformToDataPoint(validObservations, garminDataPoint);
         return filterDataPointByTimeRange(range, dataPoints);
     }
@@ -70,12 +96,17 @@ public abstract class AbstractGarminTransformer {
         return Range.of(recordingTimestamp(garminDataPoint).toInstant(), endDateTime(garminDataPoint).toInstant());
     }
 
-    private List<Observation> filterObservations(List<Observation> observations, GarminDataPoint garminDataPoint, Instant participantStart, Instant participantEnd) {
+    private List<Observation> filterObservations(List<ParticipantObservationSeed> seeds, List<Observation> observations, GarminDataPoint garminDataPoint, Instant participantStart, Instant participantEnd) {
         Range<Instant> garminDataTimeRange = getGarminDataPointTimeRange(garminDataPoint);
         return observations
                 .stream()
                 .filter(observation -> {
-                    var instantRanges = SchedulerUtils.parseToObservationSchedules(observation.observationSchedule(), participantStart, participantEnd);
+                    var seed = seeds
+                            .stream()
+                            .filter(p -> p.observationId().equals(observation.observationId()))
+                            .findFirst()
+                            .orElse(null);
+                    var instantRanges = SchedulerUtils.parseToObservationSchedules(seed, observation.observationSchedule(), participantStart, participantEnd);
                     return instantRanges.stream().anyMatch(range -> range.isOverlappedBy(garminDataTimeRange));
                 })
                 .toList();

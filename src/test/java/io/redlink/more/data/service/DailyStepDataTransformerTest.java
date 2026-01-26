@@ -16,18 +16,21 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
-class DailyStepDataTransformerTest {
+class DailyStepDataTransformerTest extends AbstractGarminTransformerTestBase<DailyStepDataTransformerTest.TestDailyStepDataTransformer> {
 
-    private static class TestDailyStepDataTransformer extends DailyStepDataTransformer {
+    @Override
+    protected TestDailyStepDataTransformer createTransformer() {
+        return new TestDailyStepDataTransformer();
+    }
+
+    public static class TestDailyStepDataTransformer extends DailyStepDataTransformer {
         List<DataPoint> exposeFilterByTimeRange(List<Range<Instant>> validTimeRanges, List<DataPoint> dataBulk) {
             return super.filterDataPointByTimeRange(validTimeRanges, dataBulk);
         }
     }
-
-    private final DailyStepDataTransformer transformer = new DailyStepDataTransformer();
-    private final TestDailyStepDataTransformer testTransformer = new TestDailyStepDataTransformer();
 
     @Test
     @DisplayName("getSupportedType returns DAILIES")
@@ -98,7 +101,7 @@ class DailyStepDataTransformerTest {
         DataPoint b = new DataPoint("b", "1", "type", DataType.DAILY_STEPS.name(), Instant.now(), Instant.now(), Map.of());
         List<DataPoint> input = List.of(a, b);
 
-        List<DataPoint> out = testTransformer.exposeFilterByTimeRange(List.of(Range.of(Instant.EPOCH, Instant.now())), input);
+        List<DataPoint> out = this.transformer.exposeFilterByTimeRange(List.of(Range.of(Instant.EPOCH, Instant.now())), input);
         assertThat(out).isEqualTo(input);
     }
 }
