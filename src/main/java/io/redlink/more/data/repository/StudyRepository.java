@@ -690,7 +690,7 @@ public class StudyRepository {
                 .filter(observation -> !participantObservationProperties.contains(observation.observationId()))
                 .forEach(observation -> {
                     ScheduleEvent event = observation.observationSchedule();
-                    if (event == null || !event.getRandomization().state()) {
+                    if (event == null || event.getRandomization() == null || !event.getRandomization().state()) {
                         return;
                     }
                     String userId = routingInfo.studyId() + "_" + routingInfo.participantId() + "_" + observation.observationId();
