@@ -28,8 +28,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-import static io.redlink.more.data.util.ElasticUtils.Constants.GARMIN_SUMMARY_ID_KEY;
-import static io.redlink.more.data.util.ElasticUtils.Constants.GARMIN_SUMMARY_KEYWORD_FIELD;
+import static io.redlink.more.data.util.ElasticUtils.Constants.EFFECTIVE_TIME_FRAME_FIELD;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.*;
@@ -210,21 +209,24 @@ class GarminServiceTest {
     }
 
     @Test
-    @DisplayName("deduplicateDataPoints: deletes existing Garmin datapoints by summary id")
-    void deduplicateDataPoints_deletesExistingBySummaryId() throws Exception {
+    @DisplayName("deduplicateDataPoints: deletes existing Garmin datapoints by effective date time")
+    void deduplicateDataPoints_deletesExistingByEffectiveDateTime() throws Exception {
         DataPoint dp1 = mock(DataPoint.class);
         DataPoint dp2 = mock(DataPoint.class);
 
-        Map<String, Object> data1 = Map.of(GARMIN_SUMMARY_ID_KEY, "sum-1");
-        Map<String, Object> data2 = Map.of(GARMIN_SUMMARY_ID_KEY, "sum-2");
+        Instant t1 = Instant.now();
+        Instant t2 = t1.plusSeconds(60);
 
-        when(dp1.data()).thenReturn(data1);
-        when(dp2.data()).thenReturn(data2);
+        when(dp1.effectiveDateTime()).thenReturn(t1);
+        when(dp2.effectiveDateTime()).thenReturn(t2);
+        when(dp1.dataType()).thenReturn("type1");
+        when(dp2.dataType()).thenReturn("type2");
 
         RoutingInfo routingInfo = new RoutingInfo(1L, 10, 1, true, true);
 
         when(elasticService.deleteDataPoints(
                 eq(routingInfo),
+                anyString(),
                 anyString(),
                 any(Set.class)
         )).thenReturn(2L);
@@ -235,8 +237,15 @@ class GarminServiceTest {
 
         verify(elasticService).deleteDataPoints(
                 eq(routingInfo),
-                eq(GARMIN_SUMMARY_KEYWORD_FIELD),
-                eq(Set.of("sum-1", "sum-2"))
+                eq(EFFECTIVE_TIME_FRAME_FIELD),
+                eq("type1"),
+                eq(Set.of(t1))
+        );
+        verify(elasticService).deleteDataPoints(
+                eq(routingInfo),
+                eq(EFFECTIVE_TIME_FRAME_FIELD),
+                eq("type2"),
+                eq(Set.of(t2))
         );
     }
 

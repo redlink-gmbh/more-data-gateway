@@ -12,9 +12,10 @@ public class ElasticUtils {
         public static final String GARMIN_SUMMARY_DATA_FIELD = "data_" + GARMIN_SUMMARY_ID_KEY;
         public static final String GARMIN_SUMMARY_KEYWORD_FIELD = GARMIN_SUMMARY_DATA_FIELD + ".keyword";
         public static final String STUDY_FIELD = "study_";
-        public static final String STUDY_KEYWORD_FIELD = STUDY_FIELD + "id.keyword";
+        public static final String STUDY_KEYWORD_FIELD = "study_id.keyword";
         public static final String PARTICIPANT_FIELD = "participant_";
-        public static final String PARTICIPANT_KEYWORD_FIELD = PARTICIPANT_FIELD + "id.keyword";
+        public static final String PARTICIPANT_KEYWORD_FIELD = "participant_id.keyword";
+        public static final String EFFECTIVE_TIME_FRAME_FIELD = "effective_time_frame";
     }
 
     public static Query getStudyIdFilter(Long studyId) {
@@ -35,12 +36,22 @@ public class ElasticUtils {
                 .terms(v -> v.value(new ArrayList<>(values)))));
     }
 
-    public static Query getDeleteDataPointsFilter(Long studyId, Integer participantId, String field, Set<FieldValue> values) {
+    public static Query getDeleteDataPointsFilter(
+            Long studyId,
+            Integer participantId,
+            String field,
+            Set<FieldValue> values,
+            String dataType
+    ) {
+        if (dataType == null || dataType.isBlank()) {
+            throw new IllegalArgumentException("Data type cannot be null or blank");
+        }
         return Query.of(q -> q
                 .bool(b -> b
                         .filter(getStudyIdFilter(studyId))
                         .filter(getParticipantIdFilter(participantId))
                         .filter(getFieldValuesFilter(field, values))
+                        .filter(f -> f.term(t -> t.field("data_type.keyword").value(dataType)))
                 )
         );
     }

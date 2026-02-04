@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 
@@ -91,20 +92,33 @@ public class ElasticService implements StorageService {
     }
 
 
-    public long deleteDataPoints(RoutingInfo routingInfo, String key, Set<String> filteredByValues) throws IOException {
-        if (filteredByValues.isEmpty() || key == null) {
+    public long deleteDataPoints(
+            RoutingInfo routingInfo,
+            String key,
+            String dataType,
+            Set<?> filteredByValues
+    ) throws IOException {
+        if (filteredByValues.isEmpty() || key == null || dataType == null || dataType.isBlank()) {
             return 0L;
         }
+
         Set<FieldValue> fieldValues = filteredByValues.stream()
-                .map(FieldValue::of)
+                .map(v -> {
+                    if (v instanceof Instant i) {
+                        return FieldValue.of(i.toString());
+                    }
+                    return FieldValue.of(v.toString());
+                })
                 .collect(java.util.stream.Collectors.toSet());
+
         DeleteByQueryRequest request = new DeleteByQueryRequest.Builder()
                 .index(ElasticUtils.getStudyIdString(routingInfo.studyId()))
                 .query(ElasticUtils.getDeleteDataPointsFilter(
                                 routingInfo.studyId(),
                                 routingInfo.participantId(),
                                 key,
-                                fieldValues
+                                fieldValues,
+                                dataType
                         )
                 )
                 .build();
