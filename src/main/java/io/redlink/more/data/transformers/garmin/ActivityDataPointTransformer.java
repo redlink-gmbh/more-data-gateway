@@ -13,7 +13,6 @@ import org.springframework.stereotype.Component;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
 @Component
 public class ActivityDataPointTransformer extends AbstractGarminTransformer {
@@ -61,9 +60,9 @@ public class ActivityDataPointTransformer extends AbstractGarminTransformer {
                 garminDataPoint.getMaxMotionIntensity());
         var range = super.getGarminDataPointTimeRange(garminDataPoint);
         return new GarminTimeData<>(
-                range.getMinimum(),
+                range.getMaximum(),
                 activityModel,
-                Map.of(START_TIME_KEY, range.getMinimum(), "endTime", range.getMaximum())
+                range
         );
     }
 }

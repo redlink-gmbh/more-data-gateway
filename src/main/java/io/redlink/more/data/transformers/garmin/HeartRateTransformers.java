@@ -74,9 +74,7 @@ public class HeartRateTransformers extends AbstractGarminTransformer {
                 .stream()
                 .filter(entry -> entry.getValue() != null)
                 .map(entry -> new GarminTimeData<>(
-                        Instant.ofEpochSecond(startDateTime.toEpochSecond()
-                                + Integer.parseInt(entry.getKey())),
-                        entry.getValue()))
+                        Instant.ofEpochSecond(startDateTime.toEpochSecond() + Integer.parseInt(entry.getKey())), entry.getValue()))
                 .collect(Collectors.toCollection(ArrayList::new));
     }
 }

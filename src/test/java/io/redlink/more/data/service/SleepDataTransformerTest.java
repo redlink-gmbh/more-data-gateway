@@ -88,10 +88,10 @@ class SleepDataTransformerTest extends AbstractGarminTransformerTestBase<SleepDa
                 .findFirst()
                 .orElseThrow();
         assertEquals(DataType.SLEEP.name(), sleep.dataType());
-        assertEquals(startTime, sleep.effectiveDateTime());
+        assertEquals(endTime, sleep.effectiveDateTime());
         assertNotNull(sleep.data());
-        assertTrue(sleep.data().containsKey(SleepSummaryTransformerTestHelper.START_TIME_KEY));
-        assertTrue(sleep.data().containsKey("endTime"));
+        assertEquals(startTime, sleep.data().get("startTime"));
+        assertEquals(endTime, sleep.data().get("endTime"));
     }
 
     @Test

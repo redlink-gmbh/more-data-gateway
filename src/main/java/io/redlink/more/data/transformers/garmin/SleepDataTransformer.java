@@ -13,7 +13,6 @@ import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 
 @Component
 public class SleepDataTransformer extends AbstractGarminTransformer {
@@ -50,6 +49,6 @@ public class SleepDataTransformer extends AbstractGarminTransformer {
     private GarminTimeData<GarminSleepData> dataToSleep(GarminDataPoint dataPoint) {
         var sleepData = MapperUtils.convertValue(dataPoint, GarminSleepData.class);
         var range = super.getGarminDataPointTimeRange(dataPoint);
-        return new GarminTimeData<>(range.getMinimum(), sleepData, Map.of(START_TIME_KEY, range.getMinimum(), "endTime", range.getMaximum()));
+        return new GarminTimeData<>(range.getMaximum(), sleepData, range);
     }
 }

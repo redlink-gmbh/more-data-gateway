@@ -10,6 +10,7 @@ import io.redlink.more.data.model.garmin.GarminSummaryType;
 import io.redlink.more.data.model.garmin.transformation.GarminTimeData;
 import io.redlink.more.data.repository.StudyRepository;
 import io.redlink.more.data.util.DateTimeUtils;
+import io.redlink.more.data.util.MapperUtils;
 import io.redlink.more.data.util.SchedulerUtils;
 import org.apache.commons.lang3.Range;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,13 +19,12 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static io.redlink.more.data.util.StringUtils.sha256;
 
 public abstract class AbstractGarminTransformer {
-    protected static final String START_TIME_KEY = "startTime";
-
     @Autowired
     private StudyRepository studyRepository;
 
@@ -89,13 +89,23 @@ public abstract class AbstractGarminTransformer {
         return DateTimeUtils.offsetDateTimeFromEpochSeconds(garminDataPoint.getStartTimeInSeconds(), garminDataPoint.getStartTimeOffsetInSeconds());
     }
 
-    protected OffsetDateTime endDateTime(GarminDataPoint garminDataPoint) {
-        int endTimestamp = garminDataPoint.getStartTimeInSeconds() + garminDataPoint.getDurationInSeconds();
-        return DateTimeUtils.offsetDateTimeFromEpochSeconds(endTimestamp, garminDataPoint.getStartTimeOffsetInSeconds());
+    protected Range<Instant> getGarminDataPointTimeRange(GarminDataPoint garminDataPoint) {
+        return Range.of(recordingTimestamp(garminDataPoint).toInstant(), calculateEndInstant(garminDataPoint));
     }
 
-    protected Range<Instant> getGarminDataPointTimeRange(GarminDataPoint garminDataPoint) {
-        return Range.of(recordingTimestamp(garminDataPoint).toInstant(), endDateTime(garminDataPoint).toInstant());
+    protected Instant calculateEndInstant(GarminDataPoint garminDataPoint) {
+        var startTime = recordingTimestamp(garminDataPoint).toInstant();
+        Map<String, Object> properties = MapperUtils.convertValue(garminDataPoint, Map.class);
+        long totalDuration = properties.entrySet().stream()
+                .filter(entry -> entry.getKey().endsWith("InSeconds") && !entry.getKey().contains("startTime") && !entry.getKey().contains("Offset"))
+                .filter(entry -> entry.getValue() instanceof Number)
+                .mapToLong(entry -> ((Number) entry.getValue()).longValue())
+                .sum();
+
+        if (totalDuration == 0) {
+            return startTime;
+        }
+        return startTime.plusSeconds(totalDuration);
     }
 
     private List<Observation> filterObservations(List<ParticipantObservationSeed> seeds, List<Observation> observations, GarminDataPoint garminDataPoint, Instant participantStart, Instant participantEnd) {
