@@ -192,7 +192,7 @@ class GarminServiceTest {
         ParticipantWithObservationProperties p3 =
                 new ParticipantWithObservationProperties(12, 1L, garminObs.observationId(), props2);
 
-        given(studyRepository.getParticipantObservationPropertiesByObservationType(anyString()))
+        given(studyRepository.getParticipantObservationPropertiesByObservationTypeLike(anyString()))
                 .willReturn(List.of(p1, p2, p3));
 
         Method method = GarminService.class.getDeclaredMethod("getAllGarminParticipants");
@@ -206,7 +206,7 @@ class GarminServiceTest {
                 .anySatisfy(list -> assertThat(list).containsExactlyInAnyOrder(p1, p2))
                 .anySatisfy(list -> assertThat(list).containsExactlyInAnyOrder(p3));
 
-        verify(studyRepository).getParticipantObservationPropertiesByObservationType(anyString());
+        verify(studyRepository).getParticipantObservationPropertiesByObservationTypeLike(anyString());
     }
 
     @Test
@@ -243,12 +243,12 @@ class GarminServiceTest {
     @Test
     @DisplayName("refreshAllTokens: completes without error when there are no Garmin participants")
     void refreshAllTokens_doesNothingWhenNoParticipants() {
-        given(studyRepository.getParticipantObservationPropertiesByObservationType(anyString()))
+        given(studyRepository.getParticipantObservationPropertiesByObservationTypeLike(anyString()))
                 .willReturn(List.of());
 
         garminService.refreshAllTokens();
 
-        verify(studyRepository).getParticipantObservationPropertiesByObservationType(anyString());
+        verify(studyRepository).getParticipantObservationPropertiesByObservationTypeLike(anyString());
         verifyNoInteractions(participantKeyValueRepository);
     }
 

@@ -30,6 +30,8 @@ public abstract class AbstractGarminTransformer {
 
     public abstract GarminSummaryType getSupportedType();
 
+    public abstract String getRequiredObservationType();
+
     protected abstract List<DataPoint> transformToDataPoint(List<Observation> observations, GarminDataPoint garminDataPoint);
 
     protected abstract List<DataPoint> filterDataPointByTimeRange(List<Range<Instant>> validTimeRanges, List<DataPoint> dataBulk);

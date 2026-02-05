@@ -74,7 +74,12 @@ public class GarminDataTransformationService {
                             .parallelStream()
                             .flatMap(data -> transformers
                                     .stream()
-                                    .flatMap(t -> t.transform(observations, data, participantStart, participantEnd, routingInfo.studyId(), routingInfo.participantId()).stream())
+                                    .flatMap(t -> {
+                                        List<Observation> filteredObservations = observations.stream()
+                                                .filter(o -> o.type().equals(t.getRequiredObservationType()))
+                                                .toList();
+                                        return t.transform(filteredObservations, data, participantStart, participantEnd, routingInfo.studyId(), routingInfo.participantId()).stream();
+                                    })
                             )
                             .toList();
 

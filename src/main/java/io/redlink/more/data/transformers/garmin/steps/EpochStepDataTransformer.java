@@ -25,6 +25,11 @@ public class EpochStepDataTransformer extends AbstractGarminTransformer {
     }
 
     @Override
+    public String getRequiredObservationType() {
+        return "garmin-epoch-steps-observation";
+    }
+
+    @Override
     protected List<DataPoint> transformToDataPoint(List<Observation> observations, GarminDataPoint garminDataPoint) {
         var data = GarminStepDataUtils.getStepData(super.endDateTime(garminDataPoint), garminDataPoint);
         return super.transformGarminTimeDataToDataPoint(observations, garminDataPoint.getSummaryId(), DataType.EPOCH_STEPS, data);

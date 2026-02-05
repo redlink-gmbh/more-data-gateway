@@ -26,6 +26,11 @@ public class BloodPressureTransformer extends AbstractGarminTransformer {
     }
 
     @Override
+    public String getRequiredObservationType() {
+        return "garmin-blood-pressure-observation";
+    }
+
+    @Override
     protected List<DataPoint> transformToDataPoint(List<Observation> observations, GarminDataPoint garminDataPoint) {
         var data = extractBloodPressure(garminDataPoint);
         return super.transformGarminTimeDataToDataPoint(observations, garminDataPoint.getSummaryId(), DataType.BLOOD_PRESSURE, data);

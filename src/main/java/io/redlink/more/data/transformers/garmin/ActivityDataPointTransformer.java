@@ -12,7 +12,6 @@ import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -25,20 +24,23 @@ public class ActivityDataPointTransformer extends AbstractGarminTransformer {
     }
 
     @Override
+    public String getRequiredObservationType() {
+        return "garmin-activity-observation";
+    }
+
+    @Override
     public List<DataPoint> transformToDataPoint(List<Observation> observations, GarminDataPoint garminDataPoint) {
         if (garminDataPoint.getActivityType() != null
                 && garminDataPoint.getMet() != null
                 && garminDataPoint.getMet() >= 0
                 && garminDataPoint.getIntensity() != null) {
             var data = extractActivityData(garminDataPoint);
-            return data.entrySet()
-                    .stream()
-                    .flatMap(entry -> transformGarminTimeDataToDataPoint(
-                            observations,
-                            garminDataPoint.getSummaryId(),
-                            entry.getKey(),
-                            entry.getValue()
-                    ).stream()).toList();
+            return transformGarminTimeDataToDataPoint(
+                    observations,
+                    garminDataPoint.getSummaryId(),
+                    DataType.ACTIVITY,
+                    data
+            );
         }
         return Collections.emptyList();
     }
@@ -49,7 +51,7 @@ public class ActivityDataPointTransformer extends AbstractGarminTransformer {
     }
 
 
-    private Map<DataType, GarminTimeData<GarminActivityModel>> extractActivityData(GarminDataPoint garminDataPoint) {
+    private GarminTimeData<GarminActivityModel> extractActivityData(GarminDataPoint garminDataPoint) {
         var activityModel = new GarminActivityModel(
                 garminDataPoint.getActivityType(),
                 garminDataPoint.getMet(),
@@ -58,13 +60,10 @@ public class ActivityDataPointTransformer extends AbstractGarminTransformer {
                 garminDataPoint.getMeanMotionIntensity(),
                 garminDataPoint.getMaxMotionIntensity());
         var range = super.getGarminDataPointTimeRange(garminDataPoint);
-        var startPoint = new GarminTimeData<>(
+        return new GarminTimeData<>(
                 range.getMinimum(),
-                activityModel
+                activityModel,
+                Map.of(START_TIME_KEY, range.getMinimum(), "endTime", range.getMaximum())
         );
-        Map<String, Object> additionalData = new HashMap<>();
-        additionalData.put(START_TIME_KEY, range.getMinimum());
-        var endPoint = new GarminTimeData<>(range.getMaximum(), activityModel, additionalData);
-        return Map.of(DataType.ACTIVITY_START, startPoint, DataType.ACTIVITY_END, endPoint);
     }
 }

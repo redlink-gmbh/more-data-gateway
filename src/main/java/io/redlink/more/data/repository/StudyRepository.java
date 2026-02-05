@@ -155,13 +155,13 @@ public class StudyRepository {
     private static final String GET_PARTICIPANT_OBSERVATION_PROPERTIES = "SELECT properties FROM participant_observation_properties WHERE participant_id = :participant_id AND study_id = :study_id AND observation_id = :observation_id";
 
 
-    private static final String GET_ALL_PARTICIPANT_OBSERVATION_PROPERTIES_BY_OBSERVATION_TYPE =
+    private static final String GET_ALL_PARTICIPANT_OBSERVATION_PROPERTIES_BY_OBSERVATION_TYPE_LIKE =
             """
                     SELECT pop.*
                     FROM participant_observation_properties AS pop
                     JOIN observations AS o
-                      ON o.observation_id = p.observation_id
-                    WHERE o.observation_type = :observation_type""";
+                      ON o.observation_id = pop.observation_id
+                    WHERE o.type LIKE :observation_type""";
 
     private static final String GET_PARTICIPANT_STATE =
             """
@@ -453,13 +453,13 @@ public class StudyRepository {
         }
     }
 
-    public List<ParticipantWithObservationProperties> getParticipantObservationPropertiesByObservationType(String observationType) {
+    public List<ParticipantWithObservationProperties> getParticipantObservationPropertiesByObservationTypeLike(String observationType) {
         try {
             var params = new MapSqlParameterSource()
                     .addValue("observation_type", observationType);
 
             return namedTemplate.query(
-                    GET_ALL_PARTICIPANT_OBSERVATION_PROPERTIES_BY_OBSERVATION_TYPE,
+                    GET_ALL_PARTICIPANT_OBSERVATION_PROPERTIES_BY_OBSERVATION_TYPE_LIKE,
                     params,
                     getParticipantWithObservationPropertiesMapper()
             );

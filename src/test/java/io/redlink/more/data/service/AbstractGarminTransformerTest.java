@@ -47,6 +47,11 @@ class AbstractGarminTransformerTest extends AbstractGarminTransformerTestBase<Ab
         }
 
         @Override
+        public String getRequiredObservationType() {
+            return "garmin-observation";
+        }
+
+        @Override
         protected List<DataPoint> transformToDataPoint(List<Observation> observations, GarminDataPoint garminDataPoint) {
             // Create a simple DataPoint for each observation so that we can
             // test the behaviour of the AbstractGarminTransformer#transform

@@ -30,6 +30,11 @@ public class HeartRateTransformers extends AbstractGarminTransformer {
     }
 
     @Override
+    public String getRequiredObservationType() {
+        return "garmin-heart-rate-observation";
+    }
+
+    @Override
     public List<DataPoint> transformToDataPoint(List<Observation> observations, GarminDataPoint garminDataPoint) {
         var recordedDateTime = super.recordingTimestamp(garminDataPoint);
 

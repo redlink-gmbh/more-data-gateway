@@ -76,7 +76,7 @@ class GarminDataTransformationServiceTest extends AbstractGarminTransformerTestB
                 .setDateEnd(Instant.parse("2024-12-31T23:59:59Z"));
 
         Observation garminObs = new Observation(
-                1, 1, "Garmin", "some-" + GarminService.GARMIN_KEY_TYPE + "-type",
+                1, 1, "Garmin", "garmin-heart-rate-observation",
                 null, null, schedule, Instant.now(), Instant.now(), false, false
         );
 

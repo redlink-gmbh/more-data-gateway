@@ -27,16 +27,19 @@ public class SleepDataTransformer extends AbstractGarminTransformer {
     }
 
     @Override
+    public String getRequiredObservationType() {
+        return "garmin-sleep-observation";
+    }
+
+    @Override
     protected List<DataPoint> transformToDataPoint(List<Observation> observations, GarminDataPoint garminDataPoint) {
         var sleepData = dataToSleep(garminDataPoint);
-        return sleepData.entrySet().stream().flatMap(entry ->
-                        transformGarminTimeDataToDataPoint(
-                                observations,
-                                garminDataPoint.getSummaryId(),
-                                entry.getKey(),
-                                entry.getValue()
-                        ).stream())
-                .toList();
+        return transformGarminTimeDataToDataPoint(
+                observations,
+                garminDataPoint.getSummaryId(),
+                DataType.SLEEP,
+                sleepData
+        );
     }
 
     @Override
@@ -44,11 +47,9 @@ public class SleepDataTransformer extends AbstractGarminTransformer {
         return dataBulk; //NOTE: filtering on GraminDataPoint level is sufficient
     }
 
-    private Map<DataType, GarminTimeData<GarminSleepData>> dataToSleep(GarminDataPoint dataPoint) {
+    private GarminTimeData<GarminSleepData> dataToSleep(GarminDataPoint dataPoint) {
         var sleepData = MapperUtils.convertValue(dataPoint, GarminSleepData.class);
         var range = super.getGarminDataPointTimeRange(dataPoint);
-        var start = new GarminTimeData<>(range.getMinimum(), sleepData);
-        var end = new GarminTimeData<>(range.getMaximum(), sleepData, Map.of(START_TIME_KEY, range.getMinimum()));
-        return Map.of(DataType.SLEEP_START, start, DataType.SLEEP_END, end);
+        return new GarminTimeData<>(range.getMinimum(), sleepData, Map.of(START_TIME_KEY, range.getMinimum(), "endTime", range.getMaximum()));
     }
 }
