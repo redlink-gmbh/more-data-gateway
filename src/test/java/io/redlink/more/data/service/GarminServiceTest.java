@@ -11,6 +11,7 @@ import io.redlink.more.data.properties.GarminProperties;
 import io.redlink.more.data.repository.ParticipantKeyValueRepository;
 import io.redlink.more.data.repository.StudyRepository;
 import io.redlink.more.data.service.garmin.GarminService;
+import org.apache.commons.lang3.Range;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -28,7 +29,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-import static io.redlink.more.data.util.ElasticUtils.Constants.EFFECTIVE_TIME_FRAME_FIELD;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.*;
@@ -209,8 +209,8 @@ class GarminServiceTest {
     }
 
     @Test
-    @DisplayName("deduplicateDataPoints: deletes existing Garmin datapoints by effective date time")
-    void deduplicateDataPoints_deletesExistingByEffectiveDateTime() throws Exception {
+    @DisplayName("deduplicateDataPoints: deletes existing Garmin datapoints by time ranges")
+    void deduplicateDataPoints_deletesExistingByTimeRanges() throws Exception {
         DataPoint dp1 = mock(DataPoint.class);
         DataPoint dp2 = mock(DataPoint.class);
 
@@ -221,12 +221,13 @@ class GarminServiceTest {
         when(dp2.effectiveDateTime()).thenReturn(t2);
         when(dp1.dataType()).thenReturn("type1");
         when(dp2.dataType()).thenReturn("type2");
+        when(dp1.data()).thenReturn(Map.of());
+        when(dp2.data()).thenReturn(Map.of());
 
         RoutingInfo routingInfo = new RoutingInfo(1L, 10, 1, true, true);
 
-        when(elasticService.deleteDataPoints(
+        when(elasticService.deleteDataPointsInTimeRanges(
                 eq(routingInfo),
-                anyString(),
                 anyString(),
                 any(Set.class)
         )).thenReturn(2L);
@@ -235,17 +236,21 @@ class GarminServiceTest {
         method.setAccessible(true);
         method.invoke(garminService, List.of(dp1, dp2), routingInfo);
 
-        verify(elasticService).deleteDataPoints(
+        verify(elasticService).deleteDataPointsInTimeRanges(
                 eq(routingInfo),
-                eq(EFFECTIVE_TIME_FRAME_FIELD),
                 eq("type1"),
-                eq(Set.of(t1))
+                argThat(set -> set.stream().anyMatch(r -> {
+                    Range<Instant> rr = r;
+                    return rr.contains(t1);
+                }))
         );
-        verify(elasticService).deleteDataPoints(
+        verify(elasticService).deleteDataPointsInTimeRanges(
                 eq(routingInfo),
-                eq(EFFECTIVE_TIME_FRAME_FIELD),
                 eq("type2"),
-                eq(Set.of(t2))
+                argThat(set -> set.stream().anyMatch(r -> {
+                    Range<Instant> rr = r;
+                    return rr.contains(t2);
+                }))
         );
     }
 

@@ -19,8 +19,10 @@ import io.redlink.more.data.properties.GarminProperties;
 import io.redlink.more.data.repository.ParticipantKeyValueRepository;
 import io.redlink.more.data.repository.StudyRepository;
 import io.redlink.more.data.service.ElasticService;
-import io.redlink.more.data.util.ElasticUtils;
+import io.redlink.more.data.util.DataUtils;
+import io.redlink.more.data.util.DateTimeUtils;
 import io.redlink.more.data.util.GarminUtils;
+import org.apache.commons.lang3.Range;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -255,7 +257,7 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
                 )).entrySet();
 
         if (entries.isEmpty()) {
-            LOG.debug("No data to store from Garmin...");
+            LOG.info("No data to store from Garmin...");
             return;
         }
 
@@ -288,20 +290,17 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
     }
 
     private void deduplicateDataPoints(List<DataPoint> dataBulk, RoutingInfo routingInfo) throws IOException {
-        Map<String, Set<Instant>> effectiveDateTimesByDataType =
+        Map<String, Set<Range<Instant>>> timeRangesByDataType =
                 dataBulk.stream()
                         .collect(Collectors.groupingBy(
                                 DataPoint::dataType,
-                                Collectors.mapping(
-                                        DataPoint::effectiveDateTime,
-                                        Collectors.toSet()
-                                )
+                                Collectors.mapping(DataUtils::buildRangeFromDataPoint, Collectors.toSet())
                         ));
-        for (Map.Entry<String, Set<Instant>> entry : effectiveDateTimesByDataType.entrySet()) {
+        for (Map.Entry<String, Set<Range<Instant>>> entry : timeRangesByDataType.entrySet()) {
             String dataType = entry.getKey();
-            Set<Instant> effectiveDateTimes = entry.getValue();
-            long deleted = elasticService.deleteDataPoints(routingInfo, ElasticUtils.Constants.EFFECTIVE_TIME_FRAME_FIELD, dataType, effectiveDateTimes);
-            LOG.info("Cleared {} datapoints for studyId={}, participantId={} for Garmin datatype={}: effectiveDateTimes={}", deleted, routingInfo.studyId(), routingInfo.participantId(), dataType, effectiveDateTimes.stream().map(Instant::toString).collect(Collectors.toSet()));
+            Set<Range<Instant>> ranges = DateTimeUtils.mergeRanges(entry.getValue());
+            long deleted = elasticService.deleteDataPointsInTimeRanges(routingInfo, dataType, ranges);
+            LOG.info("Cleared {} datapoints for studyId={}, participantId={} for Garmin datatype={}: rangesCount={}", deleted, routingInfo.studyId(), routingInfo.participantId(), dataType, ranges.size());
         }
     }
 
