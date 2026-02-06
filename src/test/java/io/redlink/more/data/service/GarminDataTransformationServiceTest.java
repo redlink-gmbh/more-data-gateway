@@ -25,6 +25,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -89,7 +90,7 @@ class GarminDataTransformationServiceTest extends AbstractGarminTransformerTestB
         given(studyRepository.findParticipant(any(RoutingInfo.class)))
                 .willReturn(Optional.of(simpleParticipant));
 
-        given(studyRepository.filterObservations(any(RoutingInfo.class), eq(false), any()))
+        given(studyRepository.filterObservationsByTypes(any(RoutingInfo.class), eq(false), any(Set.class)))
                 .willReturn(List.of(garminObs));
 
         Map<String, Integer> hr = new LinkedHashMap<>();
@@ -118,7 +119,7 @@ class GarminDataTransformationServiceTest extends AbstractGarminTransformerTestB
         });
 
         verify(studyRepository, times(1)).findParticipant(any(RoutingInfo.class));
-        verify(studyRepository, times(1)).filterObservations(any(RoutingInfo.class), eq(false), any());
+        verify(studyRepository, times(1)).filterObservationsByTypes(any(RoutingInfo.class), eq(false), any());
     }
 
 

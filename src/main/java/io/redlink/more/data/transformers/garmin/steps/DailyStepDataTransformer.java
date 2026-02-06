@@ -25,7 +25,7 @@ public class DailyStepDataTransformer extends AbstractGarminTransformer {
     }
 
     @Override
-    public String getRequiredObservationType() {
+    public String getObservationType() {
         return "garmin-daily-steps-observation";
     }
 

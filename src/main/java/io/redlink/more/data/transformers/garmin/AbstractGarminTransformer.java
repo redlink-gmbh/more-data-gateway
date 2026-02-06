@@ -30,7 +30,7 @@ public abstract class AbstractGarminTransformer {
 
     public abstract GarminSummaryType getSupportedType();
 
-    public abstract String getRequiredObservationType();
+    public abstract String getObservationType();
 
     protected abstract List<DataPoint> transformToDataPoint(List<Observation> observations, GarminDataPoint garminDataPoint);
 

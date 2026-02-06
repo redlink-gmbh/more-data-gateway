@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
+import java.util.Set;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -151,8 +152,19 @@ public class StudyRepository {
     private static final String GET_PARTICIPANT_OBSERVATION_PROPERTIES_BY_KEY_EXISTS =
             "SELECT * FROM participant_observation_properties WHERE participant_id = :participant_id AND study_id = :study_id AND properties ?? :key";
 
+    private static final String GET_ALL_PARTICIPANT_OBSERVATION_PROPERTIES_BY_KEY_EXISTS =
+            "SELECT * FROM participant_observation_properties WHERE properties ?? :key";
+
     private static final String GET_PARTICIPANT_OBSERVATIONS_PROPERTIES = "SELECT * FROM participant_observation_properties WHERE participant_id = :participant_id AND study_id = :study_id";
-    private static final String GET_PARTICIPANT_OBSERVATION_PROPERTIES = "SELECT properties FROM participant_observation_properties WHERE participant_id = :participant_id AND study_id = :study_id AND observation_id = :observation_id";
+
+    private static final String SQL_LIST_OBSERVATIONS_BY_STUDY_AND_TYPES =
+            """
+                    SELECT *
+                    FROM observations
+                    WHERE study_id = :study_id
+                      AND (study_group_id IS NULL OR study_group_id = :study_group_id)
+                      AND type IN (:types)
+                    """;
 
 
     private static final String GET_ALL_PARTICIPANT_OBSERVATION_PROPERTIES_BY_OBSERVATION_TYPE_LIKE =
@@ -163,6 +175,14 @@ public class StudyRepository {
                       ON o.observation_id = pop.observation_id
                     WHERE o.type LIKE :observation_type""";
 
+
+    private static final String SQL_LIST_OBSERVATIONS_BY_STUDY_AND_TYPES_WITH_ALL_OBSERVATIONS =
+            """
+                    SELECT *
+                    FROM observations
+                    WHERE study_id = :study_id
+                      AND type IN (:types)
+                    """;
     private static final String GET_PARTICIPANT_STATE =
             """
                     SELECT status FROM participants WHERE study_id = ? AND participant_id = ?""";
@@ -307,6 +327,26 @@ public class StudyRepository {
                 .toList();
     }
 
+    public List<Observation> filterObservationsByTypes(RoutingInfo routingInfo, boolean filterByGroup, Set<String> observationTypes) {
+        if (observationTypes == null || observationTypes.isEmpty()) {
+            return List.of();
+        }
+
+        var params = new MapSqlParameterSource()
+                .addValue("study_id", routingInfo.studyId())
+                .addValue("study_group_id", routingInfo.studyGroupId().orElse(0))
+                .addValue("types", observationTypes);
+
+        String sql = filterByGroup
+                ? SQL_LIST_OBSERVATIONS_BY_STUDY_AND_TYPES
+                : SQL_LIST_OBSERVATIONS_BY_STUDY_AND_TYPES_WITH_ALL_OBSERVATIONS;
+
+        return namedTemplate.query(sql, params, getObservationRowMapper())
+                .stream()
+                .map(o -> mergeParticipantProperties(o, routingInfo.studyId(), routingInfo.participantId()))
+                .toList();
+    }
+
     public List<Observation> filterObservations(Long studyId, Integer participantId, Predicate<Observation> filter) {
         return listObservations(studyId, 0, participantId, false)
                 .stream()
@@ -378,6 +418,21 @@ public class StudyRepository {
                     new MapSqlParameterSource()
                             .addValue("study_id", studyId)
                             .addValue("participant_id", participantId)
+                            .addValue("key", key),
+                    getParticipantWithObservationPropertiesRowMapper());
+        } catch (EmptyResultDataAccessException e) {
+            return Collections.emptyList();
+        }
+    }
+
+    public List<ParticipantWithObservationProperties> getParticipantObservationPropertiesByKeyExists(String key) {
+        if (key == null || key.isEmpty()) {
+            return List.of();
+        }
+        try {
+            return namedTemplate.query(
+                    GET_ALL_PARTICIPANT_OBSERVATION_PROPERTIES_BY_KEY_EXISTS,
+                    new MapSqlParameterSource()
                             .addValue("key", key),
                     getParticipantWithObservationPropertiesRowMapper());
         } catch (EmptyResultDataAccessException e) {

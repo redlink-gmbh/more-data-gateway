@@ -26,7 +26,7 @@ public class BloodPressureTransformer extends AbstractGarminTransformer {
     }
 
     @Override
-    public String getRequiredObservationType() {
+    public String getObservationType() {
         return "garmin-blood-pressure-observation";
     }
 

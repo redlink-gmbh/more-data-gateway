@@ -23,7 +23,7 @@ public class ActivityDataPointTransformer extends AbstractGarminTransformer {
     }
 
     @Override
-    public String getRequiredObservationType() {
+    public String getObservationType() {
         return "garmin-activity-observation";
     }
 

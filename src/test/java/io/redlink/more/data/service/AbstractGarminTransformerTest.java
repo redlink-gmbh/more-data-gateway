@@ -47,7 +47,7 @@ class AbstractGarminTransformerTest extends AbstractGarminTransformerTestBase<Ab
         }
 
         @Override
-        public String getRequiredObservationType() {
+        public String getObservationType() {
             return "garmin-observation";
         }
 
@@ -94,7 +94,7 @@ class AbstractGarminTransformerTest extends AbstractGarminTransformerTestBase<Ab
         OffsetDateTime exposeRecordingTimestamp(GarminDataPoint garminDataPoint) {
             return recordingTimestamp(garminDataPoint);
         }
-        
+
         Instant exposeCalculateEndInstant(GarminDataPoint garminDataPoint) {
             return calculateEndInstant(garminDataPoint);
         }

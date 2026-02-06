@@ -25,7 +25,7 @@ public class EpochStepDataTransformer extends AbstractGarminTransformer {
     }
 
     @Override
-    public String getRequiredObservationType() {
+    public String getObservationType() {
         return "garmin-epoch-steps-observation";
     }
 

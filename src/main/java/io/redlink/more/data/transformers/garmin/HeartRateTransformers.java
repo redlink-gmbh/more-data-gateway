@@ -30,7 +30,7 @@ public class HeartRateTransformers extends AbstractGarminTransformer {
     }
 
     @Override
-    public String getRequiredObservationType() {
+    public String getObservationType() {
         return "garmin-heart-rate-observation";
     }
 
