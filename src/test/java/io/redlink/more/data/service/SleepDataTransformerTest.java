@@ -18,17 +18,20 @@ import java.util.Objects;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class SleepDataTransformerTest {
+class SleepDataTransformerTest extends AbstractGarminTransformerTestBase<SleepDataTransformerTest.TestSleepDataTransformer> {
 
-    private static class TestSleepDataTransformer extends SleepDataTransformer {
+    @Override
+    protected TestSleepDataTransformer createTransformer() {
+        return new TestSleepDataTransformer();
+    }
+
+    public static class TestSleepDataTransformer extends SleepDataTransformer {
 
         List<DataPoint> exposeFilterByTimeRange(List<Range<Instant>> validTimeRanges, List<DataPoint> dataBulk) {
             return filterDataPointByTimeRange(validTimeRanges, dataBulk);
         }
     }
 
-    private final SleepDataTransformer transformer = new SleepDataTransformer();
-    private final TestSleepDataTransformer testTransformer = new TestSleepDataTransformer();
 
     @Test
     @DisplayName("getSupportedType returns SLEEPS")
@@ -179,7 +182,7 @@ class SleepDataTransformerTest {
         );
 
         // When
-        List<DataPoint> result = testTransformer.exposeFilterByTimeRange(validTimeRanges, dataPoints);
+        List<DataPoint> result = transformer.exposeFilterByTimeRange(validTimeRanges, dataPoints);
 
         // Then
         // SleepDataTransformer's filterDataPointByTimeRange always returns the full list

@@ -17,9 +17,7 @@ import io.redlink.more.data.transformers.garmin.HeartRateTransformers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
 import java.util.Collections;
@@ -35,8 +33,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-@ExtendWith(MockitoExtension.class)
-class GarminDataTransformationServiceTest {
+class GarminDataTransformationServiceTest extends AbstractGarminTransformerTestBase<HeartRateTransformers> {
 
     @Mock
     private StudyRepository studyRepository;
@@ -48,12 +45,15 @@ class GarminDataTransformationServiceTest {
 
     @BeforeEach
     void setUp() {
-        var dailiesTransformer = new HeartRateTransformers();
-
         service = new GarminDataTransformationService(
                 studyRepository,
-                List.of(dailiesTransformer)
+                List.of(transformer)
         );
+    }
+
+    @Override
+    protected HeartRateTransformers createTransformer() {
+        return new HeartRateTransformers();
     }
 
     private GarminDataPoint createGarminDataPoint(String userId, String summarId, Integer startTime, Integer offset, Integer duration, Map<String, Integer> hrSamples) {
@@ -134,4 +134,5 @@ class GarminDataTransformationServiceTest {
         Map<RoutingInfo, List<DataPoint>> emptyHr = service.transformData(GarminSummaryType.DAILIES, List.of(pgdp));
         assertThat(emptyHr).isEmpty();
     }
+
 }

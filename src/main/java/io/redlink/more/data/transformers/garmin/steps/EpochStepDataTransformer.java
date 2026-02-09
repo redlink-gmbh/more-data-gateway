@@ -15,6 +15,10 @@ import java.util.List;
 
 @Component
 public class EpochStepDataTransformer extends AbstractGarminTransformer {
+    public EpochStepDataTransformer() {
+        super();
+    }
+
     @Override
     public GarminSummaryType getSupportedType() {
         return GarminSummaryType.EPOCHS;

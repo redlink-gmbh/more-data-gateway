@@ -40,6 +40,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -65,6 +68,7 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
     private final UserControllerApi userControllerApi;
 
     private final GarminDataTransformationService transformationService;
+    private final Executor asyncExecutor;
 
     public GarminService(GarminProperties properties, StudyRepository studyRepository, ParticipantKeyValueRepository participantKeyValueRepository, ElasticService elasticService, UserApiApi userApi, UserControllerApi userControllerApi, GarminDataTransformationService transformationService) {
         this.garminProperties = properties;
@@ -75,6 +79,7 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
         this.transformationService = transformationService;
         this.restTemplate = new RestTemplate();
         this.userApi = userApi;
+        this.asyncExecutor = Executors.newFixedThreadPool(5);
     }
 
     public String getSsoUrl(RoutingInfo routingInfo, String requestUrl) {
@@ -101,7 +106,7 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
         Map<String, Object> properties = Map.of(AUTH_VALUES_KEY, authenticationValues.toMap());
         LOG.debug("Storing Garmin OAuth state for {} observations: studyId={}, participantId={}, state={}", observations.size(), routingInfo.studyId(), routingInfo.participantId(), state);
         observations.forEach(observation ->
-                studyRepository.setParticipantProperties(routingInfo.studyId(), routingInfo.participantId(), observation.observationId(), properties)
+                studyRepository.mergeParticipantProperties(routingInfo.studyId(), routingInfo.participantId(), observation.observationId(), properties)
         );
 
         String codeChallenge = GarminUtils.createCodeChallenge(codeVerifier);
@@ -199,17 +204,25 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
                 addAuthorizationHeader(userApi.getApiClient(), token);
                 addAuthorizationHeader(userControllerApi.getApiClient(), token);
                 LOG.debug("Sending deregistration to Garmin for studyId={}, participantId={}", studyId, participantId);
-                sendDeregistration();
-                boolean tokenDeleted = deleteUserAccessToken(studyId, participantId);
-                LOG.debug("Deleted user access token for studyId={}, participantId={}, result={}", studyId, participantId, tokenDeleted);
+                try {
+                    sendDeregistration();
+                    LOG.info("Successfully sent deregistration to Garmin for studyId={}, participantId={}", studyId, participantId);
+                } catch (Exception e) {
+                    LOG.error("Failed to send deregistration to Garmin for studyId={}, participantId={}, but continuing with local cleanup", studyId, participantId, e);
+                }
+            } else {
+                LOG.warn("No valid token available for Garmin deregistration, skipping API call but proceeding with local cleanup for studyId={}, participantId={}", studyId, participantId);
             }
 
+            boolean tokenDeleted = deleteUserAccessToken(studyId, participantId);
+            LOG.debug("Deleted user access token for studyId={}, participantId={}, result={}", studyId, participantId, tokenDeleted);
             var participantWithKeyValue = getKeyValuesForParticipant(studyId, participantId);
             participantWithKeyValue.forEach(participantKeyValue -> {
                         boolean kvDeleted = deleteGarminUserId(studyId, participantId, participantKeyValue.key());
                         LOG.debug("Deleted Garmin userId mapping key={} for studyId={}, participantId={}, result={}", participantKeyValue.key(), studyId, participantId, kvDeleted);
                     }
             );
+            LOG.info("Completed local cleanup for Garmin deregistration: studyId={}, participantId={}", studyId, participantId);
         } catch (EmptyResultDataAccessException e) {
             LOG.error("Could not deregister Garmin User for participant {} of study {}:", participantId, studyId, e);
         }
@@ -310,10 +323,49 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
         var result = participantKeyValueRepository.getByKey(garminUserId);
         List<ParticipantKeyValue> filtered = result.stream().filter(participantKeyValue ->
                 participantKeyValue.value().containsKey(USER_ID_TYPE_KEY)
-                        && participantKeyValue.value().get(USER_ID_TYPE_KEY).equals("garmin")
+                        && participantKeyValue.value().get(USER_ID_TYPE_KEY).equals(GARMIN_KEY_TYPE)
         ).toList();
-        LOG.debug("Found {} participant(s) for Garmin userId={}", filtered.size(), garminUserId);
-        return filtered;
+        List<ParticipantKeyValue> active = filtered
+                .stream()
+                .filter(participantKeyValue -> {
+                    String studyStatus = studyRepository
+                            .getStudyState(participantKeyValue.studyId()).orElse(null);
+                    if (studyStatus == null || (!studyStatus.equals("active") && !studyStatus.equals("preview"))) {
+                        return false;
+                    }
+                    String participantStatus = studyRepository
+                            .getParticipantState(participantKeyValue.studyId(), participantKeyValue.participantId()).orElse(null);
+                    return participantStatus != null && participantStatus.equals("active");
+                }).toList();
+        List<ParticipantKeyValue> nonActive = filtered
+                .stream()
+                .filter(participantKeyValue ->
+                        !active.contains(participantKeyValue)
+                ).toList();
+
+        if (!nonActive.isEmpty()) {
+            LOG.info("Found {} non-active participant(s) for Garmin userId={}, triggering async deregistration", nonActive.size(), garminUserId);
+            deregisterNonActiveParticipantsAsync(nonActive);
+        }
+
+        LOG.debug("Found {} participant(s) for Garmin userId={}", active.size(), garminUserId);
+        return active;
+    }
+
+    private void deregisterNonActiveParticipantsAsync(List<ParticipantKeyValue> nonActiveParticipants) {
+        CompletableFuture.runAsync(() -> {
+            LOG.info("Starting async deregistration for {} non-active participant(s)", nonActiveParticipants.size());
+            nonActiveParticipants.forEach(participantKeyValue -> {
+                try {
+                    LOG.debug("Deregistering non-active participant: studyId={}, participantId={}", participantKeyValue.studyId(), participantKeyValue.participantId());
+                    deregisterParticipant(participantKeyValue.studyId(), participantKeyValue.participantId());
+                    LOG.info("Successfully deregistered non-active participant: studyId={}, participantId={}", participantKeyValue.studyId(), participantKeyValue.participantId());
+                } catch (Exception e) {
+                    LOG.error("Failed to deregister non-active participant: studyId={}, participantId={}", participantKeyValue.studyId(), participantKeyValue.participantId(), e);
+                }
+            });
+            LOG.info("Completed async deregistration for {} non-active participant(s)", nonActiveParticipants.size());
+        }, asyncExecutor);
     }
 
     private List<ParticipantKeyValue> getKeyValuesForParticipant(Long studyId, Integer participantId) {
@@ -450,7 +502,7 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
                 .filter(properties -> properties.participantId().equals(participantWithObservationProperties.participantId()))
                 .map(ParticipantWithObservationProperties::observationId)
                 .forEach(observationId -> studyRepository
-                        .setParticipantProperties(
+                        .mergeParticipantProperties(
                                 participantWithObservationProperties.studyId(),
                                 participantWithObservationProperties.participantId(),
                                 observationId,

@@ -15,6 +15,10 @@ import java.util.List;
 
 @Component
 public class DailyStepDataTransformer extends AbstractGarminTransformer {
+    public DailyStepDataTransformer() {
+        super();
+    }
+
     @Override
     public GarminSummaryType getSupportedType() {
         return GarminSummaryType.DAILIES;
