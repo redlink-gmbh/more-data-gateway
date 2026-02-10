@@ -103,7 +103,7 @@ public class GarminDataTransformationService {
     }
 
     private List<Observation> participantObservations(RoutingInfo routingInfo, Set<String> observationTypes) {
-        return studyRepository.filterObservationsByTypes(
+        return studyRepository.getObservationsByTypes(
                 routingInfo,
                 false,
                 observationTypes

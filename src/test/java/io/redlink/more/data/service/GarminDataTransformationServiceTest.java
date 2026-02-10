@@ -90,7 +90,7 @@ class GarminDataTransformationServiceTest extends AbstractGarminTransformerTestB
         given(studyRepository.findParticipant(any(RoutingInfo.class)))
                 .willReturn(Optional.of(simpleParticipant));
 
-        given(studyRepository.filterObservationsByTypes(any(RoutingInfo.class), eq(false), any(Set.class)))
+        given(studyRepository.getObservationsByTypes(any(RoutingInfo.class), eq(false), any(Set.class)))
                 .willReturn(List.of(garminObs));
 
         Map<String, Integer> hr = new LinkedHashMap<>();
@@ -119,7 +119,7 @@ class GarminDataTransformationServiceTest extends AbstractGarminTransformerTestB
         });
 
         verify(studyRepository, times(1)).findParticipant(any(RoutingInfo.class));
-        verify(studyRepository, times(1)).filterObservationsByTypes(any(RoutingInfo.class), eq(false), any());
+        verify(studyRepository, times(1)).getObservationsByTypes(any(RoutingInfo.class), eq(false), any());
     }
 
 

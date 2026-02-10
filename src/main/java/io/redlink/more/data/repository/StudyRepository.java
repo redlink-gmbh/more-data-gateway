@@ -327,7 +327,7 @@ public class StudyRepository {
                 .toList();
     }
 
-    public List<Observation> filterObservationsByTypes(RoutingInfo routingInfo, boolean filterByGroup, Set<String> observationTypes) {
+    public List<Observation> getObservationsByTypes(RoutingInfo routingInfo, boolean filterByGroup, Set<String> observationTypes) {
         if (observationTypes == null || observationTypes.isEmpty()) {
             return List.of();
         }
