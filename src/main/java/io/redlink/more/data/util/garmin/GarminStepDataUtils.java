@@ -5,11 +5,11 @@ import io.redlink.more.data.model.garmin.transformation.GarminStepData;
 import io.redlink.more.data.model.garmin.transformation.GarminTimeData;
 import io.redlink.more.data.util.MapperUtils;
 
-import java.time.OffsetDateTime;
+import java.time.Instant;
 
 public class GarminStepDataUtils {
-    public static GarminTimeData<GarminStepData> getStepData(OffsetDateTime endDateTime, GarminDataPoint garminDataPoint) {
+    public static GarminTimeData<GarminStepData> getStepData(Instant endDateTime, GarminDataPoint garminDataPoint) {
         GarminStepData stepData = MapperUtils.convertValue(garminDataPoint, GarminStepData.class);
-        return new GarminTimeData<>(endDateTime.toInstant(), stepData);
+        return new GarminTimeData<>(endDateTime, stepData);
     }
 }

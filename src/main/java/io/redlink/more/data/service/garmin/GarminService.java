@@ -57,7 +57,6 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
     private final static String USER_ID_TYPE_KEY = "keyType";
     private final static String USER_PERMISSIONS_KEY = "permissions";
     public final static String GARMIN_KEY_TYPE = "garmin";
-    private final static String GARMIN_OBSERVATION_TYPE = "garmin-observation";
     private final GarminProperties garminProperties;
     private final RestTemplate restTemplate;
     private final StudyRepository studyRepository;
@@ -405,7 +404,7 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
 
     // The User access tokens are being accessed and the participants are being grouped by the accessToken, as one access token can be applied to multiple participants
     private Map<UserAccessTokenWithData, List<ParticipantWithObservationProperties>> getAllGarminParticipants() {
-        var participantWithObservationProperties = studyRepository.getParticipantObservationPropertiesByObservationType(GARMIN_OBSERVATION_TYPE);
+        var participantWithObservationProperties = studyRepository.getParticipantObservationPropertiesByKeyExists(USER_ACCESS_TOKEN_KEY);
         return participantWithObservationProperties.stream()
                 .map(pop -> Map.entry(pop, getUserAccessData(pop)))
                 .filter(entry -> entry.getValue().isPresent())

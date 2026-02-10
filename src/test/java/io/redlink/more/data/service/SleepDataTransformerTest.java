@@ -41,7 +41,7 @@ class SleepDataTransformerTest extends AbstractGarminTransformerTestBase<SleepDa
     }
 
     @Test
-    @DisplayName("transform: returns SLEEP_START and SLEEP_END DataPoints when all required fields are present and valid")
+    @DisplayName("transform: returns SLEEP DataPoint when all required fields are present and valid")
     void transform_ToDataPoint_returnsDataPoints_whenValidSleep() {
         // Given
         Instant startTime = Instant.parse("2025-12-03T22:00:00Z");
@@ -62,21 +62,8 @@ class SleepDataTransformerTest extends AbstractGarminTransformerTestBase<SleepDa
                 new Observation(
                         1,
                         null,
-                        "Sleep Start Observation",
-                        DataType.SLEEP_START.dataType,
-                        null,
-                        null,
-                        schedule,
-                        Instant.EPOCH,
-                        Instant.EPOCH,
-                        false,
-                        false
-                ),
-                new Observation(
-                        2,
-                        null,
-                        "Sleep End Observation",
-                        DataType.SLEEP_END.dataType,
+                        "Sleep Observation",
+                        "garmin-sleep-observation",
                         null,
                         null,
                         schedule,
@@ -94,24 +81,17 @@ class SleepDataTransformerTest extends AbstractGarminTransformerTestBase<SleepDa
         List<DataPoint> result = transformer.transform(observations, garminDataPoint, participantStart, participantEnd);
 
         // Then
-        assertEquals(4, result.size());
+        assertEquals(1, result.size());
 
-        DataPoint sleepStart = result.stream()
-                .filter(dp -> Objects.equals(dp.dataType(), DataType.SLEEP_START.name()))
+        DataPoint sleep = result.stream()
+                .filter(dp -> Objects.equals(dp.dataType(), DataType.SLEEP.name()))
                 .findFirst()
                 .orElseThrow();
-        assertEquals(DataType.SLEEP_START.name(), sleepStart.dataType());
-        assertEquals(startTime, sleepStart.effectiveDateTime());
-        assertNotNull(sleepStart.data());
-
-        DataPoint sleepEnd = result.stream()
-                .filter(dp -> Objects.equals(dp.dataType(), DataType.SLEEP_END.name()))
-                .findFirst()
-                .orElseThrow();
-        assertEquals(DataType.SLEEP_END.name(), sleepEnd.dataType());
-        assertEquals(endTime, sleepEnd.effectiveDateTime());
-        assertNotNull(sleepEnd.data());
-        assertTrue(sleepEnd.data().containsKey(SleepSummaryTransformerTestHelper.START_TIME_KEY));
+        assertEquals(DataType.SLEEP.name(), sleep.dataType());
+        assertEquals(endTime, sleep.effectiveDateTime());
+        assertNotNull(sleep.data());
+        assertEquals(startTime, sleep.data().get("startTime"));
+        assertEquals(endTime, sleep.data().get("endTime"));
     }
 
     @Test
@@ -125,8 +105,7 @@ class SleepDataTransformerTest extends AbstractGarminTransformerTestBase<SleepDa
                 .calendarDate(java.time.LocalDate.parse("2025-12-03"));
 
         List<Observation> observations = List.of(
-                createObservation(1, DataType.SLEEP_START),
-                createObservation(2, DataType.SLEEP_END)
+                createObservation(1, DataType.SLEEP)
         );
 
         Instant participantStart = Instant.parse("2025-12-03T00:00:00Z");
@@ -151,8 +130,7 @@ class SleepDataTransformerTest extends AbstractGarminTransformerTestBase<SleepDa
                 .calendarDate(java.time.LocalDate.parse("2025-12-03"));
 
         List<Observation> observations = List.of(
-                createObservation(1, DataType.SLEEP_START),
-                createObservation(2, DataType.SLEEP_END)
+                createObservation(1, DataType.SLEEP)
         );
 
         Instant participantStart = startTime.minusSeconds(3600);
@@ -172,8 +150,7 @@ class SleepDataTransformerTest extends AbstractGarminTransformerTestBase<SleepDa
         Instant now = Instant.now();
 
         List<DataPoint> dataPoints = List.of(
-                createDataPoint(DataType.SLEEP_START, now.minusSeconds(3600)),
-                createDataPoint(DataType.SLEEP_END, now)
+                createDataPoint(DataType.SLEEP, now.minusSeconds(3600))
         );
 
         List<Range<Instant>> validTimeRanges = List.of(
@@ -186,7 +163,7 @@ class SleepDataTransformerTest extends AbstractGarminTransformerTestBase<SleepDa
 
         // Then
         // SleepDataTransformer's filterDataPointByTimeRange always returns the full list
-        assertEquals(2, result.size());
+        assertEquals(1, result.size());
         assertTrue(result.containsAll(dataPoints));
     }
 
@@ -201,7 +178,7 @@ class SleepDataTransformerTest extends AbstractGarminTransformerTestBase<SleepDa
                 observationId,
                 null,
                 "Sleep Observation",
-                dataType.dataType,
+                "garmin-sleep-observation",
                 null,
                 null,
                 schedule,
