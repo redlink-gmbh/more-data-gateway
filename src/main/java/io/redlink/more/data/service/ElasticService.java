@@ -21,12 +21,14 @@ import io.redlink.more.data.elastic.model.ElasticDataPoint;
 import io.redlink.more.data.model.DataPoint;
 import io.redlink.more.data.model.RoutingInfo;
 import io.redlink.more.data.util.ElasticUtils;
+import org.apache.commons.lang3.Range;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 
@@ -90,21 +92,19 @@ public class ElasticService implements StorageService {
         }
     }
 
-
-    public long deleteDataPoints(RoutingInfo routingInfo, String key, Set<String> filteredByValues) throws IOException {
-        if (filteredByValues.isEmpty() || key == null) {
+    public Long deleteDataPointsInTimeRanges(RoutingInfo routingInfo, String dataType, Set<Range<Instant>> effectiveDateTimes) throws IOException {
+        if (effectiveDateTimes.isEmpty() || dataType == null || dataType.isBlank()) {
             return 0L;
         }
-        Set<FieldValue> fieldValues = filteredByValues.stream()
-                .map(FieldValue::of)
-                .collect(java.util.stream.Collectors.toSet());
+
         DeleteByQueryRequest request = new DeleteByQueryRequest.Builder()
                 .index(ElasticUtils.getStudyIdString(routingInfo.studyId()))
-                .query(ElasticUtils.getDeleteDataPointsFilter(
+                .query(ElasticUtils.getDeleteDataPointsRangeFilter(
                                 routingInfo.studyId(),
                                 routingInfo.participantId(),
-                                key,
-                                fieldValues
+                                ElasticUtils.Constants.EFFECTIVE_TIME_FRAME_FIELD,
+                                effectiveDateTimes,
+                                dataType
                         )
                 )
                 .build();
@@ -113,11 +113,47 @@ public class ElasticService implements StorageService {
             DeleteByQueryResponse response = client.deleteByQuery(request);
             return response.deleted() == null ? 0L : response.deleted();
         } catch (ElasticsearchException e) {
-            if ("index_not_found_exception".equals(e.error().type())) {
-                LOG.debug("Index {} does not exist, nothing to delete", ElasticUtils.getStudyIdString(routingInfo.studyId()));
-                return 0L;
-            }
-            throw e;
+            return ElasticUtils.handleDeletionException(e, routingInfo.studyId());
+        }
+    }
+
+
+    public long deleteDataPoints(
+            RoutingInfo routingInfo,
+            String dataType,
+            String key,
+            Set<?> filteredByValues
+    ) throws IOException {
+        if (filteredByValues.isEmpty() || key == null || dataType == null || dataType.isBlank()) {
+            return 0L;
+        }
+
+        Set<FieldValue> fieldValues = filteredByValues.stream()
+                .map(v -> {
+                    if (v instanceof Instant i) {
+                        return FieldValue.of(i.toString());
+                    }
+                    return FieldValue.of(v.toString());
+                })
+                .collect(java.util.stream.Collectors.toSet());
+
+        DeleteByQueryRequest request = new DeleteByQueryRequest.Builder()
+                .index(ElasticUtils.getStudyIdString(routingInfo.studyId()))
+                .query(ElasticUtils.getDeleteDataPointsFilter(
+                                routingInfo.studyId(),
+                                routingInfo.participantId(),
+                                key,
+                                fieldValues,
+                                dataType
+                        )
+                )
+                .build();
+
+        try {
+            DeleteByQueryResponse response = client.deleteByQuery(request);
+            return response.deleted() == null ? 0L : response.deleted();
+        } catch (ElasticsearchException e) {
+            return ElasticUtils.handleDeletionException(e, routingInfo.studyId());
         }
     }
 

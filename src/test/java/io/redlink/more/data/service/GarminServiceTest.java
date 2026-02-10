@@ -11,6 +11,7 @@ import io.redlink.more.data.properties.GarminProperties;
 import io.redlink.more.data.repository.ParticipantKeyValueRepository;
 import io.redlink.more.data.repository.StudyRepository;
 import io.redlink.more.data.service.garmin.GarminService;
+import org.apache.commons.lang3.Range;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -28,8 +29,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-import static io.redlink.more.data.util.ElasticUtils.Constants.GARMIN_SUMMARY_ID_KEY;
-import static io.redlink.more.data.util.ElasticUtils.Constants.GARMIN_SUMMARY_KEYWORD_FIELD;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.*;
@@ -210,20 +209,24 @@ class GarminServiceTest {
     }
 
     @Test
-    @DisplayName("deduplicateDataPoints: deletes existing Garmin datapoints by summary id")
-    void deduplicateDataPoints_deletesExistingBySummaryId() throws Exception {
+    @DisplayName("deduplicateDataPoints: deletes existing Garmin datapoints by time ranges")
+    void deduplicateDataPoints_deletesExistingByTimeRanges() throws Exception {
         DataPoint dp1 = mock(DataPoint.class);
         DataPoint dp2 = mock(DataPoint.class);
 
-        Map<String, Object> data1 = Map.of(GARMIN_SUMMARY_ID_KEY, "sum-1");
-        Map<String, Object> data2 = Map.of(GARMIN_SUMMARY_ID_KEY, "sum-2");
+        Instant t1 = Instant.now();
+        Instant t2 = t1.plusSeconds(60);
 
-        when(dp1.data()).thenReturn(data1);
-        when(dp2.data()).thenReturn(data2);
+        when(dp1.effectiveDateTime()).thenReturn(t1);
+        when(dp2.effectiveDateTime()).thenReturn(t2);
+        when(dp1.dataType()).thenReturn("type1");
+        when(dp2.dataType()).thenReturn("type2");
+        when(dp1.data()).thenReturn(Map.of());
+        when(dp2.data()).thenReturn(Map.of());
 
         RoutingInfo routingInfo = new RoutingInfo(1L, 10, 1, true, true);
 
-        when(elasticService.deleteDataPoints(
+        when(elasticService.deleteDataPointsInTimeRanges(
                 eq(routingInfo),
                 anyString(),
                 any(Set.class)
@@ -233,10 +236,21 @@ class GarminServiceTest {
         method.setAccessible(true);
         method.invoke(garminService, List.of(dp1, dp2), routingInfo);
 
-        verify(elasticService).deleteDataPoints(
+        verify(elasticService).deleteDataPointsInTimeRanges(
                 eq(routingInfo),
-                eq(GARMIN_SUMMARY_KEYWORD_FIELD),
-                eq(Set.of("sum-1", "sum-2"))
+                eq("type1"),
+                argThat(set -> set.stream().anyMatch(r -> {
+                    Range<Instant> rr = r;
+                    return rr.contains(t1);
+                }))
+        );
+        verify(elasticService).deleteDataPointsInTimeRanges(
+                eq(routingInfo),
+                eq("type2"),
+                argThat(set -> set.stream().anyMatch(r -> {
+                    Range<Instant> rr = r;
+                    return rr.contains(t2);
+                }))
         );
     }
 
