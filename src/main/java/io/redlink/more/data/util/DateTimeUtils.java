@@ -46,12 +46,12 @@ public class DateTimeUtils {
                 .toList();
         List<Range<Instant>> merged = new ArrayList<>();
         Range<Instant> current = sorted.get(0);
+        Instant min = current.getMinimum();
         for (int i = 1; i < sorted.size(); i++) {
             var next = sorted.get(i);
             if (current.isOverlappedBy(next) || !current.getMaximum().isBefore(next.getMinimum())) {
-                Instant newMin = current.getMinimum().isBefore(next.getMinimum()) ? current.getMinimum() : next.getMinimum();
                 Instant newMax = current.getMaximum().isAfter(next.getMaximum()) ? current.getMaximum() : next.getMaximum();
-                current = Range.of(newMin, newMax);
+                current = Range.of(min, newMax);
             } else {
                 merged.add(current);
                 current = next;
