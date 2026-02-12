@@ -3,7 +3,16 @@
  */
 package io.redlink.more.data.repository;
 
-import io.redlink.more.data.model.*;
+import io.redlink.more.data.model.ApiRoutingInfo;
+import io.redlink.more.data.model.Contact;
+import io.redlink.more.data.model.Observation;
+import io.redlink.more.data.model.Participant;
+import io.redlink.more.data.model.ParticipantConsent;
+import io.redlink.more.data.model.ParticipantWithObservationProperties;
+import io.redlink.more.data.model.RoutingInfo;
+import io.redlink.more.data.model.SimpleParticipant;
+import io.redlink.more.data.model.Study;
+import io.redlink.more.data.model.StudyDurationInfo;
 import io.redlink.more.data.model.scheduler.ScheduleEvent;
 import io.redlink.more.data.service.garmin.GarminService;
 import io.redlink.more.data.util.MapperUtils;
@@ -24,7 +33,14 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.util.*;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.OptionalInt;
+import java.util.Set;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -169,20 +185,37 @@ public class StudyRepository {
     private static final String GET_PARTICIPANT_OBSERVATION_PROPERTIES_BY_KEY_EXISTS =
             "SELECT * FROM participant_observation_properties WHERE participant_id = :participant_id AND study_id = :study_id AND properties ?? :key";
 
+    private static final String GET_ALL_PARTICIPANT_OBSERVATION_PROPERTIES_BY_KEY_EXISTS =
+            "SELECT * FROM participant_observation_properties WHERE properties ?? :key";
+
     private static final String GET_PARTICIPANT_OBSERVATIONS_PROPERTIES = "SELECT * FROM participant_observation_properties WHERE participant_id = :participant_id AND study_id = :study_id";
-    private static final String GET_PARTICIPANT_OBSERVATION_PROPERTIES = "SELECT properties FROM participant_observation_properties WHERE participant_id = :participant_id AND study_id = :study_id AND observation_id = :observation_id";
+
+    private static final String SQL_LIST_OBSERVATIONS_BY_STUDY_AND_TYPES =
+            """
+                    SELECT *
+                    FROM observations
+                    WHERE study_id = :study_id
+                      AND (study_group_id IS NULL OR study_group_id = :study_group_id)
+                      AND type IN (:types)
+                    """;
 
 
-    private static final String GET_ALL_PARTICIPANT_OBSERVATION_PROPERTIES_BY_OBSERVATION_TYPE =
+    private static final String GET_ALL_PARTICIPANT_OBSERVATION_PROPERTIES_BY_OBSERVATION_TYPE_LIKE =
             """
                     SELECT pop.*
                     FROM participant_observation_properties AS pop
                     JOIN observations AS o
-                      ON o.observation_id = p.observation_id
-                    WHERE o.observation_type = :observation_type""";
+                      ON o.observation_id = pop.observation_id
+                    WHERE o.type LIKE :observation_type""";
 
-    private static final String GET_OBSERVATION_GROUP_BY_IDS = "SELECT * FROM observation_groups WHERE study_id = ? AND observation_group_id = ?";
 
+    private static final String SQL_LIST_OBSERVATIONS_BY_STUDY_AND_TYPES_WITH_ALL_OBSERVATIONS =
+            """
+                    SELECT *
+                    FROM observations
+                    WHERE study_id = :study_id
+                      AND type IN (:types)
+                    """;
     private static final String GET_PARTICIPANT_STATE =
             """
                     SELECT status FROM participants WHERE study_id = ? AND participant_id = ?""";
@@ -190,6 +223,9 @@ public class StudyRepository {
     private static final String GET_STUDY_STATE =
             """
                     SELECT status FROM studies WHERE study_id = ?""";
+
+    private static final String GET_OBSERVATION_GROUP_BY_IDS = "SELECT * FROM observation_groups WHERE study_id = ? AND observation_group_id = ?";
+
 
     private final JdbcTemplate jdbcTemplate;
     private final NamedParameterJdbcTemplate namedTemplate;
@@ -291,43 +327,63 @@ public class StudyRepository {
      */
     public List<Participant> listParticipants(long studyId, OptionalInt groupId, Set<Integer> observationGroupIds) {
         return namedTemplate.query(
-                SQL_LIST_PARTICIPANTS_BY_STUDY,
-                new MapSqlParameterSource()
-                        .addValue("study_id", studyId)
-                        .addValue("study_group_id", groupId.isPresent() ? groupId.getAsInt() : null)
-                        .addValue("observation_group_ids", observationGroupIds != null && !observationGroupIds.isEmpty() ? observationGroupIds.toArray(new Integer[0]) : null),
-                getParticipantRowMapper()).stream()
-                    .map(p -> {
-                        if(p.observationGroups() == null) {
-                            return p;
-                        } else { //we need to load the ObservationGroup titles for the Ids
-                            return new Participant(
-                                    p.id(),
-                                    p.alias(),
-                                    p.status(),
-                                    p.studyGroupId(),
-                                    p.studyGroupTitle(),
-                                    p.start(),
-                                    p.observationGroups().stream()
-                                            .map(og -> getObservationGroupById(studyId,p.id()))
-                                            .toList());
-                        }
-                    })
-                    .toList();
+                        SQL_LIST_PARTICIPANTS_BY_STUDY,
+                        new MapSqlParameterSource()
+                                .addValue("study_id", studyId)
+                                .addValue("study_group_id", groupId.isPresent() ? groupId.getAsInt() : null)
+                                .addValue("observation_group_ids", observationGroupIds != null && !observationGroupIds.isEmpty() ? observationGroupIds.toArray(new Integer[0]) : null),
+                        getParticipantRowMapper()).stream()
+                .map(p -> {
+                    if(p.observationGroups() == null) {
+                        return p;
+                    } else { //we need to load the ObservationGroup titles for the Ids
+                        return new Participant(
+                                p.id(),
+                                p.alias(),
+                                p.status(),
+                                p.studyGroupId(),
+                                p.studyGroupTitle(),
+                                p.start(),
+                                p.observationGroups().stream()
+                                        .map(og -> getObservationGroupById(studyId,p.id()))
+                                        .toList());
+                    }
+                })
+                .toList();
+    }
+    public Optional<String> getParticipantState(long studyId, int participantId) {
+        return jdbcTemplate.query(
+                        GET_PARTICIPANT_STATE,
+                        (rs, rowNum) ->
+                                rs.getString("status"),
+                        studyId,
+                        participantId)
+                .stream()
+                .findFirst();
     }
 
-    private List<Observation> listObservations(long studyId, int groupId, int participantId, boolean filterByGroup) {
+    public Optional<String> getStudyState(long studyId) {
+        return jdbcTemplate.query(
+                        GET_STUDY_STATE,
+                        (rs, rowNum) ->
+                                rs.getString("status"),
+                        studyId)
+                .stream()
+                .findFirst();
+    }
+
+    private List<Observation> listObservations(long studyId, int studyGroupId, Collection<Integer> observationGroupIds, int participantId, boolean filterByGroup) {
         if (filterByGroup) {
             //NOTE: same as StudyManagerBackend: ObservationRepository#listObservationsForGroup
             return namedTemplate.query(
                             LIST_OBSERVATIONS_BY_STUDY_FOR_GROUP,
-                    new MapSqlParameterSource("study_id", studyId)
-                            .addValue("study_group_id", studyGroupId)
-                            //assume no observation groups if NULL is parsed
-                            .addValue("observation_group_ids", observationGroupIds == null ? new Integer[0] : observationGroupIds.toArray(new Integer[0])),
-                    getObservationRowMapper()).stream()
-                .map(o -> mergeParticipantProperties(o, studyId, participantId))
-                .toList();
+                            new MapSqlParameterSource("study_id", studyId)
+                                    .addValue("study_group_id", studyGroupId)
+                                    //assume no observation groups if NULL is parsed
+                                    .addValue("observation_group_ids", observationGroupIds == null ? new Integer[0] : observationGroupIds.toArray(new Integer[0])),
+                            getObservationRowMapper()).stream()
+                    .map(o -> mergeParticipantProperties(o, studyId, participantId))
+                    .toList();
         } else {
             return jdbcTemplate.query(LIST_OBSERVATIONS_BY_STUDY_WITH_ALL_OBSERVATIONS, getObservationRowMapper(), studyId).stream()
                     .map(o -> mergeParticipantProperties(o, studyId, participantId))
@@ -339,6 +395,26 @@ public class StudyRepository {
         return listObservations(routingInfo.studyId(), routingInfo.studyGroupId().orElse(0), routingInfo.observationGroupIds(), routingInfo.participantId(), filterByGroup)
                 .stream()
                 .filter(filter)
+                .toList();
+    }
+
+    public List<Observation> getObservationsByTypes(RoutingInfo routingInfo, boolean filterByGroup, Set<String> observationTypes) {
+        if (observationTypes == null || observationTypes.isEmpty()) {
+            return List.of();
+        }
+
+        var params = new MapSqlParameterSource()
+                .addValue("study_id", routingInfo.studyId())
+                .addValue("study_group_id", routingInfo.studyGroupId().orElse(0))
+                .addValue("types", observationTypes);
+
+        String sql = filterByGroup
+                ? SQL_LIST_OBSERVATIONS_BY_STUDY_AND_TYPES
+                : SQL_LIST_OBSERVATIONS_BY_STUDY_AND_TYPES_WITH_ALL_OBSERVATIONS;
+
+        return namedTemplate.query(sql, params, getObservationRowMapper())
+                .stream()
+                .map(o -> mergeParticipantProperties(o, routingInfo.studyId(), routingInfo.participantId()))
                 .toList();
     }
 
@@ -420,6 +496,21 @@ public class StudyRepository {
         }
     }
 
+    public List<ParticipantWithObservationProperties> getParticipantObservationPropertiesByKeyExists(String key) {
+        if (key == null || key.isEmpty()) {
+            return List.of();
+        }
+        try {
+            return namedTemplate.query(
+                    GET_ALL_PARTICIPANT_OBSERVATION_PROPERTIES_BY_KEY_EXISTS,
+                    new MapSqlParameterSource()
+                            .addValue("key", key),
+                    getParticipantWithObservationPropertiesRowMapper());
+        } catch (EmptyResultDataAccessException e) {
+            return Collections.emptyList();
+        }
+    }
+
     public List<ParticipantWithObservationProperties> getAllParticpantObservationProperties(Long studyId, Integer participantId) {
         try {
             return namedTemplate.query(
@@ -488,13 +579,13 @@ public class StudyRepository {
         }
     }
 
-    public List<ParticipantWithObservationProperties> getParticipantObservationPropertiesByObservationType(String observationType) {
+    public List<ParticipantWithObservationProperties> getParticipantObservationPropertiesByObservationTypeLike(String observationType) {
         try {
             var params = new MapSqlParameterSource()
                     .addValue("observation_type", observationType);
 
             return namedTemplate.query(
-                    GET_ALL_PARTICIPANT_OBSERVATION_PROPERTIES_BY_OBSERVATION_TYPE,
+                    GET_ALL_PARTICIPANT_OBSERVATION_PROPERTIES_BY_OBSERVATION_TYPE_LIKE,
                     params,
                     getParticipantWithObservationPropertiesMapper()
             );
@@ -715,5 +806,45 @@ public class StudyRepository {
                                 .addGroupDuration(Pair.of(rs.getInt("groupid"), DbUtils.readDuration(rs, "groupduration"))
                                 )), studyId).stream()
                 .reduce((prev, curr) -> prev.addGroupDuration(curr.getGroupDurations().get(0)));
+    }
+    public Participant.ObservationGroupInfo getObservationGroupById(long studyId, int observationGroupId) {
+        try {
+            return jdbcTemplate.queryForObject(GET_OBSERVATION_GROUP_BY_IDS, getObservationGroupInfoRowMapper(), studyId, observationGroupId);
+        } catch (EmptyResultDataAccessException e) {
+            return null;
+        }
+    }
+
+    private static RowMapper<Participant.ObservationGroupInfo> getObservationGroupInfoRowMapper() {
+        return (rs, rowNum) -> new Participant.ObservationGroupInfo(
+                rs.getInt("observation_group_id"),
+                rs.getString("title"));
+    }
+
+
+    private void generateRandomEventSchedulesForParticipant(RoutingInfo routingInfo, List<Observation> observations) {
+        var participantObservationProperties = getAllParticpantObservationProperties(routingInfo.studyId(), routingInfo.participantId())
+                .stream()
+                .filter(p ->
+                        p.properties().containsKey(OBSERVATION_SCHEDULE_SEED_KEY)
+                                && p.properties().get(OBSERVATION_SCHEDULE_SEED_KEY) != null)
+                .map(ParticipantWithObservationProperties::observationId)
+                .collect(Collectors.toSet());
+        observations
+                .stream()
+                .filter(observation -> !participantObservationProperties.contains(observation.observationId()))
+                .forEach(observation -> {
+                    ScheduleEvent event = observation.observationSchedule();
+                    if (event == null || event.getRandomization() == null || !event.getRandomization().state()) {
+                        return;
+                    }
+                    String userId = routingInfo.studyId() + "_" + routingInfo.participantId() + "_" + observation.observationId();
+                    Long seed = RandomSchedulerUtils.generateSeedFromSchedule(event, userId);
+                    if (seed == null) {
+                        return;
+                    }
+                    Map<String, Object> seedObject = Map.of(OBSERVATION_SCHEDULE_SEED_KEY, seed);
+                    mergeParticipantProperties(routingInfo.studyId(), routingInfo.participantId(), observation.observationId(), seedObject);
+                });
     }
 }
