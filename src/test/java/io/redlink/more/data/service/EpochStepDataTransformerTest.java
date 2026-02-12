@@ -65,6 +65,7 @@ class EpochStepDataTransformerTest extends AbstractGarminTransformerTestBase<Epo
                 start,
                 start,
                 false,
+                false,
                 false
         );
 

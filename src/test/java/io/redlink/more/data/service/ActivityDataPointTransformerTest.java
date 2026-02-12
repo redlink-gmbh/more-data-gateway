@@ -71,6 +71,7 @@ class ActivityDataPointTransformerTest extends AbstractGarminTransformerTestBase
                 start,
                 start,
                 false,
+                false,
                 false
         );
 
@@ -106,6 +107,7 @@ class ActivityDataPointTransformerTest extends AbstractGarminTransformerTestBase
                 start,
                 start,
                 false,
+                false,
                 false
         );
 
@@ -136,6 +138,7 @@ class ActivityDataPointTransformerTest extends AbstractGarminTransformerTestBase
                 event,
                 start,
                 start,
+                false,
                 false,
                 false
         );
@@ -168,6 +171,7 @@ class ActivityDataPointTransformerTest extends AbstractGarminTransformerTestBase
                 start,
                 start,
                 false,
+                false,
                 false
         );
 
@@ -198,6 +202,7 @@ class ActivityDataPointTransformerTest extends AbstractGarminTransformerTestBase
                 event,
                 start,
                 start,
+                false,
                 false,
                 false
         );

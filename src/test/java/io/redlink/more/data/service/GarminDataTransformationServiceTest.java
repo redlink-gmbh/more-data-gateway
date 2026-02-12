@@ -78,7 +78,7 @@ class GarminDataTransformationServiceTest extends AbstractGarminTransformerTestB
 
         Observation garminObs = new Observation(
                 1, 1, "Garmin", "garmin-heart-rate-observation",
-                null, null, schedule, Instant.now(), Instant.now(), false, false
+                null, null, schedule, Instant.now(), Instant.now(), false, false, false
         );
 
         SimpleParticipant simpleParticipant = new SimpleParticipant(

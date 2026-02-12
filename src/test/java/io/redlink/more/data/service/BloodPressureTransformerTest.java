@@ -63,6 +63,7 @@ class BloodPressureTransformerTest extends AbstractGarminTransformerTestBase<Blo
                 null,
                 null,
                 false,
+                false,
                 false
         );
 
@@ -125,6 +126,7 @@ class BloodPressureTransformerTest extends AbstractGarminTransformerTestBase<Blo
                 event,
                 null,
                 null,
+                false,
                 false,
                 false
         );
@@ -191,6 +193,7 @@ class BloodPressureTransformerTest extends AbstractGarminTransformerTestBase<Blo
                 event,
                 null,
                 null,
+                false,
                 false,
                 false
         );

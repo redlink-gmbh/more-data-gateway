@@ -67,6 +67,7 @@ class DailyStepDataTransformerTest extends AbstractGarminTransformerTestBase<Dai
                 start,
                 start,
                 false,
+                false,
                 false
         );
 

@@ -88,7 +88,8 @@ public final class StudyTransformer {
                 ._configuration(observation.properties())
                 .version(BaseTransformers.toVersionTag(observation.modified()))
                 .hidden(observation.hidden())
-                .noSchedule(observation.noSchedule());
+                .noSchedule(observation.noSchedule())
+                .reminder(observation.reminder());
         if (observation.observationSchedule() != null && start != null) {
             dto.schedule(SchedulerUtils
                     .parseToObservationSchedules(

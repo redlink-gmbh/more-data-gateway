@@ -23,11 +23,12 @@ public record Observation(
         Instant created,
         Instant modified,
         boolean hidden,
-        boolean noSchedule
+        boolean noSchedule,
+        boolean reminder
 ) {
     public Observation withProperties(Object properties) {
         return new Observation(
-                observationId, groupId, title, type, participantInfo, properties, observationSchedule, created, modified, hidden, noSchedule
+                observationId, groupId, title, type, participantInfo, properties, observationSchedule, created, modified, hidden, noSchedule, reminder
         );
     }
 }
