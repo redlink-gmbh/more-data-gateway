@@ -153,12 +153,15 @@ public class StudyRepository {
                     SELECT properties FROM participant_observation_properties
                     WHERE  study_id = ? AND participant_id = ? AND observation_id = ?""";
 
+    //TODO: Needs adaptation after #251 DB changes!!
     private static final String GET_API_ROUTING_INFO_BY_API_TOKEN = """
             SELECT t.study_id, t.observation_id, o.study_group_id, o.observation_group_id, o.type, t.token,
-                s.status IN ('active', 'preview') AS study_active
+                s.status IN ('active', 'preview') AS study_active,
+                ARRAY_AGG(oog.observation_group_id) FILTER (WHERE oog.observation_group_id IS NOT NULL) AS observation_group_ids
             FROM observation_api_tokens t
                 INNER JOIN observations o ON (t.study_id = o.study_id AND t.observation_id = o.observation_id)
                 INNER JOIN studies s ON (t.study_id = s.study_id)
+                LEFT JOIN observation_observation_groups oog ON t.study_id = oog.study_id AND t.observation_id = oog.observation_id
             WHERE s.study_id = ? AND o.observation_id = ? AND t.token_id = ?
             """;
 
@@ -759,7 +762,7 @@ public class StudyRepository {
                 rs.getInt("observation_id"),
                 rs.getString("type"),
                 DbUtils.readOptionalInt(rs, "study_group_id"),
-                DbUtils.readOptionalInt(rs, "observation_group_id"),
+                DbUtils.readSet(rs, "observation_group_ids", Integer.class),
                 rs.getBoolean("study_active"),
                 rs.getString("token"))
         );

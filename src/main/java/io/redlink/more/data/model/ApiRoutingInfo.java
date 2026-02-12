@@ -9,6 +9,7 @@
 package io.redlink.more.data.model;
 
 import java.io.Serializable;
+import java.util.HashSet;
 import java.util.OptionalInt;
 import java.util.Set;
 
@@ -18,7 +19,7 @@ import java.util.Set;
  * @param observationId the observation
  * @param observationType the type of the observation
  * @param rawStudyGroupId the study group assigned to the observation (if any)
- * @param rawObservationGroupId the observation group assigned to the observation (if any)
+ * @param rawObservationGroupIds the observation group ids assigned to the observation (empty if none)
  * @param studyActive if the study is active
  * @param secret the secret
  */
@@ -27,7 +28,7 @@ public record ApiRoutingInfo(
         Integer observationId,
         String observationType,
         int rawStudyGroupId,
-        int rawObservationGroupId,
+        Set<Integer> rawObservationGroupIds,
         boolean studyActive,
         String secret
 ) implements Serializable {
@@ -36,11 +37,11 @@ public record ApiRoutingInfo(
                           Integer observationId,
                           String observationType,
                           @SuppressWarnings("OptionalUsedAsFieldOrParameterType") OptionalInt studyGroupId,
-                          @SuppressWarnings("OptionalUsedAsFieldOrParameterType") OptionalInt observationGroupId,
+                          Set<Integer> observationGroupIds,
                           boolean studyActive,
                           String secret
     ) {
-        this(studyId, observationId, observationType, studyGroupId.orElse(Integer.MIN_VALUE), observationGroupId.orElse(Integer.MIN_VALUE), studyActive, secret);
+        this(studyId, observationId, observationType, studyGroupId.orElse(Integer.MIN_VALUE), observationGroupIds == null ? new HashSet<>() : observationGroupIds, studyActive, secret);
     }
 
     public OptionalInt studyGroupId() {
@@ -48,14 +49,6 @@ public record ApiRoutingInfo(
             return OptionalInt.empty();
         } else {
             return OptionalInt.of(rawStudyGroupId);
-        }
-    }
-
-    public OptionalInt observationGroupId() {
-        if (this.rawObservationGroupId < 0) {
-            return OptionalInt.empty();
-        } else {
-            return OptionalInt.of(rawObservationGroupId);
         }
     }
 
