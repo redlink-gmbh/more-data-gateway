@@ -173,6 +173,7 @@ class AbstractGarminTransformerTest extends AbstractGarminTransformerTestBase<Ab
                 timestamp.minus(1, ChronoUnit.DAYS),
                 timestamp.minus(1, ChronoUnit.DAYS),
                 false,
+                false,
                 false
         );
 
@@ -262,6 +263,7 @@ class AbstractGarminTransformerTest extends AbstractGarminTransformerTestBase<Ab
                 garminStart.minusSeconds(300),
                 garminStart.minusSeconds(300),
                 false,
+                false,
                 false
         );
 
@@ -309,6 +311,7 @@ class AbstractGarminTransformerTest extends AbstractGarminTransformerTestBase<Ab
                 event,
                 garminStart.minusSeconds(3_600),
                 garminStart.minusSeconds(3_600),
+                false,
                 false,
                 false
         );

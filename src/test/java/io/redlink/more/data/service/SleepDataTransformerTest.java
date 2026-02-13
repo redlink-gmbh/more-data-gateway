@@ -70,6 +70,7 @@ class SleepDataTransformerTest extends AbstractGarminTransformerTestBase<SleepDa
                         Instant.EPOCH,
                         Instant.EPOCH,
                         false,
+                        false,
                         false
                 )
         );
@@ -184,6 +185,7 @@ class SleepDataTransformerTest extends AbstractGarminTransformerTestBase<SleepDa
                 schedule,
                 Instant.EPOCH,
                 Instant.EPOCH,
+                false,
                 false,
                 false
         );
