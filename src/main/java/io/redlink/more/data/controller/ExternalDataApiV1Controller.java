@@ -50,7 +50,7 @@ public class ExternalDataApiV1Controller implements ExternalDataApi {
         try {
             ApiRoutingInfo apiRoutingInfo = externalService.getRoutingInfo(moreApiToken);
             return ResponseEntity.ok(
-                    externalService.listParticipants(apiRoutingInfo.studyId(), apiRoutingInfo.studyGroupId(), apiRoutingInfo.observationGroupId())
+                    externalService.listParticipants(apiRoutingInfo.studyId(), apiRoutingInfo.studyGroupId(), apiRoutingInfo.observationGroupIds())
                             .stream()
                             .map(ParticipantTransformer::toDTO)
                             .toList()

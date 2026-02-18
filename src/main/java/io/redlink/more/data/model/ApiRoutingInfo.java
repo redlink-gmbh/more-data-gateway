@@ -19,7 +19,7 @@ import java.util.Set;
  * @param observationId the observation
  * @param observationType the type of the observation
  * @param rawStudyGroupId the study group assigned to the observation (if any)
- * @param rawObservationGroupIds the observation group ids assigned to the observation (empty if none)
+ * @param observationGroupIds the observation group ids assigned to the observation (empty if none)
  * @param studyActive if the study is active
  * @param secret the secret
  */
@@ -28,7 +28,7 @@ public record ApiRoutingInfo(
         Integer observationId,
         String observationType,
         int rawStudyGroupId,
-        Set<Integer> rawObservationGroupIds,
+        Set<Integer> observationGroupIds,
         boolean studyActive,
         String secret
 ) implements Serializable {

@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -122,8 +123,8 @@ public class ExternalService {
         }
     }
 
-    public List<Participant> listParticipants(Long studyId, OptionalInt studyGroupId, OptionalInt observationGroupId) {
-        return repository.listParticipants(studyId, studyGroupId, observationGroupId.stream().boxed().collect(Collectors.toSet()));
+    public List<Participant> listParticipants(Long studyId, OptionalInt studyGroupId, Set<Integer> observationGroupIds) {
+        return repository.listParticipants(studyId, studyGroupId, observationGroupIds);
     }
 
     private List<Interval> createSchedulesFromRelativeEvent(RelativeEvent event, Instant start, Long studyId, Integer participantId, Integer observationId) {
