@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -52,7 +53,8 @@ class HeartRateTransformersTest extends AbstractGarminTransformerTestBase<HeartR
                 null,
                 false,
                 false,
-                false
+                false,
+                Set.of()
         );
         GarminTimeData<Integer> garminTimeData = new GarminTimeData<>(timestamp, heartRateValue);
 

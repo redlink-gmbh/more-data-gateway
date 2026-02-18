@@ -55,18 +55,23 @@ public class StudyRepository {
     private static final String SQL_FIND_STUDY_BY_ID =
             "SELECT *, status IN ('active', 'preview') as study_active FROM studies WHERE study_id = ?";
 
-    private static final String SQL_LIST_OBSERVATIONS_BY_STUDY = """
-            SELECT * 
-            FROM observations 
-            WHERE study_id = ? 
-                AND ( study_group_id IS NULL OR study_group_id = ? )""";
-
     private static final String LIST_OBSERVATIONS_BY_STUDY_FOR_GROUP = """
-            SELECT * 
-            FROM observations 
-            WHERE study_id = :study_id 
-                AND (study_group_id IS NULL OR study_group_id = :study_group_id) 
-                AND (observation_group_id IS NULL OR observation_group_id = ANY(:observation_group_ids::INT[]))""";
+            SELECT o.*, ARRAY_AGG(oog.observation_group_id) FILTER (WHERE oog.observation_group_id IS NOT NULL) AS observation_group_ids
+            FROM observations o
+                LEFT JOIN observation_observation_groups oog ON o.study_id = oog.study_id AND o.observation_id = oog.observation_id
+            WHERE o.study_id = :study_id
+              AND (o.study_group_id IS NULL OR o.study_group_id = :study_group_id)
+              AND (NOT EXISTS (
+                SELECT 1 FROM observation_observation_groups oog3\s
+                WHERE oog3.study_id = o.study_id
+                  AND oog3.observation_id = o.observation_id
+                ) OR EXISTS (
+                  SELECT 1 FROM observation_observation_groups oog2
+                  WHERE oog2.study_id = o.study_id
+                    AND oog2.observation_id = o.observation_id
+                    AND oog2.observation_group_id = ANY(:observation_group_ids)))
+            GROUP BY o.study_id, o.observation_id""";
+
 
     private static final String LIST_OBSERVATIONS_BY_STUDY_WITH_ALL_OBSERVATIONS =
             "SELECT * FROM observations WHERE study_id = ?";
@@ -717,7 +722,8 @@ public class StudyRepository {
                 toInstant(rs.getTimestamp("modified")),
                 rs.getBoolean("hidden"),
                 rs.getBoolean("no_schedule"),
-                rs.getBoolean("reminder")
+                rs.getBoolean("reminder"),
+                DbUtils.readSet(rs, "observation_group_ids", Integer.class)
         );
     }
 

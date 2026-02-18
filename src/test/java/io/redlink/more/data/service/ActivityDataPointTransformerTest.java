@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
@@ -72,7 +73,8 @@ class ActivityDataPointTransformerTest extends AbstractGarminTransformerTestBase
                 start,
                 false,
                 false,
-                false
+                false,
+                Set.of()
         );
 
         List<DataPoint> result = transformer.transform(List.of(observation), garminDataPoint, start.minusSeconds(3600), end.plusSeconds(3600));
@@ -108,7 +110,8 @@ class ActivityDataPointTransformerTest extends AbstractGarminTransformerTestBase
                 start,
                 false,
                 false,
-                false
+                false,
+                Set.of()
         );
 
         List<DataPoint> result = transformer.transform(List.of(observation), garminDataPoint, start.minusSeconds(3600), end.plusSeconds(3600));
@@ -140,7 +143,8 @@ class ActivityDataPointTransformerTest extends AbstractGarminTransformerTestBase
                 start,
                 false,
                 false,
-                false
+                false,
+                Set.of()
         );
 
         List<DataPoint> result = transformer.transform(List.of(observation), garminDataPoint, start.minusSeconds(3600), end.plusSeconds(3600));
@@ -172,7 +176,8 @@ class ActivityDataPointTransformerTest extends AbstractGarminTransformerTestBase
                 start,
                 false,
                 false,
-                false
+                false,
+                Set.of()
         );
 
         List<DataPoint> result = transformer.transform(List.of(observation), garminDataPoint, start.minusSeconds(3600), end.plusSeconds(3600));
@@ -204,7 +209,8 @@ class ActivityDataPointTransformerTest extends AbstractGarminTransformerTestBase
                 start,
                 false,
                 false,
-                false
+                false,
+                Set.of()
         );
 
         List<DataPoint> result = transformer.transform(List.of(observation), garminDataPoint, start.minusSeconds(3600), end.plusSeconds(3600));

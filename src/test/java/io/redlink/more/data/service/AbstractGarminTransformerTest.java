@@ -19,6 +19,7 @@ import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -174,7 +175,8 @@ class AbstractGarminTransformerTest extends AbstractGarminTransformerTestBase<Ab
                 timestamp.minus(1, ChronoUnit.DAYS),
                 false,
                 false,
-                false
+                false,
+                Set.of()
         );
 
         List<DataPoint> dataPoints1 = transformer.exposeTransformTimeData(
@@ -264,7 +266,8 @@ class AbstractGarminTransformerTest extends AbstractGarminTransformerTestBase<Ab
                 garminStart.minusSeconds(300),
                 false,
                 false,
-                false
+                false,
+                Set.of()
         );
 
         List<DataPoint> result = transformer.transform(
@@ -313,7 +316,8 @@ class AbstractGarminTransformerTest extends AbstractGarminTransformerTestBase<Ab
                 garminStart.minusSeconds(3_600),
                 false,
                 false,
-                false
+                false,
+                Set.of()
         );
 
         List<DataPoint> result = transformer.transform(

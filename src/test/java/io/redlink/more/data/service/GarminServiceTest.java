@@ -62,7 +62,7 @@ class GarminServiceTest {
     @Test
     @DisplayName("getSsoUrl: returns redirectUri immediately when a valid user access token exists")
     void getSsoUrl_returnsRedirect_whenValidToken() {
-        Observation garminObs = new Observation(42, 1, "Garmin", "garmin_activity", null, null, null, Instant.now(), Instant.now(), false, false, false);
+        Observation garminObs = new Observation(42, 1, "Garmin", "garmin_activity", null, null, null, Instant.now(), Instant.now(), false, false, false, Set.of());
         given(studyRepository.filterObservations(eq(routingInfo), eq(true), any())).willReturn(List.of(garminObs));
 
         UserAccessTokenWithData valid = UserAccessTokenWithData.createNewFrom(new GarminUserAccessToken("at", "rt", "bearer", 3600, "scope", 7200));
@@ -82,7 +82,7 @@ class GarminServiceTest {
     @Test
     @DisplayName("getSsoUrl: builds OAuth URL and stores auth values when no valid token; returns URL even if HTTP fails")
     void getSsoUrl_buildsOauth_andStoresAuthValues_whenNoValidToken() {
-        Observation garminObs = new Observation(7, 1, "Garmin", "garmin_connect", null, null, null, Instant.now(), Instant.now(), false, false, false);
+        Observation garminObs = new Observation(7, 1, "Garmin", "garmin_connect", null, null, null, Instant.now(), Instant.now(), false, false, false, Set.of());
         given(studyRepository.filterObservations(eq(routingInfo), eq(true), any())).willReturn(List.of(garminObs));
         given(studyRepository.getParticipantObservationPropertiesByKeyExists(anyLong(), anyInt(), anyString())).willReturn(List.of());
 
@@ -110,7 +110,7 @@ class GarminServiceTest {
     @Test
     @DisplayName("ssoCallback: throws when token exchange yields empty (e.g., missing auth values)")
     void ssoCallback_throws_whenTokenExchangeEmpty() {
-        Observation garminObs = new Observation(77, 1, "Garmin", "garmin", null, null, null, Instant.now(), Instant.now(), false, false, false);
+        Observation garminObs = new Observation(77, 1, "Garmin", "garmin", null, null, null, Instant.now(), Instant.now(), false, false, false, Set.of());
         ParticipantWithObservationProperties pwo = new ParticipantWithObservationProperties(10, 1L, garminObs.observationId(), Map.of());
         given(studyRepository.getParticipantByGarminStatus("state-2")).willReturn(List.of(pwo));
 
@@ -148,7 +148,7 @@ class GarminServiceTest {
         given(participantKeyValueRepository.delete(1L, 10, userId, Map.of("keyType", "garmin"))).willReturn(true);
         given(participantKeyValueRepository.delete(1L, 11, userId, Map.of("keyType", "garmin"))).willReturn(false);
 
-        Observation garminObs = new Observation(5, 1, "Garmin", "garmin", null, null, null, Instant.now(), Instant.now(), false, false, false);
+        Observation garminObs = new Observation(5, 1, "Garmin", "garmin", null, null, null, Instant.now(), Instant.now(), false, false, false, Set.of());
         given(studyRepository.filterObservations(eq(1L), anyInt(), any())).willReturn(List.of(garminObs));
         doNothing().when(studyRepository).removeParticipantPropertyKey(anyLong(), anyInt(), anyInt(), anyString());
 
@@ -174,7 +174,7 @@ class GarminServiceTest {
     @DisplayName("getAllGarminParticipants: groups participants by UserAccessTokenWithData")
     void getAllGarminParticipants_groupsParticipantsByUserAccessToken() throws Exception {
         Observation garminObs = new Observation(100, 1, "Garmin", "garmin", null, null, null,
-                Instant.now(), Instant.now(), false, false, false);
+                Instant.now(), Instant.now(), false, false, false, Set.of());
 
         UserAccessTokenWithData token1 =
                 UserAccessTokenWithData.createNewFrom(new GarminUserAccessToken("at1", "rt1", "bearer", 3600, "scope", 7200));
