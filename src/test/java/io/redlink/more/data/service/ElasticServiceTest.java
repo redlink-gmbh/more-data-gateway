@@ -113,7 +113,7 @@ class ElasticServiceTest {
 
         long deleted = elasticService.deleteDataPoints(
                 routingInfo,
-                "data_" + GARMIN_SUMMARY_ID_KEY + ".keyword",
+                "DAILY_STEPS", "data_" + GARMIN_SUMMARY_ID_KEY + ".keyword",
                 Set.of("sum-1", "sum-2")
         );
 

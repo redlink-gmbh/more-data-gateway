@@ -51,6 +51,7 @@ class HeartRateTransformersTest extends AbstractGarminTransformerTestBase<HeartR
                 null,
                 null,
                 false,
+                false,
                 false
         );
         GarminTimeData<Integer> garminTimeData = new GarminTimeData<>(timestamp, heartRateValue);

@@ -19,7 +19,10 @@ import io.redlink.more.data.properties.GarminProperties;
 import io.redlink.more.data.repository.ParticipantKeyValueRepository;
 import io.redlink.more.data.repository.StudyRepository;
 import io.redlink.more.data.service.ElasticService;
+import io.redlink.more.data.util.DataUtils;
+import io.redlink.more.data.util.DateTimeUtils;
 import io.redlink.more.data.util.GarminUtils;
+import org.apache.commons.lang3.Range;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,6 +37,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
 import java.net.URI;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -46,9 +50,6 @@ import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static io.redlink.more.data.util.ElasticUtils.Constants.GARMIN_SUMMARY_ID_KEY;
-import static io.redlink.more.data.util.ElasticUtils.Constants.GARMIN_SUMMARY_KEYWORD_FIELD;
-
 @Service
 public class GarminService implements ApplicationListener<ParticipantUpdateEvent> {
     private final Logger LOG = LoggerFactory.getLogger(GarminService.class);
@@ -57,7 +58,6 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
     private final static String USER_ID_TYPE_KEY = "keyType";
     private final static String USER_PERMISSIONS_KEY = "permissions";
     public final static String GARMIN_KEY_TYPE = "garmin";
-    private final static String GARMIN_OBSERVATION_TYPE = "garmin-observation";
     private final GarminProperties garminProperties;
     private final RestTemplate restTemplate;
     private final StudyRepository studyRepository;
@@ -256,7 +256,7 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
                 )).entrySet();
 
         if (entries.isEmpty()) {
-            LOG.debug("No data to store from Garmin...");
+            LOG.info("No data to store from Garmin...");
             return;
         }
 
@@ -289,12 +289,18 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
     }
 
     private void deduplicateDataPoints(List<DataPoint> dataBulk, RoutingInfo routingInfo) throws IOException {
-        Set<String> garminSummaryIdDataBulk = dataBulk.stream()
-                .filter(dp -> dp.data().containsKey(GARMIN_SUMMARY_ID_KEY))
-                .map(dp -> (String) dp.data().get(GARMIN_SUMMARY_ID_KEY))
-                .collect(Collectors.toSet());
-        long deleted = elasticService.deleteDataPoints(routingInfo, GARMIN_SUMMARY_KEYWORD_FIELD, garminSummaryIdDataBulk);
-        LOG.debug("Cleared {} datapoints for studyId={}, participantId={} for Garmin summaryIds={}", deleted, routingInfo.studyId(), routingInfo.participantId(), garminSummaryIdDataBulk);
+        Map<String, Set<Range<Instant>>> timeRangesByDataType =
+                dataBulk.stream()
+                        .collect(Collectors.groupingBy(
+                                DataPoint::dataType,
+                                Collectors.mapping(DataUtils::buildRangeFromDataPoint, Collectors.toSet())
+                        ));
+        for (Map.Entry<String, Set<Range<Instant>>> entry : timeRangesByDataType.entrySet()) {
+            String dataType = entry.getKey();
+            Set<Range<Instant>> ranges = DateTimeUtils.mergeRanges(entry.getValue());
+            long deleted = elasticService.deleteDataPointsInTimeRanges(routingInfo, dataType, ranges);
+            LOG.info("Cleared {} datapoints for studyId={}, participantId={} for Garmin datatype={}: rangesCount={}", deleted, routingInfo.studyId(), routingInfo.participantId(), dataType, ranges.size());
+        }
     }
 
     private Optional<String> getUserId() {
@@ -405,7 +411,7 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
 
     // The User access tokens are being accessed and the participants are being grouped by the accessToken, as one access token can be applied to multiple participants
     private Map<UserAccessTokenWithData, List<ParticipantWithObservationProperties>> getAllGarminParticipants() {
-        var participantWithObservationProperties = studyRepository.getParticipantObservationPropertiesByObservationType(GARMIN_OBSERVATION_TYPE);
+        var participantWithObservationProperties = studyRepository.getParticipantObservationPropertiesByKeyExists(USER_ACCESS_TOKEN_KEY);
         return participantWithObservationProperties.stream()
                 .map(pop -> Map.entry(pop, getUserAccessData(pop)))
                 .filter(entry -> entry.getValue().isPresent())

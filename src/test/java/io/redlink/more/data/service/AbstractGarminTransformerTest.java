@@ -47,6 +47,11 @@ class AbstractGarminTransformerTest extends AbstractGarminTransformerTestBase<Ab
         }
 
         @Override
+        public String getObservationType() {
+            return "garmin-observation";
+        }
+
+        @Override
         protected List<DataPoint> transformToDataPoint(List<Observation> observations, GarminDataPoint garminDataPoint) {
             // Create a simple DataPoint for each observation so that we can
             // test the behaviour of the AbstractGarminTransformer#transform
@@ -90,8 +95,8 @@ class AbstractGarminTransformerTest extends AbstractGarminTransformerTestBase<Ab
             return recordingTimestamp(garminDataPoint);
         }
 
-        OffsetDateTime exposeEndDateTime(GarminDataPoint garminDataPoint) {
-            return endDateTime(garminDataPoint);
+        Instant exposeCalculateEndInstant(GarminDataPoint garminDataPoint) {
+            return calculateEndInstant(garminDataPoint);
         }
     }
 
@@ -128,13 +133,11 @@ class AbstractGarminTransformerTest extends AbstractGarminTransformerTestBase<Ab
         when(garminDataPoint.getDurationInSeconds()).thenReturn(durationInSeconds);
         when(garminDataPoint.getStartTimeOffsetInSeconds()).thenReturn(offsetSeconds);
 
-        OffsetDateTime result = transformer.exposeEndDateTime(garminDataPoint);
+        Instant result = transformer.exposeCalculateEndInstant(garminDataPoint);
 
         Instant expectedInstant = Instant.ofEpochSecond(startTimeInSeconds + durationInSeconds);
-        ZoneOffset expectedOffset = ZoneOffset.ofTotalSeconds(offsetSeconds);
 
-        assertThat(result.toInstant()).isEqualTo(expectedInstant);
-        assertThat(result.getOffset()).isEqualTo(expectedOffset);
+        assertThat(result).isEqualTo(expectedInstant);
     }
 
     @Test
@@ -169,6 +172,7 @@ class AbstractGarminTransformerTest extends AbstractGarminTransformerTestBase<Ab
                 scheduleEvent,
                 timestamp.minus(1, ChronoUnit.DAYS),
                 timestamp.minus(1, ChronoUnit.DAYS),
+                false,
                 false,
                 false
         );
@@ -259,6 +263,7 @@ class AbstractGarminTransformerTest extends AbstractGarminTransformerTestBase<Ab
                 garminStart.minusSeconds(300),
                 garminStart.minusSeconds(300),
                 false,
+                false,
                 false
         );
 
@@ -307,6 +312,7 @@ class AbstractGarminTransformerTest extends AbstractGarminTransformerTestBase<Ab
                 garminStart.minusSeconds(3_600),
                 garminStart.minusSeconds(3_600),
                 false,
+                false,
                 false
         );
 
@@ -344,5 +350,38 @@ class AbstractGarminTransformerTest extends AbstractGarminTransformerTestBase<Ab
 
         assertThat(range.getMinimum()).isEqualTo(expectedStart);
         assertThat(range.getMaximum()).isEqualTo(expectedEnd);
+    }
+
+    @Test
+    @DisplayName("calculateEndInstant: sums all durationInSeconds properties")
+    void calculateEndInstant_sumsDurations() {
+        GarminDataPoint garminDataPoint = new GarminDataPoint()
+                .startTimeInSeconds(1_700_000_000)
+                .startTimeOffsetInSeconds(0)
+                .durationInSeconds(10)
+                .activeTimeInSeconds(20L)
+                .totalNapDurationInSeconds(30L)
+                .unmeasurableSleepInSeconds(40L)
+                .deepSleepDurationInSeconds(50L)
+                .lightSleepDurationInSeconds(60L)
+                .remSleepInSeconds(70L)
+                .awakeDurationInSeconds(80L);
+
+        // Sum of all these should be 10+20+30+40+50+60+70+80 = 360
+        Instant result = transformer.exposeCalculateEndInstant(garminDataPoint);
+
+        assertThat(result).isEqualTo(Instant.ofEpochSecond(1_700_000_000 + 360));
+    }
+
+    @Test
+    @DisplayName("calculateEndInstant: returns startTime if no durations found")
+    void calculateEndInstant_returnsStartTime_ifNoDurations() {
+        GarminDataPoint garminDataPoint = new GarminDataPoint()
+                .startTimeInSeconds(1_700_000_000)
+                .startTimeOffsetInSeconds(0);
+
+        Instant result = transformer.exposeCalculateEndInstant(garminDataPoint);
+
+        assertThat(result).isEqualTo(Instant.ofEpochSecond(1_700_000_000));
     }
 }

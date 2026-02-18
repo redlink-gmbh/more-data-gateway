@@ -30,6 +30,11 @@ public class HeartRateTransformers extends AbstractGarminTransformer {
     }
 
     @Override
+    public String getObservationType() {
+        return "garmin-heart-rate-observation";
+    }
+
+    @Override
     public List<DataPoint> transformToDataPoint(List<Observation> observations, GarminDataPoint garminDataPoint) {
         var recordedDateTime = super.recordingTimestamp(garminDataPoint);
 
@@ -69,9 +74,7 @@ public class HeartRateTransformers extends AbstractGarminTransformer {
                 .stream()
                 .filter(entry -> entry.getValue() != null)
                 .map(entry -> new GarminTimeData<>(
-                        Instant.ofEpochSecond(startDateTime.toEpochSecond()
-                                + Integer.parseInt(entry.getKey())),
-                        entry.getValue()))
+                        Instant.ofEpochSecond(startDateTime.toEpochSecond() + Integer.parseInt(entry.getKey())), entry.getValue()))
                 .collect(Collectors.toCollection(ArrayList::new));
     }
 }

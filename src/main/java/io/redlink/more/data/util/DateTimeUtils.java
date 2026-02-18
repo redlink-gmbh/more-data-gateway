@@ -1,13 +1,63 @@
 package io.redlink.more.data.util;
 
+import org.apache.commons.lang3.Range;
+
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 public class DateTimeUtils {
     public static OffsetDateTime offsetDateTimeFromEpochSeconds(long epochSecond, int offset) {
         Instant unixTimestamp = Instant.ofEpochSecond(epochSecond);
         ZoneOffset zoneOffset = ZoneOffset.ofTotalSeconds(offset);
         return unixTimestamp.atOffset(zoneOffset);
+    }
+
+    public static Instant toInstantOrNull(Object value) {
+        if (value == null) return null;
+        if (value instanceof Instant i) return i;
+
+        if (value instanceof CharSequence cs) {
+            String s = cs.toString().trim();
+            if (s.isEmpty()) {
+                return null;
+            }
+            return Instant.parse(s);
+        }
+
+        if (value instanceof Number n) {
+            long v = n.longValue();
+            // Heuristic: treat "big" values as epoch millis, smaller as epoch seconds
+            return (v >= 1_000_000_000_000L) ? Instant.ofEpochMilli(v) : Instant.ofEpochSecond(v);
+        }
+
+        throw new IllegalArgumentException("Unsupported time value type for startTime/endTime: " + value.getClass().getName());
+    }
+
+    public static Set<Range<Instant>> mergeRanges(Set<Range<Instant>> ranges) {
+        if (ranges == null || ranges.isEmpty()) return ranges;
+        List<Range<Instant>> sorted = ranges.stream()
+                .sorted(Comparator.comparing(Range::getMinimum))
+                .toList();
+        List<Range<Instant>> merged = new ArrayList<>();
+        Range<Instant> current = sorted.get(0);
+        Instant min = current.getMinimum();
+        for (int i = 1; i < sorted.size(); i++) {
+            var next = sorted.get(i);
+            if (current.isOverlappedBy(next) || !current.getMaximum().isBefore(next.getMinimum())) {
+                Instant newMax = current.getMaximum().isAfter(next.getMaximum()) ? current.getMaximum() : next.getMaximum();
+                current = Range.of(min, newMax);
+            } else {
+                merged.add(current);
+                current = next;
+            }
+        }
+        merged.add(current);
+        return new HashSet<>(merged);
     }
 }

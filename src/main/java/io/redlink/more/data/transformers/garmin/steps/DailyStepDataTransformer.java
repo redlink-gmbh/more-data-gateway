@@ -25,8 +25,13 @@ public class DailyStepDataTransformer extends AbstractGarminTransformer {
     }
 
     @Override
+    public String getObservationType() {
+        return "garmin-daily-steps-observation";
+    }
+
+    @Override
     protected List<DataPoint> transformToDataPoint(List<Observation> observations, GarminDataPoint garminDataPoint) {
-        var data = GarminStepDataUtils.getStepData(super.endDateTime(garminDataPoint), garminDataPoint);
+        var data = GarminStepDataUtils.getStepData(super.recordingTimestamp(garminDataPoint).toInstant(), garminDataPoint);
         return super.transformGarminTimeDataToDataPoint(observations, garminDataPoint.getSummaryId(), DataType.DAILY_STEPS, data);
     }
 

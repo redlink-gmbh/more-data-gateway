@@ -63,20 +63,21 @@ class ActivityDataPointTransformerTest extends AbstractGarminTransformerTestBase
         Observation observation = new Observation(
                 1,
                 null,
-                "Epoch Observation",
-                "garmin_epochs",
+                "Activity Observation",
+                "garmin-activity-observation",
                 null,
                 null,
                 event,
                 start,
                 start,
                 false,
+                false,
                 false
         );
 
         List<DataPoint> result = transformer.transform(List.of(observation), garminDataPoint, start.minusSeconds(3600), end.plusSeconds(3600));
 
-        assertThat(result).hasSize(2);
+        assertThat(result).hasSize(1);
 
         verify(garminDataPoint, atLeastOnce()).getActivityType();
         verify(garminDataPoint, atLeastOnce()).getMet();
@@ -105,6 +106,7 @@ class ActivityDataPointTransformerTest extends AbstractGarminTransformerTestBase
                 event,
                 start,
                 start,
+                false,
                 false,
                 false
         );
@@ -137,6 +139,7 @@ class ActivityDataPointTransformerTest extends AbstractGarminTransformerTestBase
                 start,
                 start,
                 false,
+                false,
                 false
         );
 
@@ -168,6 +171,7 @@ class ActivityDataPointTransformerTest extends AbstractGarminTransformerTestBase
                 start,
                 start,
                 false,
+                false,
                 false
         );
 
@@ -198,6 +202,7 @@ class ActivityDataPointTransformerTest extends AbstractGarminTransformerTestBase
                 event,
                 start,
                 start,
+                false,
                 false,
                 false
         );

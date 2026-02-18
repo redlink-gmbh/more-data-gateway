@@ -11,6 +11,7 @@ import io.redlink.more.data.properties.GarminProperties;
 import io.redlink.more.data.repository.ParticipantKeyValueRepository;
 import io.redlink.more.data.repository.StudyRepository;
 import io.redlink.more.data.service.garmin.GarminService;
+import org.apache.commons.lang3.Range;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -29,8 +30,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-import static io.redlink.more.data.util.ElasticUtils.Constants.GARMIN_SUMMARY_ID_KEY;
-import static io.redlink.more.data.util.ElasticUtils.Constants.GARMIN_SUMMARY_KEYWORD_FIELD;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.*;
@@ -63,7 +62,7 @@ class GarminServiceTest {
     @Test
     @DisplayName("getSsoUrl: returns redirectUri immediately when a valid user access token exists")
     void getSsoUrl_returnsRedirect_whenValidToken() {
-        Observation garminObs = new Observation(42, 1, "Garmin", "garmin_activity", null, null, null, Instant.now(), Instant.now(), false, false);
+        Observation garminObs = new Observation(42, 1, "Garmin", "garmin_activity", null, null, null, Instant.now(), Instant.now(), false, false, false);
         given(studyRepository.filterObservations(eq(routingInfo), eq(true), any())).willReturn(List.of(garminObs));
 
         UserAccessTokenWithData valid = UserAccessTokenWithData.createNewFrom(new GarminUserAccessToken("at", "rt", "bearer", 3600, "scope", 7200));
@@ -83,7 +82,7 @@ class GarminServiceTest {
     @Test
     @DisplayName("getSsoUrl: builds OAuth URL and stores auth values when no valid token; returns URL even if HTTP fails")
     void getSsoUrl_buildsOauth_andStoresAuthValues_whenNoValidToken() {
-        Observation garminObs = new Observation(7, 1, "Garmin", "garmin_connect", null, null, null, Instant.now(), Instant.now(), false, false);
+        Observation garminObs = new Observation(7, 1, "Garmin", "garmin_connect", null, null, null, Instant.now(), Instant.now(), false, false, false);
         given(studyRepository.filterObservations(eq(routingInfo), eq(true), any())).willReturn(List.of(garminObs));
         given(studyRepository.getParticipantObservationPropertiesByKeyExists(anyLong(), anyInt(), anyString())).willReturn(List.of());
 
@@ -111,7 +110,7 @@ class GarminServiceTest {
     @Test
     @DisplayName("ssoCallback: throws when token exchange yields empty (e.g., missing auth values)")
     void ssoCallback_throws_whenTokenExchangeEmpty() {
-        Observation garminObs = new Observation(77, 1, "Garmin", "garmin", null, null, null, Instant.now(), Instant.now(), false, false);
+        Observation garminObs = new Observation(77, 1, "Garmin", "garmin", null, null, null, Instant.now(), Instant.now(), false, false, false);
         ParticipantWithObservationProperties pwo = new ParticipantWithObservationProperties(10, 1L, garminObs.observationId(), Map.of());
         given(studyRepository.getParticipantByGarminStatus("state-2")).willReturn(List.of(pwo));
 
@@ -149,7 +148,7 @@ class GarminServiceTest {
         given(participantKeyValueRepository.delete(1L, 10, userId, Map.of("keyType", "garmin"))).willReturn(true);
         given(participantKeyValueRepository.delete(1L, 11, userId, Map.of("keyType", "garmin"))).willReturn(false);
 
-        Observation garminObs = new Observation(5, 1, "Garmin", "garmin", null, null, null, Instant.now(), Instant.now(), false, false);
+        Observation garminObs = new Observation(5, 1, "Garmin", "garmin", null, null, null, Instant.now(), Instant.now(), false, false, false);
         given(studyRepository.filterObservations(eq(1L), anyInt(), any())).willReturn(List.of(garminObs));
         doNothing().when(studyRepository).removeParticipantPropertyKey(anyLong(), anyInt(), anyInt(), anyString());
 
@@ -175,7 +174,7 @@ class GarminServiceTest {
     @DisplayName("getAllGarminParticipants: groups participants by UserAccessTokenWithData")
     void getAllGarminParticipants_groupsParticipantsByUserAccessToken() throws Exception {
         Observation garminObs = new Observation(100, 1, "Garmin", "garmin", null, null, null,
-                Instant.now(), Instant.now(), false, false);
+                Instant.now(), Instant.now(), false, false, false);
 
         UserAccessTokenWithData token1 =
                 UserAccessTokenWithData.createNewFrom(new GarminUserAccessToken("at1", "rt1", "bearer", 3600, "scope", 7200));
@@ -193,7 +192,7 @@ class GarminServiceTest {
         ParticipantWithObservationProperties p3 =
                 new ParticipantWithObservationProperties(12, 1L, garminObs.observationId(), props2);
 
-        given(studyRepository.getParticipantObservationPropertiesByObservationType(anyString()))
+        given(studyRepository.getParticipantObservationPropertiesByKeyExists(eq(GarminService.USER_ACCESS_TOKEN_KEY)))
                 .willReturn(List.of(p1, p2, p3));
 
         Method method = GarminService.class.getDeclaredMethod("getAllGarminParticipants");
@@ -207,24 +206,28 @@ class GarminServiceTest {
                 .anySatisfy(list -> assertThat(list).containsExactlyInAnyOrder(p1, p2))
                 .anySatisfy(list -> assertThat(list).containsExactlyInAnyOrder(p3));
 
-        verify(studyRepository).getParticipantObservationPropertiesByObservationType(anyString());
+        verify(studyRepository).getParticipantObservationPropertiesByKeyExists(eq(GarminService.USER_ACCESS_TOKEN_KEY));
     }
 
     @Test
-    @DisplayName("deduplicateDataPoints: deletes existing Garmin datapoints by summary id")
-    void deduplicateDataPoints_deletesExistingBySummaryId() throws Exception {
+    @DisplayName("deduplicateDataPoints: deletes existing Garmin datapoints by time ranges")
+    void deduplicateDataPoints_deletesExistingByTimeRanges() throws Exception {
         DataPoint dp1 = mock(DataPoint.class);
         DataPoint dp2 = mock(DataPoint.class);
 
-        Map<String, Object> data1 = Map.of(GARMIN_SUMMARY_ID_KEY, "sum-1");
-        Map<String, Object> data2 = Map.of(GARMIN_SUMMARY_ID_KEY, "sum-2");
+        Instant t1 = Instant.now();
+        Instant t2 = t1.plusSeconds(60);
 
-        when(dp1.data()).thenReturn(data1);
-        when(dp2.data()).thenReturn(data2);
+        when(dp1.effectiveDateTime()).thenReturn(t1);
+        when(dp2.effectiveDateTime()).thenReturn(t2);
+        when(dp1.dataType()).thenReturn("type1");
+        when(dp2.dataType()).thenReturn("type2");
+        when(dp1.data()).thenReturn(Map.of());
+        when(dp2.data()).thenReturn(Map.of());
 
         RoutingInfo routingInfo = new RoutingInfo(1L, 10, 1, Collections.emptySet(), true, true);
 
-        when(elasticService.deleteDataPoints(
+        when(elasticService.deleteDataPointsInTimeRanges(
                 eq(routingInfo),
                 anyString(),
                 any(Set.class)
@@ -234,22 +237,33 @@ class GarminServiceTest {
         method.setAccessible(true);
         method.invoke(garminService, List.of(dp1, dp2), routingInfo);
 
-        verify(elasticService).deleteDataPoints(
+        verify(elasticService).deleteDataPointsInTimeRanges(
                 eq(routingInfo),
-                eq(GARMIN_SUMMARY_KEYWORD_FIELD),
-                eq(Set.of("sum-1", "sum-2"))
+                eq("type1"),
+                argThat(set -> set.stream().anyMatch(r -> {
+                    Range<Instant> rr = r;
+                    return rr.contains(t1);
+                }))
+        );
+        verify(elasticService).deleteDataPointsInTimeRanges(
+                eq(routingInfo),
+                eq("type2"),
+                argThat(set -> set.stream().anyMatch(r -> {
+                    Range<Instant> rr = r;
+                    return rr.contains(t2);
+                }))
         );
     }
 
     @Test
     @DisplayName("refreshAllTokens: completes without error when there are no Garmin participants")
     void refreshAllTokens_doesNothingWhenNoParticipants() {
-        given(studyRepository.getParticipantObservationPropertiesByObservationType(anyString()))
+        given(studyRepository.getParticipantObservationPropertiesByKeyExists(eq(GarminService.USER_ACCESS_TOKEN_KEY)))
                 .willReturn(List.of());
 
         garminService.refreshAllTokens();
 
-        verify(studyRepository).getParticipantObservationPropertiesByObservationType(anyString());
+        verify(studyRepository).getParticipantObservationPropertiesByKeyExists(eq(GarminService.USER_ACCESS_TOKEN_KEY));
         verifyNoInteractions(participantKeyValueRepository);
     }
 

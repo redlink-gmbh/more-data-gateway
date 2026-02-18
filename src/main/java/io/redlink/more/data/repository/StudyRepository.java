@@ -716,7 +716,8 @@ public class StudyRepository {
                 toInstant(rs.getTimestamp("created")),
                 toInstant(rs.getTimestamp("modified")),
                 rs.getBoolean("hidden"),
-                rs.getBoolean("no_schedule")
+                rs.getBoolean("no_schedule"),
+                rs.getBoolean("reminder")
         );
     }
 

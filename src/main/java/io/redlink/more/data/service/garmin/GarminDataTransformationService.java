@@ -8,14 +8,17 @@ import io.redlink.more.data.model.garmin.GarminSummaryType;
 import io.redlink.more.data.model.garmin.ParticipantGarminDataPoint;
 import io.redlink.more.data.repository.StudyRepository;
 import io.redlink.more.data.transformers.garmin.AbstractGarminTransformer;
+import org.apache.commons.lang3.Range;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalInt;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -48,33 +51,30 @@ public class GarminDataTransformationService {
         return participantGarminDataPoints
                 .stream()
                 .map(participantGarminDataPoint -> {
-                    var routingInfo = participantKeyValueToRoutingInfo(participantGarminDataPoint.participantKeyValue());
+                    RoutingInfo routingInfo = participantKeyValueToRoutingInfo(participantGarminDataPoint.participantKeyValue());
 
-                    var simpleParticipant = studyRepository.findParticipant(routingInfo);
-                    if (simpleParticipant.isEmpty()) {
-                        LOG.warn("No participant found for {}", routingInfo);
-                        return Map.entry(routingInfo, Collections.<DataPoint>emptyList());
-                    }
-                    var participantStart = simpleParticipant.get().start();
-                    var participantEnd = simpleParticipant.get().end();
-
-                    if (participantStart == null || participantEnd == null || participantStart.toEpochMilli() >= participantEnd.toEpochMilli()) {
-                        LOG.warn("Participant start or end time is invalid: {}", simpleParticipant);
+                    Range<Instant> participantTimeRange = getParticipantTimeRange(routingInfo);
+                    if (participantTimeRange == null) {
                         return Map.entry(routingInfo, Collections.<DataPoint>emptyList());
                     }
 
-                    List<Observation> observations =
-                            studyRepository.filterObservations(
-                                    routingInfo,
-                                    false,
-                                    observation -> observation.type().contains(GarminService.GARMIN_KEY_TYPE)
-                            );
+                    Set<String> observationTypes = transformers.stream().map(AbstractGarminTransformer::getObservationType).collect(Collectors.toSet());
+                    List<Observation> observations = participantObservations(routingInfo, observationTypes);
 
                     List<DataPoint> dataPoints = participantGarminDataPoint.garminDataPoints()
                             .parallelStream()
                             .flatMap(data -> transformers
                                     .stream()
-                                    .flatMap(t -> t.transform(observations, data, participantStart, participantEnd, routingInfo.studyId(), routingInfo.participantId()).stream())
+                                    .flatMap(transformer ->
+                                            transformer.transform(
+                                                            filterObservationByType(observations, transformer.getObservationType()),
+                                                            data,
+                                                            participantTimeRange.getMinimum(),
+                                                            participantTimeRange.getMaximum(),
+                                                            routingInfo.studyId(),
+                                                            routingInfo.participantId())
+                                                    .stream()
+                                    )
                             )
                             .toList();
 
@@ -86,6 +86,34 @@ public class GarminDataTransformationService {
                 .filter(entry -> !entry.getValue().isEmpty())
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
+
+    private Range<Instant> getParticipantTimeRange(RoutingInfo routingInfo) {
+        var simpleParticipant = studyRepository.findParticipant(routingInfo);
+        if (simpleParticipant.isEmpty()) {
+            LOG.warn("No participant found for {}", routingInfo);
+            return null;
+        }
+        var participantStart = simpleParticipant.get().start();
+        var participantEnd = simpleParticipant.get().end();
+        if (participantStart.isAfter(participantEnd)) {
+            LOG.warn("Participant {} has start {} after end {}!", simpleParticipant.get(), participantStart, participantEnd);
+            return null;
+        }
+        return Range.of(participantStart, participantEnd);
+    }
+
+    private List<Observation> participantObservations(RoutingInfo routingInfo, Set<String> observationTypes) {
+        return studyRepository.getObservationsByTypes(
+                routingInfo,
+                false,
+                observationTypes
+        );
+    }
+
+    private List<Observation> filterObservationByType(List<Observation> observations, String observationTypes) {
+        return observations.stream().filter(observation -> observation.type().equals(observationTypes)).toList();
+    }
+
 
     private RoutingInfo participantKeyValueToRoutingInfo(ParticipantKeyValue participantKeyValue) {
         return new RoutingInfo(

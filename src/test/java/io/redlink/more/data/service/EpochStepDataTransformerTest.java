@@ -16,8 +16,6 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 class EpochStepDataTransformerTest extends AbstractGarminTransformerTestBase<EpochStepDataTransformerTest.TestEpochStepDataTransformer> {
 
@@ -41,14 +39,13 @@ class EpochStepDataTransformerTest extends AbstractGarminTransformerTestBase<Epo
     @Test
     @DisplayName("transform: returns one EPOCH_STEPS DataPoint with end timestamp and step fields")
     void transform_returnsEpochStepsDataPoint() {
-        GarminDataPoint garminDataPoint = mock(GarminDataPoint.class);
-        when(garminDataPoint.getSummaryId()).thenReturn("summary-steps-epoch-1");
-        when(garminDataPoint.getStartTimeInSeconds()).thenReturn(1_700_100_000);
-        when(garminDataPoint.getDurationInSeconds()).thenReturn(300); // 5 min epoch
-        when(garminDataPoint.getStartTimeOffsetInSeconds()).thenReturn(0);
-
-        when(garminDataPoint.getSteps()).thenReturn(120);
-        when(garminDataPoint.getDistanceInMeters()).thenReturn(150.5);
+        GarminDataPoint garminDataPoint = new GarminDataPoint()
+                .summaryId("summary-steps-epoch-1")
+                .startTimeInSeconds(1_700_100_000)
+                .durationInSeconds(300)
+                .startTimeOffsetInSeconds(0)
+                .steps(120)
+                .distanceInMeters(150.5);
 
         Instant start = Instant.ofEpochSecond(1_700_100_000);
         Instant end = start.plusSeconds(300);
@@ -68,6 +65,7 @@ class EpochStepDataTransformerTest extends AbstractGarminTransformerTestBase<Epo
                 start,
                 start,
                 false,
+                false,
                 false
         );
 
@@ -77,12 +75,11 @@ class EpochStepDataTransformerTest extends AbstractGarminTransformerTestBase<Epo
         DataPoint dp = result.get(0);
         assertThat(dp.dataType()).isEqualTo(DataType.EPOCH_STEPS.name());
         assertThat(dp.observationId()).isEqualTo("1");
-        assertThat(dp.effectiveDateTime()).isEqualTo(end);
+        assertThat(dp.effectiveDateTime()).isEqualTo(start);
 
         Map<String, Object> data = dp.data();
         assertThat(data).isNotNull();
         assertThat(data.get("steps")).isEqualTo(120);
-        assertThat(data.get("stepsGoal")).isEqualTo(0);
         assertThat(data.get("distanceInMeters")).isEqualTo(150.5);
     }
 

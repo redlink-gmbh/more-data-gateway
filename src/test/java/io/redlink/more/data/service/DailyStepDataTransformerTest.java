@@ -16,8 +16,6 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 class DailyStepDataTransformerTest extends AbstractGarminTransformerTestBase<DailyStepDataTransformerTest.TestDailyStepDataTransformer> {
 
@@ -42,16 +40,14 @@ class DailyStepDataTransformerTest extends AbstractGarminTransformerTestBase<Dai
     @DisplayName("transform: returns one DAILY_STEPS DataPoint with end timestamp and step fields")
     void transform_returnsDailyStepsDataPoint() {
         // Given a Garmin datapoint with steps and a time window
-        GarminDataPoint garminDataPoint = mock(GarminDataPoint.class);
-        when(garminDataPoint.getSummaryId()).thenReturn("summary-steps-1");
-        when(garminDataPoint.getStartTimeInSeconds()).thenReturn(1_700_000_000); // arbitrary
-        when(garminDataPoint.getDurationInSeconds()).thenReturn(3_600); // 1h
-        when(garminDataPoint.getStartTimeOffsetInSeconds()).thenReturn(0);
-
-        // Step-related fields used by MapperUtils.convertValue -> GarminStepData
-        when(garminDataPoint.getSteps()).thenReturn(12345);
-        when(garminDataPoint.getStepsGoal()).thenReturn(10000);
-        when(garminDataPoint.getDistanceInMeters()).thenReturn(7654.32);
+        GarminDataPoint garminDataPoint = new GarminDataPoint()
+                .summaryId("summary-steps-1")
+                .startTimeInSeconds(1_700_000_000)
+                .durationInSeconds(3_600)
+                .startTimeOffsetInSeconds(0)
+                .steps(12345)
+                .stepsGoal(10000)
+                .distanceInMeters(7654.32);
 
         Instant start = Instant.ofEpochSecond(1_700_000_000);
         Instant end = start.plusSeconds(3_600);
@@ -71,6 +67,7 @@ class DailyStepDataTransformerTest extends AbstractGarminTransformerTestBase<Dai
                 start,
                 start,
                 false,
+                false,
                 false
         );
 
@@ -82,8 +79,8 @@ class DailyStepDataTransformerTest extends AbstractGarminTransformerTestBase<Dai
         DataPoint dp = result.get(0);
         assertThat(dp.dataType()).isEqualTo(DataType.DAILY_STEPS.name());
         assertThat(dp.observationId()).isEqualTo("1");
-        // Effective time is the end of the window (endDateTime)
-        assertThat(dp.effectiveDateTime()).isEqualTo(end);
+        // Effective time is the start of the window
+        assertThat(dp.effectiveDateTime()).isEqualTo(start);
 
         Map<String, Object> data = dp.data();
         assertThat(data).isNotNull();
