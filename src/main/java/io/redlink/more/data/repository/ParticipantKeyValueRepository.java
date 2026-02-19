@@ -44,7 +44,15 @@ public class ParticipantKeyValueRepository {
             "SELECT value FROM participant_key_value WHERE study_id = ? AND participant_id = ? AND key = ?";
 
     private static final String SQL_SELECT_RECORD =
-            "SELECT value FROM participant_key_value WHERE study_id = ? AND participant_id = ? AND key = ?";
+            """
+                    SELECT pkv.study_id, pkv.participant_id, pkv.key, pkv.value,
+                           ARRAY_AGG(pog.observation_group_id) FILTER (WHERE pog.observation_group_id IS NOT NULL) AS observation_group_ids
+                    FROM participant_key_value pkv
+                    LEFT JOIN participant_observation_groups pog
+                      ON pkv.study_id = pog.study_id AND pkv.participant_id = pog.participant_id
+                    WHERE pkv.study_id = ? AND pkv.participant_id = ? AND pkv.key = ?
+                    GROUP BY pkv.study_id, pkv.participant_id, pkv.key, pkv.value
+                    """;
 
     private static final String SQL_DELETE =
             "DELETE FROM participant_key_value WHERE study_id = ? AND participant_id = ? AND key = ?";
@@ -53,13 +61,37 @@ public class ParticipantKeyValueRepository {
             "DELETE FROM participant_key_value WHERE study_id = ? AND participant_id = ? AND key = ? AND value @> ?::jsonb";
 
     private static final String SQL_SELECT_ALL =
-            "SELECT key, value FROM participant_key_value WHERE study_id = ? AND participant_id = ?";
+            """
+                    SELECT pkv.study_id, pkv.participant_id, pkv.key, pkv.value,
+                           ARRAY_AGG(pog.observation_group_id) FILTER (WHERE pog.observation_group_id IS NOT NULL) AS observation_group_ids
+                    FROM participant_key_value pkv
+                    LEFT JOIN participant_observation_groups pog
+                      ON pkv.study_id = pog.study_id AND pkv.participant_id = pog.participant_id
+                    WHERE pkv.study_id = ? AND pkv.participant_id = ?
+                    GROUP BY pkv.study_id, pkv.participant_id, pkv.key, pkv.value
+                    """;
 
     private static final String SQL_GET_BY_KEY =
-            "SELECT * FROM participant_key_value WHERE key = ?";
+            """
+                    SELECT pkv.study_id, pkv.participant_id, pkv.key, pkv.value,
+                           ARRAY_AGG(pog.observation_group_id) FILTER (WHERE pog.observation_group_id IS NOT NULL) AS observation_group_ids
+                    FROM participant_key_value pkv
+                    LEFT JOIN participant_observation_groups pog
+                      ON pkv.study_id = pog.study_id AND pkv.participant_id = pog.participant_id
+                    WHERE pkv.key = ?
+                    GROUP BY pkv.study_id, pkv.participant_id, pkv.key, pkv.value
+                    """;
 
     private static final String SQL_GET_WITH_KEY_TYPE =
-            "SELECT key, value FROM participant_key_value WHERE study_id = ? AND participant_id = ?";
+            """
+                    SELECT pkv.study_id, pkv.participant_id, pkv.key, pkv.value,
+                           ARRAY_AGG(pog.observation_group_id) FILTER (WHERE pog.observation_group_id IS NOT NULL) AS observation_group_ids
+                    FROM participant_key_value pkv
+                    LEFT JOIN participant_observation_groups pog
+                      ON pkv.study_id = pog.study_id AND pkv.participant_id = pog.participant_id
+                    WHERE pkv.study_id = ? AND pkv.participant_id = ?
+                    GROUP BY pkv.study_id, pkv.participant_id, pkv.key, pkv.value
+                    """;
 
     private final JdbcTemplate jdbcTemplate;
     private final NamedParameterJdbcTemplate namedTemplate;
@@ -178,7 +210,8 @@ public class ParticipantKeyValueRepository {
                 getOrDefault(rs, "study_id", defaultStudyId),
                 getOrDefault(rs, "participant_id", defaultParticipantId),
                 rs.getString("key"),
-                (Map<String, Object>) MapperUtils.readValue(rs.getString("value"), Map.class)
+                (Map<String, Object>) MapperUtils.readValue(rs.getString("value"), Map.class),
+                DbUtils.readSet(rs, "observation_group_ids", Integer.class)
         );
     }
 
@@ -187,7 +220,8 @@ public class ParticipantKeyValueRepository {
                 getOrDefault(rs, "study_id", defaultStudyId),
                 getOrDefault(rs, "participant_id", defaultParticipantId),
                 getOrDefault(rs, "key", defaultKey),
-                (Map<String, Object>) MapperUtils.readValue(rs.getString("value"), Map.class)
+                (Map<String, Object>) MapperUtils.readValue(rs.getString("value"), Map.class),
+                DbUtils.readSet(rs, "observation_group_ids", Integer.class)
         );
     }
 
@@ -196,7 +230,8 @@ public class ParticipantKeyValueRepository {
                 rs.getLong("study_id"),
                 rs.getInt("participant_id"),
                 rs.getString("key"),
-                (Map<String, Object>) MapperUtils.readValue(rs.getString("value"), Map.class)
+                (Map<String, Object>) MapperUtils.readValue(rs.getString("value"), Map.class),
+                DbUtils.readSet(rs, "observation_group_ids", Integer.class)
         );
     }
 

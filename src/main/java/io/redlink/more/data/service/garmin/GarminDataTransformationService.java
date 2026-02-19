@@ -106,7 +106,8 @@ public class GarminDataTransformationService {
         return studyRepository.getObservationsByTypes(
                 routingInfo,
                 false,
-                observationTypes
+                observationTypes,
+                routingInfo.observationGroupIds()
         );
     }
 
@@ -120,7 +121,7 @@ public class GarminDataTransformationService {
                 participantKeyValue.studyId(),
                 participantKeyValue.participantId(),
                 OptionalInt.empty(),
-                null,
+                participantKeyValue.observationGroupIds(),
                 true,
                 true
         );

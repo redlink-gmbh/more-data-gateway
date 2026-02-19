@@ -3,16 +3,7 @@
  */
 package io.redlink.more.data.repository;
 
-import io.redlink.more.data.model.ApiRoutingInfo;
-import io.redlink.more.data.model.Contact;
-import io.redlink.more.data.model.Observation;
-import io.redlink.more.data.model.Participant;
-import io.redlink.more.data.model.ParticipantConsent;
-import io.redlink.more.data.model.ParticipantWithObservationProperties;
-import io.redlink.more.data.model.RoutingInfo;
-import io.redlink.more.data.model.SimpleParticipant;
-import io.redlink.more.data.model.Study;
-import io.redlink.more.data.model.StudyDurationInfo;
+import io.redlink.more.data.model.*;
 import io.redlink.more.data.model.scheduler.ScheduleEvent;
 import io.redlink.more.data.service.garmin.GarminService;
 import io.redlink.more.data.util.MapperUtils;
@@ -62,7 +53,7 @@ public class StudyRepository {
             WHERE o.study_id = :study_id
               AND (o.study_group_id IS NULL OR o.study_group_id = :study_group_id)
               AND (NOT EXISTS (
-                SELECT 1 FROM observation_observation_groups oog3\s
+                SELECT 1 FROM observation_observation_groups oog3
                 WHERE oog3.study_id = o.study_id
                   AND oog3.observation_id = o.observation_id
                 ) OR EXISTS (
@@ -72,9 +63,39 @@ public class StudyRepository {
                     AND oog2.observation_group_id = ANY(:observation_group_ids)))
             GROUP BY o.study_id, o.observation_id""";
 
+    private static final String LIST_OBSERVATIONS_BY_STUDY_FOR_GROUP_ONLY_GROUPS = """
+            SELECT o.*, ARRAY_AGG(oog.observation_group_id) FILTER (WHERE oog.observation_group_id IS NOT NULL) AS observation_group_ids
+            FROM observations o
+                LEFT JOIN observation_observation_groups oog ON o.study_id = oog.study_id AND o.observation_id = oog.observation_id
+            WHERE o.study_id = :study_id
+              AND (o.study_group_id IS NULL OR o.study_group_id = :study_group_id)
+              AND (
+                NOT EXISTS (
+                  SELECT 1 FROM observation_observation_groups oog3
+                  WHERE oog3.study_id = o.study_id
+                    AND oog3.observation_id = o.observation_id
+                ) OR EXISTS (
+                  SELECT 1 FROM observation_observation_groups oog2
+                  WHERE oog2.study_id = o.study_id
+                    AND oog2.observation_id = o.observation_id
+                    AND oog2.observation_group_id = ANY(:observation_group_ids)
+                )
+              )
+            GROUP BY o.study_id, o.observation_id
+            """;
+
 
     private static final String LIST_OBSERVATIONS_BY_STUDY_WITH_ALL_OBSERVATIONS =
-            "SELECT * FROM observations WHERE study_id = ?";
+            """
+                    SELECT o.*,
+                           ARRAY_AGG(oog.observation_group_id)
+                             FILTER (WHERE oog.observation_group_id IS NOT NULL) AS observation_group_ids
+                    FROM observations o
+                    LEFT JOIN observation_observation_groups oog
+                      ON o.study_id = oog.study_id AND o.observation_id = oog.observation_id
+                    WHERE o.study_id = ?
+                    GROUP BY o.study_id, o.observation_id
+                    """;
 
     private static final String SQL_ROUTING_INFO_BY_REG_TOKEN = """
             SELECT pt.study_id as study_id, pt.participant_id as participant_id, study_group_id,
@@ -200,11 +221,42 @@ public class StudyRepository {
 
     private static final String SQL_LIST_OBSERVATIONS_BY_STUDY_AND_TYPES =
             """
-                    SELECT *
-                    FROM observations
-                    WHERE study_id = :study_id
-                      AND (study_group_id IS NULL OR study_group_id = :study_group_id)
-                      AND type IN (:types)
+                    SELECT o.*,
+                           ARRAY_AGG(oog.observation_group_id)
+                             FILTER (WHERE oog.observation_group_id IS NOT NULL) AS observation_group_ids
+                    FROM observations o
+                    LEFT JOIN observation_observation_groups oog
+                      ON o.study_id = oog.study_id AND o.observation_id = oog.observation_id
+                    WHERE o.study_id = :study_id
+                      AND (o.study_group_id IS NULL OR o.study_group_id = :study_group_id)
+                      AND o.type IN (:types)
+                    GROUP BY o.study_id, o.observation_id
+                    """;
+
+    private static final String SQL_LIST_OBSERVATIONS_BY_STUDY_AND_TYPES_ONLY_GROUPS =
+            """
+                    SELECT o.*,
+                           ARRAY_AGG(oog.observation_group_id)
+                             FILTER (WHERE oog.observation_group_id IS NOT NULL) AS observation_group_ids
+                    FROM observations o
+                    LEFT JOIN observation_observation_groups oog
+                      ON o.study_id = oog.study_id AND o.observation_id = oog.observation_id
+                    WHERE o.study_id = :study_id
+                      AND (o.study_group_id IS NULL OR o.study_group_id = :study_group_id)
+                      AND o.type IN (:types)
+                      AND (
+                        NOT EXISTS (
+                          SELECT 1 FROM observation_observation_groups oog3
+                          WHERE oog3.study_id = o.study_id
+                            AND oog3.observation_id = o.observation_id
+                        ) OR EXISTS (
+                          SELECT 1 FROM observation_observation_groups oog2
+                          WHERE oog2.study_id = o.study_id
+                            AND oog2.observation_id = o.observation_id
+                            AND oog2.observation_group_id = ANY(:observation_group_ids)
+                        )
+                      )
+                    GROUP BY o.study_id, o.observation_id
                     """;
 
 
@@ -219,10 +271,40 @@ public class StudyRepository {
 
     private static final String SQL_LIST_OBSERVATIONS_BY_STUDY_AND_TYPES_WITH_ALL_OBSERVATIONS =
             """
-                    SELECT *
-                    FROM observations
-                    WHERE study_id = :study_id
-                      AND type IN (:types)
+                    SELECT o.*,
+                           ARRAY_AGG(oog.observation_group_id)
+                             FILTER (WHERE oog.observation_group_id IS NOT NULL) AS observation_group_ids
+                    FROM observations o
+                    LEFT JOIN observation_observation_groups oog
+                      ON o.study_id = oog.study_id AND o.observation_id = oog.observation_id
+                    WHERE o.study_id = :study_id
+                      AND o.type IN (:types)
+                    GROUP BY o.study_id, o.observation_id
+                    """;
+
+    private static final String SQL_LIST_OBSERVATIONS_BY_STUDY_AND_TYPES_WITH_ALL_OBSERVATIONS_ONLY_GROUPS =
+            """
+                    SELECT o.*,
+                           ARRAY_AGG(oog.observation_group_id)
+                             FILTER (WHERE oog.observation_group_id IS NOT NULL) AS observation_group_ids
+                    FROM observations o
+                    LEFT JOIN observation_observation_groups oog
+                      ON o.study_id = oog.study_id AND o.observation_id = oog.observation_id
+                    WHERE o.study_id = :study_id
+                      AND o.type IN (:types)
+                      AND (
+                        NOT EXISTS (
+                          SELECT 1 FROM observation_observation_groups oog3
+                          WHERE oog3.study_id = o.study_id
+                            AND oog3.observation_id = o.observation_id
+                        ) OR EXISTS (
+                          SELECT 1 FROM observation_observation_groups oog2
+                          WHERE oog2.study_id = o.study_id
+                            AND oog2.observation_id = o.observation_id
+                            AND oog2.observation_group_id = ANY(:observation_group_ids)
+                        )
+                      )
+                    GROUP BY o.study_id, o.observation_id
                     """;
     private static final String GET_PARTICIPANT_STATE =
             """
@@ -328,8 +410,8 @@ public class StudyRepository {
 
     /**
      *
-     * @param studyId the study id
-     * @param groupId the study group id or NULL to deactivate this filter
+     * @param studyId             the study id
+     * @param groupId             the study group id or NULL to deactivate this filter
      * @param observationGroupIds the list of observation groups (ANY if multiple) or empty/null to deactivate this filter
      * @return the list of participants based on the parsed filters
      */
@@ -342,7 +424,7 @@ public class StudyRepository {
                                 .addValue("observation_group_ids", observationGroupIds != null && !observationGroupIds.isEmpty() ? observationGroupIds.toArray(new Integer[0]) : null),
                         getParticipantRowMapper()).stream()
                 .map(p -> {
-                    if(p.observationGroups() == null) {
+                    if (p.observationGroups() == null) {
                         return p;
                     } else { //we need to load the ObservationGroup titles for the Ids
                         return new Participant(
@@ -353,12 +435,13 @@ public class StudyRepository {
                                 p.studyGroupTitle(),
                                 p.start(),
                                 p.observationGroups().stream()
-                                        .map(og -> getObservationGroupById(studyId,p.id()))
+                                        .map(og -> getObservationGroupById(studyId, p.id()))
                                         .toList());
                     }
                 })
                 .toList();
     }
+
     public Optional<String> getParticipantState(long studyId, int participantId) {
         return jdbcTemplate.query(
                         GET_PARTICIPANT_STATE,
@@ -380,44 +463,68 @@ public class StudyRepository {
                 .findFirst();
     }
 
-    private List<Observation> listObservations(long studyId, int studyGroupId, Collection<Integer> observationGroupIds, int participantId, boolean filterByGroup) {
+    private List<Observation> listObservations(long studyId, int studyGroupId, Collection<Integer> observationGroupIds, int participantId, boolean filterByGroup, Set<Integer> restrictToObservationGroupIds) {
         if (filterByGroup) {
-            //NOTE: same as StudyManagerBackend: ObservationRepository#listObservationsForGroup
+            // NOTE: same as StudyManagerBackend: ObservationRepository#listObservationsForGroup
+            final boolean restrictByGroups = restrictToObservationGroupIds != null && !restrictToObservationGroupIds.isEmpty();
+            final String sql = restrictByGroups ? LIST_OBSERVATIONS_BY_STUDY_FOR_GROUP_ONLY_GROUPS : LIST_OBSERVATIONS_BY_STUDY_FOR_GROUP;
+            final Integer[] groupIds = restrictByGroups
+                    ? restrictToObservationGroupIds.toArray(new Integer[0])
+                    : (observationGroupIds == null ? new Integer[0] : observationGroupIds.toArray(new Integer[0]));
+
             return namedTemplate.query(
-                            LIST_OBSERVATIONS_BY_STUDY_FOR_GROUP,
+                            sql,
                             new MapSqlParameterSource("study_id", studyId)
                                     .addValue("study_group_id", studyGroupId)
-                                    //assume no observation groups if NULL is parsed
-                                    .addValue("observation_group_ids", observationGroupIds == null ? new Integer[0] : observationGroupIds.toArray(new Integer[0])),
+                                    .addValue("observation_group_ids", groupIds),
                             getObservationRowMapper()).stream()
                     .map(o -> mergeParticipantProperties(o, studyId, participantId))
                     .toList();
         } else {
+            // no group-filtering in the SQL path; caller can still filter in-memory if needed
             return jdbcTemplate.query(LIST_OBSERVATIONS_BY_STUDY_WITH_ALL_OBSERVATIONS, getObservationRowMapper(), studyId).stream()
                     .map(o -> mergeParticipantProperties(o, studyId, participantId))
                     .toList();
         }
     }
 
-    public List<Observation> filterObservations(RoutingInfo routingInfo, boolean filterByGroup, Predicate<Observation> filter) {
-        return listObservations(routingInfo.studyId(), routingInfo.studyGroupId().orElse(0), routingInfo.observationGroupIds(), routingInfo.participantId(), filterByGroup)
-                .stream()
+    private List<Observation> listObservations(long studyId, int studyGroupId, Collection<Integer> observationGroupIds, int participantId, boolean filterByGroup) {
+        return listObservations(studyId, studyGroupId, observationGroupIds, participantId, filterByGroup, null);
+    }
+
+    public List<Observation> filterObservations(RoutingInfo routingInfo, boolean filterByGroup, Predicate<Observation> filter, Set<Integer> restrictToObservationGroupIds) {
+        return listObservations(
+                routingInfo.studyId(),
+                routingInfo.studyGroupId().orElse(0),
+                routingInfo.observationGroupIds(),
+                routingInfo.participantId(),
+                filterByGroup,
+                restrictToObservationGroupIds
+        ).stream()
                 .filter(filter)
                 .toList();
     }
 
-    public List<Observation> getObservationsByTypes(RoutingInfo routingInfo, boolean filterByGroup, Set<String> observationTypes) {
+    public List<Observation> getObservationsByTypes(RoutingInfo routingInfo, boolean filterByGroup, Set<String> observationTypes, Set<Integer> restrictToObservationGroupIds) {
         if (observationTypes == null || observationTypes.isEmpty()) {
             return List.of();
         }
 
+        // Compute groupIds parameter according to instructions
+        final boolean restrictByGroups = restrictToObservationGroupIds != null && !restrictToObservationGroupIds.isEmpty();
+        final Integer[] groupIds = restrictByGroups
+                ? restrictToObservationGroupIds.toArray(new Integer[0])
+                : (routingInfo.observationGroupIds() == null ? new Integer[0] : routingInfo.observationGroupIds().toArray(new Integer[0]));
+
         var params = new MapSqlParameterSource()
                 .addValue("study_id", routingInfo.studyId())
                 .addValue("study_group_id", routingInfo.studyGroupId().orElse(0))
-                .addValue("types", observationTypes);
+                .addValue("types", observationTypes)
+                // if filterByGroup is true, SQL will include observations with no group mapping OR any group in this array
+                .addValue("observation_group_ids", groupIds);
 
         String sql = filterByGroup
-                ? SQL_LIST_OBSERVATIONS_BY_STUDY_AND_TYPES
+                ? SQL_LIST_OBSERVATIONS_BY_STUDY_AND_TYPES_ONLY_GROUPS
                 : SQL_LIST_OBSERVATIONS_BY_STUDY_AND_TYPES_WITH_ALL_OBSERVATIONS;
 
         return namedTemplate.query(sql, params, getObservationRowMapper())
@@ -817,6 +924,7 @@ public class StudyRepository {
                                 )), studyId).stream()
                 .reduce((prev, curr) -> prev.addGroupDuration(curr.getGroupDurations().get(0)));
     }
+
     public Participant.ObservationGroupInfo getObservationGroupById(long studyId, int observationGroupId) {
         try {
             return jdbcTemplate.queryForObject(GET_OBSERVATION_GROUP_BY_IDS, getObservationGroupInfoRowMapper(), studyId, observationGroupId);
