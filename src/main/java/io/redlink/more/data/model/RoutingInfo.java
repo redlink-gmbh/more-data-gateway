@@ -10,28 +10,30 @@ package io.redlink.more.data.model;
 
 import java.io.Serializable;
 import java.util.OptionalInt;
+import java.util.Set;
 
 public record RoutingInfo(
         long studyId,
         int participantId,
         int rawStudyGroupId,
+        Set<Integer> observationGroupIds,
         boolean studyActive,
         boolean participantActive
 ) implements Serializable {
 
     public RoutingInfo(long studyId,
                        int participantId,
-                       @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-                       OptionalInt studyGroupId,
+                       @SuppressWarnings("OptionalUsedAsFieldOrParameterType") OptionalInt studyGroupId,
+                       Set<Integer> observationGroupIds,
                        boolean studyActive,
                        boolean participantActive
     ) {
-        this(studyId, participantId, studyGroupId.orElse(Integer.MIN_VALUE), studyActive, participantActive);
+        this(studyId, participantId, studyGroupId.orElse(Integer.MIN_VALUE), observationGroupIds, studyActive, participantActive);
     }
 
-    public RoutingInfo(ApiRoutingInfo routingInfo, Integer participantId, boolean participantActive) {
+/*    public RoutingInfo(ApiRoutingInfo routingInfo, Integer participantId, boolean participantActive) {
         this(routingInfo.studyId(), participantId, routingInfo.studyGroupId(), routingInfo.studyActive(), participantActive);
-    }
+    }*/
 
     public OptionalInt studyGroupId() {
         if (this.rawStudyGroupId < 0) {

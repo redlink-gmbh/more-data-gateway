@@ -87,7 +87,8 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
         List<Observation> observations = studyRepository.filterObservations(
                 routingInfo,
                 true,
-                observation -> observation.type().toLowerCase().contains(GARMIN_KEY_TYPE));
+                observation -> observation.type().toLowerCase().contains(GARMIN_KEY_TYPE),
+                routingInfo.observationGroupIds());
         if (observations.isEmpty()) {
             throw new IllegalStateException("No Garmin Observations found for " + routingInfo.participantId());
         }
@@ -551,7 +552,8 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
         List<Observation> observations = studyRepository.filterObservations(
                 studyId,
                 participantId,
-                observation -> observation.type().toLowerCase().contains(GARMIN_KEY_TYPE));
+                observation -> observation.type().toLowerCase().contains(GARMIN_KEY_TYPE)
+        );
         if (observations.isEmpty()) {
             return true;
         }

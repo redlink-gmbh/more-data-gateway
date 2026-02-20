@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static io.redlink.more.data.util.ElasticUtils.Constants.GARMIN_SUMMARY_ID_KEY;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -64,7 +65,8 @@ class BloodPressureTransformerTest extends AbstractGarminTransformerTestBase<Blo
                 null,
                 false,
                 false,
-                false
+                false,
+                Set.of()
         );
 
         GarminBloodPressure bp = new GarminBloodPressure(120, 80, 65, GarminBloodPressure.SourceType.DEVICE);
@@ -128,7 +130,8 @@ class BloodPressureTransformerTest extends AbstractGarminTransformerTestBase<Blo
                 null,
                 false,
                 false,
-                false
+                false,
+                Set.of()
         );
 
         List<DataPoint> result = transformer.transform(List.of(observation), garmin, Instant.MIN, Instant.MAX);
@@ -195,7 +198,8 @@ class BloodPressureTransformerTest extends AbstractGarminTransformerTestBase<Blo
                 null,
                 false,
                 false,
-                false
+                false,
+                Set.of()
         );
 
         List<DataPoint> result = transformer.transform(List.of(observation), garmin, Instant.MIN, Instant.MAX);

@@ -15,6 +15,7 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -71,7 +72,8 @@ class SleepDataTransformerTest extends AbstractGarminTransformerTestBase<SleepDa
                         Instant.EPOCH,
                         false,
                         false,
-                        false
+                        false,
+                        Set.of()
                 )
         );
 
@@ -187,7 +189,8 @@ class SleepDataTransformerTest extends AbstractGarminTransformerTestBase<SleepDa
                 Instant.EPOCH,
                 false,
                 false,
-                false
+                false,
+                Set.of()
         );
     }
 

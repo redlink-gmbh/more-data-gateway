@@ -24,6 +24,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.lang.reflect.Method;
 import java.net.URI;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -55,14 +56,14 @@ class GarminServiceTest {
 
     @BeforeEach
     void setUp() {
-        routingInfo = new RoutingInfo(1L, 10, 1, true, true);
+        routingInfo = new RoutingInfo(1L, 10, 1, Collections.emptySet(), true, true);
     }
 
     @Test
     @DisplayName("getSsoUrl: returns redirectUri immediately when a valid user access token exists")
     void getSsoUrl_returnsRedirect_whenValidToken() {
-        Observation garminObs = new Observation(42, 1, "Garmin", "garmin_activity", null, null, null, Instant.now(), Instant.now(), false, false, false);
-        given(studyRepository.filterObservations(eq(routingInfo), eq(true), any())).willReturn(List.of(garminObs));
+        Observation garminObs = new Observation(42, 1, "Garmin", "garmin_activity", null, null, null, Instant.now(), Instant.now(), false, false, false, Set.of());
+        given(studyRepository.filterObservations(eq(routingInfo), eq(true), any(), any(Set.class))).willReturn(List.of(garminObs));
 
         UserAccessTokenWithData valid = UserAccessTokenWithData.createNewFrom(new GarminUserAccessToken("at", "rt", "bearer", 3600, "scope", 7200));
         Map<String, Object> props = Map.of(GarminService.USER_ACCESS_TOKEN_KEY, valid.toMap());
@@ -81,8 +82,8 @@ class GarminServiceTest {
     @Test
     @DisplayName("getSsoUrl: builds OAuth URL and stores auth values when no valid token; returns URL even if HTTP fails")
     void getSsoUrl_buildsOauth_andStoresAuthValues_whenNoValidToken() {
-        Observation garminObs = new Observation(7, 1, "Garmin", "garmin_connect", null, null, null, Instant.now(), Instant.now(), false, false, false);
-        given(studyRepository.filterObservations(eq(routingInfo), eq(true), any())).willReturn(List.of(garminObs));
+        Observation garminObs = new Observation(7, 1, "Garmin", "garmin_connect", null, null, null, Instant.now(), Instant.now(), false, false, false, Set.of());
+        given(studyRepository.filterObservations(eq(routingInfo), eq(true), any(), any(Set.class))).willReturn(List.of(garminObs));
         given(studyRepository.getParticipantObservationPropertiesByKeyExists(anyLong(), anyInt(), anyString())).willReturn(List.of());
 
         given(garminProperties.basicOAuthUri("https://app.example/request")).willReturn(URI.create("https://diauth.garmin.test/oauth?client_id=abc&response_type=code&redirect_uri=https://app.example/redirect"));
@@ -109,7 +110,7 @@ class GarminServiceTest {
     @Test
     @DisplayName("ssoCallback: throws when token exchange yields empty (e.g., missing auth values)")
     void ssoCallback_throws_whenTokenExchangeEmpty() {
-        Observation garminObs = new Observation(77, 1, "Garmin", "garmin", null, null, null, Instant.now(), Instant.now(), false, false, false);
+        Observation garminObs = new Observation(77, 1, "Garmin", "garmin", null, null, null, Instant.now(), Instant.now(), false, false, false, Set.of());
         ParticipantWithObservationProperties pwo = new ParticipantWithObservationProperties(10, 1L, garminObs.observationId(), Map.of());
         given(studyRepository.getParticipantByGarminStatus("state-2")).willReturn(List.of(pwo));
 
@@ -135,8 +136,8 @@ class GarminServiceTest {
     @DisplayName("deleteUserIdAndToken: returns false if any delete step fails; returns true when all succeed")
     void deleteUserIdAndToken_mixedResults() {
         String userId = "user-xyz";
-        ParticipantKeyValue p1 = new ParticipantKeyValue(1L, 10, userId, Map.of("keyType", "garmin"));
-        ParticipantKeyValue p2 = new ParticipantKeyValue(1L, 11, userId, Map.of("keyType", "garmin"));
+        ParticipantKeyValue p1 = new ParticipantKeyValue(1L, 10, userId, Map.of("keyType", "garmin"), Collections.emptySet());
+        ParticipantKeyValue p2 = new ParticipantKeyValue(1L, 11, userId, Map.of("keyType", "garmin"), Collections.emptySet());
         given(participantKeyValueRepository.getByKey(userId)).willReturn(List.of(p1, p2));
 
         // Mock study and participant states as active so they are not filtered out
@@ -147,7 +148,7 @@ class GarminServiceTest {
         given(participantKeyValueRepository.delete(1L, 10, userId, Map.of("keyType", "garmin"))).willReturn(true);
         given(participantKeyValueRepository.delete(1L, 11, userId, Map.of("keyType", "garmin"))).willReturn(false);
 
-        Observation garminObs = new Observation(5, 1, "Garmin", "garmin", null, null, null, Instant.now(), Instant.now(), false, false, false);
+        Observation garminObs = new Observation(5, 1, "Garmin", "garmin", null, null, null, Instant.now(), Instant.now(), false, false, false, Set.of());
         given(studyRepository.filterObservations(eq(1L), anyInt(), any())).willReturn(List.of(garminObs));
         doNothing().when(studyRepository).removeParticipantPropertyKey(anyLong(), anyInt(), anyInt(), anyString());
 
@@ -173,7 +174,7 @@ class GarminServiceTest {
     @DisplayName("getAllGarminParticipants: groups participants by UserAccessTokenWithData")
     void getAllGarminParticipants_groupsParticipantsByUserAccessToken() throws Exception {
         Observation garminObs = new Observation(100, 1, "Garmin", "garmin", null, null, null,
-                Instant.now(), Instant.now(), false, false, false);
+                Instant.now(), Instant.now(), false, false, false, Set.of());
 
         UserAccessTokenWithData token1 =
                 UserAccessTokenWithData.createNewFrom(new GarminUserAccessToken("at1", "rt1", "bearer", 3600, "scope", 7200));
@@ -224,7 +225,7 @@ class GarminServiceTest {
         when(dp1.data()).thenReturn(Map.of());
         when(dp2.data()).thenReturn(Map.of());
 
-        RoutingInfo routingInfo = new RoutingInfo(1L, 10, 1, true, true);
+        RoutingInfo routingInfo = new RoutingInfo(1L, 10, 1, Collections.emptySet(), true, true);
 
         when(elasticService.deleteDataPointsInTimeRanges(
                 eq(routingInfo),
@@ -286,7 +287,7 @@ class GarminServiceTest {
     @DisplayName("participantForGarminUserId: returns empty list when no Garmin-type participants found")
     void participantForGarminUserId_returnsEmpty_whenNoGarminTypeParticipants() throws Exception {
         String garminUserId = "garmin-user-456";
-        ParticipantKeyValue nonGarminParticipant = new ParticipantKeyValue(1L, 10, garminUserId, Map.of("keyType", "other"));
+        ParticipantKeyValue nonGarminParticipant = new ParticipantKeyValue(1L, 10, garminUserId, Map.of("keyType", "other"), Collections.emptySet());
         given(participantKeyValueRepository.getByKey(garminUserId)).willReturn(List.of(nonGarminParticipant));
 
         Method method = GarminService.class.getDeclaredMethod("participantForGarminUserId", String.class);
@@ -303,8 +304,8 @@ class GarminServiceTest {
     @DisplayName("participantForGarminUserId: returns only active participants")
     void participantForGarminUserId_returnsOnlyActive_whenAllParticipantsActive() throws Exception {
         String garminUserId = "garmin-user-789";
-        ParticipantKeyValue p1 = new ParticipantKeyValue(1L, 10, garminUserId, Map.of("keyType", "garmin"));
-        ParticipantKeyValue p2 = new ParticipantKeyValue(1L, 11, garminUserId, Map.of("keyType", "garmin"));
+        ParticipantKeyValue p1 = new ParticipantKeyValue(1L, 10, garminUserId, Map.of("keyType", "garmin"), Collections.emptySet());
+        ParticipantKeyValue p2 = new ParticipantKeyValue(1L, 11, garminUserId, Map.of("keyType", "garmin"), Collections.emptySet());
         given(participantKeyValueRepository.getByKey(garminUserId)).willReturn(List.of(p1, p2));
 
         given(studyRepository.getStudyState(1L)).willReturn(Optional.of("active"));
@@ -327,8 +328,8 @@ class GarminServiceTest {
     @DisplayName("participantForGarminUserId: filters out inactive participants and triggers async deregistration")
     void participantForGarminUserId_filtersInactive_andTriggersAsyncDeregistration() throws Exception {
         String garminUserId = "garmin-user-abc";
-        ParticipantKeyValue activeParticipant = new ParticipantKeyValue(1L, 10, garminUserId, Map.of("keyType", "garmin"));
-        ParticipantKeyValue inactiveParticipant = new ParticipantKeyValue(1L, 11, garminUserId, Map.of("keyType", "garmin"));
+        ParticipantKeyValue activeParticipant = new ParticipantKeyValue(1L, 10, garminUserId, Map.of("keyType", "garmin"), Collections.emptySet());
+        ParticipantKeyValue inactiveParticipant = new ParticipantKeyValue(1L, 11, garminUserId, Map.of("keyType", "garmin"), Collections.emptySet());
         given(participantKeyValueRepository.getByKey(garminUserId)).willReturn(List.of(activeParticipant, inactiveParticipant));
 
         given(studyRepository.getStudyState(1L)).willReturn(Optional.of("active"));
@@ -352,8 +353,8 @@ class GarminServiceTest {
     @DisplayName("participantForGarminUserId: returns empty when all participants are inactive")
     void participantForGarminUserId_returnsEmpty_whenAllParticipantsInactive() throws Exception {
         String garminUserId = "garmin-user-def";
-        ParticipantKeyValue p1 = new ParticipantKeyValue(1L, 10, garminUserId, Map.of("keyType", "garmin"));
-        ParticipantKeyValue p2 = new ParticipantKeyValue(1L, 11, garminUserId, Map.of("keyType", "garmin"));
+        ParticipantKeyValue p1 = new ParticipantKeyValue(1L, 10, garminUserId, Map.of("keyType", "garmin"), Collections.emptySet());
+        ParticipantKeyValue p2 = new ParticipantKeyValue(1L, 11, garminUserId, Map.of("keyType", "garmin"), Collections.emptySet());
         given(participantKeyValueRepository.getByKey(garminUserId)).willReturn(List.of(p1, p2));
 
         given(studyRepository.getStudyState(1L)).willReturn(Optional.of("active"));
@@ -375,8 +376,8 @@ class GarminServiceTest {
     @DisplayName("participantForGarminUserId: filters out participants with null state")
     void participantForGarminUserId_filtersOut_participantsWithNullState() throws Exception {
         String garminUserId = "garmin-user-ghi";
-        ParticipantKeyValue activeParticipant = new ParticipantKeyValue(1L, 10, garminUserId, Map.of("keyType", "garmin"));
-        ParticipantKeyValue nullStateParticipant = new ParticipantKeyValue(1L, 11, garminUserId, Map.of("keyType", "garmin"));
+        ParticipantKeyValue activeParticipant = new ParticipantKeyValue(1L, 10, garminUserId, Map.of("keyType", "garmin"), Collections.emptySet());
+        ParticipantKeyValue nullStateParticipant = new ParticipantKeyValue(1L, 11, garminUserId, Map.of("keyType", "garmin"), Collections.emptySet());
         given(participantKeyValueRepository.getByKey(garminUserId)).willReturn(List.of(activeParticipant, nullStateParticipant));
 
         given(studyRepository.getStudyState(1L)).willReturn(Optional.of("active"));
@@ -399,11 +400,11 @@ class GarminServiceTest {
     @DisplayName("participantForGarminUserId: handles mixed active and non-active participants correctly")
     void participantForGarminUserId_handlesMixedStates_correctly() throws Exception {
         String garminUserId = "garmin-user-jkl";
-        ParticipantKeyValue active1 = new ParticipantKeyValue(1L, 10, garminUserId, Map.of("keyType", "garmin"));
-        ParticipantKeyValue active2 = new ParticipantKeyValue(2L, 20, garminUserId, Map.of("keyType", "garmin"));
-        ParticipantKeyValue inactive1 = new ParticipantKeyValue(1L, 11, garminUserId, Map.of("keyType", "garmin"));
-        ParticipantKeyValue inactive2 = new ParticipantKeyValue(2L, 21, garminUserId, Map.of("keyType", "garmin"));
-        ParticipantKeyValue nullState = new ParticipantKeyValue(3L, 30, garminUserId, Map.of("keyType", "garmin"));
+        ParticipantKeyValue active1 = new ParticipantKeyValue(1L, 10, garminUserId, Map.of("keyType", "garmin"), Collections.emptySet());
+        ParticipantKeyValue active2 = new ParticipantKeyValue(2L, 20, garminUserId, Map.of("keyType", "garmin"), Collections.emptySet());
+        ParticipantKeyValue inactive1 = new ParticipantKeyValue(1L, 11, garminUserId, Map.of("keyType", "garmin"), Collections.emptySet());
+        ParticipantKeyValue inactive2 = new ParticipantKeyValue(2L, 21, garminUserId, Map.of("keyType", "garmin"), Collections.emptySet());
+        ParticipantKeyValue nullState = new ParticipantKeyValue(3L, 30, garminUserId, Map.of("keyType", "garmin"), Collections.emptySet());
 
         given(participantKeyValueRepository.getByKey(garminUserId))
                 .willReturn(List.of(active1, active2, inactive1, inactive2, nullState));
@@ -431,7 +432,7 @@ class GarminServiceTest {
     @DisplayName("participantForGarminUserId: filters out active participant when study is inactive")
     void participantForGarminUserId_filtersOut_whenStudyInactive() throws Exception {
         String garminUserId = "garmin-user-mno";
-        ParticipantKeyValue participant = new ParticipantKeyValue(1L, 10, garminUserId, Map.of("keyType", "garmin"));
+        ParticipantKeyValue participant = new ParticipantKeyValue(1L, 10, garminUserId, Map.of("keyType", "garmin"), Collections.emptySet());
         given(participantKeyValueRepository.getByKey(garminUserId)).willReturn(List.of(participant));
 
         given(studyRepository.getStudyState(1L)).willReturn(Optional.of("paused"));
@@ -450,7 +451,7 @@ class GarminServiceTest {
     @DisplayName("participantForGarminUserId: filters out active participant when study state is null")
     void participantForGarminUserId_filtersOut_whenStudyStateNull() throws Exception {
         String garminUserId = "garmin-user-pqr";
-        ParticipantKeyValue participant = new ParticipantKeyValue(1L, 10, garminUserId, Map.of("keyType", "garmin"));
+        ParticipantKeyValue participant = new ParticipantKeyValue(1L, 10, garminUserId, Map.of("keyType", "garmin"), Collections.emptySet());
         given(participantKeyValueRepository.getByKey(garminUserId)).willReturn(List.of(participant));
 
         given(studyRepository.getStudyState(1L)).willReturn(Optional.empty());
@@ -469,9 +470,9 @@ class GarminServiceTest {
     @DisplayName("participantForGarminUserId: filters by study state across multiple studies")
     void participantForGarminUserId_filtersByStudyState_acrossMultipleStudies() throws Exception {
         String garminUserId = "garmin-user-stu";
-        ParticipantKeyValue activeStudyActiveParticipant = new ParticipantKeyValue(1L, 10, garminUserId, Map.of("keyType", "garmin"));
-        ParticipantKeyValue inactiveStudyActiveParticipant = new ParticipantKeyValue(2L, 20, garminUserId, Map.of("keyType", "garmin"));
-        ParticipantKeyValue nullStudyActiveParticipant = new ParticipantKeyValue(3L, 30, garminUserId, Map.of("keyType", "garmin"));
+        ParticipantKeyValue activeStudyActiveParticipant = new ParticipantKeyValue(1L, 10, garminUserId, Map.of("keyType", "garmin"), Collections.emptySet());
+        ParticipantKeyValue inactiveStudyActiveParticipant = new ParticipantKeyValue(2L, 20, garminUserId, Map.of("keyType", "garmin"), Collections.emptySet());
+        ParticipantKeyValue nullStudyActiveParticipant = new ParticipantKeyValue(3L, 30, garminUserId, Map.of("keyType", "garmin"), Collections.emptySet());
 
         given(participantKeyValueRepository.getByKey(garminUserId))
                 .willReturn(List.of(activeStudyActiveParticipant, inactiveStudyActiveParticipant, nullStudyActiveParticipant));
