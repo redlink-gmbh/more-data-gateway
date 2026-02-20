@@ -105,7 +105,6 @@ public class GarminDataTransformationService {
     private List<Observation> participantObservations(RoutingInfo routingInfo, Set<String> observationTypes) {
         return studyRepository.getObservationsByTypes(
                 routingInfo,
-                false,
                 observationTypes,
                 routingInfo.observationGroupIds()
         );

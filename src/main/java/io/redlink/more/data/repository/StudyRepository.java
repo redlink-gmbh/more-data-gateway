@@ -505,12 +505,11 @@ public class StudyRepository {
                 .toList();
     }
 
-    public List<Observation> getObservationsByTypes(RoutingInfo routingInfo, boolean filterByGroup, Set<String> observationTypes, Set<Integer> restrictToObservationGroupIds) {
+    public List<Observation> getObservationsByTypes(RoutingInfo routingInfo, Set<String> observationTypes, Set<Integer> restrictToObservationGroupIds) {
         if (observationTypes == null || observationTypes.isEmpty()) {
             return List.of();
         }
 
-        // Compute groupIds parameter according to instructions
         final boolean restrictByGroups = restrictToObservationGroupIds != null && !restrictToObservationGroupIds.isEmpty();
         final Integer[] groupIds = restrictByGroups
                 ? restrictToObservationGroupIds.toArray(new Integer[0])
@@ -520,14 +519,9 @@ public class StudyRepository {
                 .addValue("study_id", routingInfo.studyId())
                 .addValue("study_group_id", routingInfo.studyGroupId().orElse(0))
                 .addValue("types", observationTypes)
-                // if filterByGroup is true, SQL will include observations with no group mapping OR any group in this array
                 .addValue("observation_group_ids", groupIds);
 
-        String sql = filterByGroup
-                ? SQL_LIST_OBSERVATIONS_BY_STUDY_AND_TYPES_ONLY_GROUPS
-                : SQL_LIST_OBSERVATIONS_BY_STUDY_AND_TYPES_WITH_ALL_OBSERVATIONS;
-
-        return namedTemplate.query(sql, params, getObservationRowMapper())
+        return namedTemplate.query(SQL_LIST_OBSERVATIONS_BY_STUDY_AND_TYPES_ONLY_GROUPS, params, getObservationRowMapper())
                 .stream()
                 .map(o -> mergeParticipantProperties(o, routingInfo.studyId(), routingInfo.participantId()))
                 .toList();
