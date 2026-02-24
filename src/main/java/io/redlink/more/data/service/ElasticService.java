@@ -47,7 +47,7 @@ public class ElasticService implements StorageService {
     }
 
 
-    public List<String> storeDataPoints(final List<DataPoint> dataBulk, final RoutingInfo routingInfo) {
+    public List<String> storeDataPoints(final List<DataPoint> dataBulk, final RoutingInfo routingInfo) throws IOException {
         final String indexName = getElasticIndexName(routingInfo);
         final String uidPrefix = generateUidPrefix(routingInfo);
 
@@ -87,8 +87,8 @@ public class ElasticService implements StorageService {
                     .map(i -> i.substring(uidPrefix.length()))
                     .toList();
         } catch (IOException | ElasticsearchException e) {
-            LOG.warn("Error when sending data bulk to elastic index. Error message: ", e);
-            return List.of();
+            LOG.warn("Error when sending data bulk to elastic index. Error message: {}", e.toString());
+            throw e;
         }
     }
 

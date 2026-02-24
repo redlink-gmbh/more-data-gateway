@@ -17,6 +17,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.List;
@@ -25,6 +26,7 @@ import java.util.Set;
 
 import static io.redlink.more.data.util.ElasticUtils.Constants.GARMIN_SUMMARY_ID_KEY;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -122,17 +124,18 @@ class ElasticServiceTest {
     }
 
     @Test
-    @DisplayName("storeDataPoints: returns empty list when bulk request fails")
-    void storeDataPoints_returnsEmpty_whenBulkThrows() throws Exception {
+    @DisplayName("storeDataPoints: rethrows IOException when bulk request fails")
+    void storeDataPoints_rethrowsIOException_whenBulkThrows() throws Exception {
         DataPoint dp = mock(DataPoint.class);
         when(dp.data()).thenReturn(Map.of());
         when(dp.datapointId()).thenReturn("1");
 
-        when(client.bulk(any(BulkRequest.class))).thenThrow(new java.io.IOException("boom"));
+        IOException io = new IOException("boom");
+        when(client.bulk(any(BulkRequest.class))).thenThrow(io);
 
-        List<String> result = elasticService.storeDataPoints(List.of(dp), routingInfo);
+        assertThatThrownBy(() -> elasticService.storeDataPoints(List.of(dp), routingInfo))
+                .isSameAs(io);
 
-        assertThat(result).isEmpty();
         verify(client).bulk(any(BulkRequest.class));
     }
 
