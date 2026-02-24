@@ -368,7 +368,7 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
                     deregisterParticipant(participantKeyValue.studyId(), participantKeyValue.participantId());
                     LOG.info("Successfully deregistered non-active participant: studyId={}, participantId={}", participantKeyValue.studyId(), participantKeyValue.participantId());
                 } catch (Exception e) {
-                    LOG.error("Failed to deregister non-active participant: studyId={}, participantId={}", participantKeyValue.studyId(), participantKeyValue.participantId(), e);
+                    LOG.error("Failed to deregister non-active participant: studyId={}, participantId={}: {}", participantKeyValue.studyId(), participantKeyValue.participantId(), e.toString());
                 }
             });
             LOG.info("Completed async deregistration for {} non-active participant(s)", nonActiveParticipants.size());
