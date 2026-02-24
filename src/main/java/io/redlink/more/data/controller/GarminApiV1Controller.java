@@ -90,7 +90,7 @@ public class GarminApiV1Controller implements GarminUserManagementApi {
                 garminService.storeData(requestDataPoints);
             } catch (ClassCastException e) {
                 LOG.error("Exception casting Map<String, Object> to GarminDataPoints", e);
-                throw e;
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
             } catch (IOException e) {
                 LOG.error("IOException storing GarminDataPoints: {}", e.toString());
                 return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
