@@ -52,7 +52,7 @@ public class SleepDataTransformer extends AbstractGarminTransformer {
         // Documentation describes the total duration consists of `duration` + `awakeDurationInSeconds` + `unmeasurableSleepInSeconds`
         long awakeDurationInSeconds = sleepData.awakeDurationInSeconds() == null ? 0L : sleepData.awakeDurationInSeconds();
         long unmeasurableSleepInSeconds = sleepData.unmeasurableSleepInSeconds() == null ? 0L : sleepData.unmeasurableSleepInSeconds();
-        long end = range.getMaximum().getEpochSecond() + awakeDurationInSeconds + unmeasurableSleepInSeconds;
-        return new GarminTimeData<>(Instant.ofEpochSecond(end), sleepData, range);
+        Instant end = range.getMaximum().plusSeconds(awakeDurationInSeconds + unmeasurableSleepInSeconds);
+        return new GarminTimeData<>(end, sleepData, range);
     }
 }
