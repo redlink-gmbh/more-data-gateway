@@ -49,6 +49,10 @@ public class SleepDataTransformer extends AbstractGarminTransformer {
     private GarminTimeData<GarminSleepData> dataToSleep(GarminDataPoint dataPoint) {
         var sleepData = MapperUtils.convertValue(dataPoint, GarminSleepData.class);
         var range = super.getGarminDataPointTimeRange(dataPoint);
-        return new GarminTimeData<>(range.getMaximum(), sleepData, range);
+        // Documentation describes the total duration consists of `duration` + `awakeDurationInSeconds` + `unmeasurableSleepInSeconds`
+        long awakeDurationInSeconds = sleepData.awakeDurationInSeconds() == null ? 0L : sleepData.awakeDurationInSeconds();
+        long unmeasurableSleepInSeconds = sleepData.unmeasurableSleepInSeconds() == null ? 0L : sleepData.unmeasurableSleepInSeconds();
+        long end = range.getMaximum().getEpochSecond() + awakeDurationInSeconds + unmeasurableSleepInSeconds;
+        return new GarminTimeData<>(Instant.ofEpochSecond(end), sleepData, range);
     }
 }

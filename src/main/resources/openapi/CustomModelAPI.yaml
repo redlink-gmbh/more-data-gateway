@@ -110,9 +110,13 @@ components:
           items:
             $ref: '#/components/schemas/NapData'
           description: List of naps during the day
-        otherSleepData:
+        sleepLevelsMap:
           type: object
-          additionalProperties: true
+          description: Sleep level segments keyed by sleep level (e.g., deep, light, rem, awake)
+          additionalProperties:
+            type: array
+            items:
+              $ref: '#/components/schemas/SleepLevelSegment'
         steps:
           type: integer
           description: Number of steps
@@ -186,6 +190,22 @@ components:
         qualifierKey:
           type: string
           description: Qualitative score (e.g., EXCELLENT, GOOD, FAIR, POOR)
+
+    SleepLevelSegment:
+      type: object
+      description: A single sleep level segment with absolute start/end times.
+      properties:
+        startTimeInSeconds:
+          type: integer
+          format: int64
+          description: Segment start time as Unix timestamp (seconds)
+        endTimeInSeconds:
+          type: integer
+          format: int64
+          description: Segment end time as Unix timestamp (seconds)
+      required:
+        - startTimeInSeconds
+        - endTimeInSeconds
 
     NapData:
       type: object

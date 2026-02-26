@@ -371,10 +371,9 @@ class AbstractGarminTransformerTest extends AbstractGarminTransformerTestBase<Ab
                 .remSleepInSeconds(70L)
                 .awakeDurationInSeconds(80L);
 
-        // Sum of all these should be 10+20+30+40+50+60+70+80 = 360
         Instant result = transformer.exposeCalculateEndInstant(garminDataPoint);
 
-        assertThat(result).isEqualTo(Instant.ofEpochSecond(1_700_000_000 + 360));
+        assertThat(result).isEqualTo(Instant.ofEpochSecond(1_700_000_000 + 10));
     }
 
     @Test
