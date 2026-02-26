@@ -17,12 +17,19 @@ public record GarminSleepData(
         Long awakeDurationInSeconds,
         String validation,
         Map<String, Integer> timeOffsetSleepSpo2,
+        Map<String, List<SleepLevelSegment>> sleepLevelsMap,
         Integer overallSleepScoreValue,
         SleepScore overallSleepScore,
         SleepScoreBreakdown sleepScores,
-        List<NapData> naps,
-        Map<String, Object> otherSleepData
+        List<NapData> naps
 ) {
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record SleepLevelSegment(
+            Long startTimeInSeconds,
+            Long endTimeInSeconds
+    ) {
+    }
+
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record NapData(
             Long napStartTimeInSeconds,

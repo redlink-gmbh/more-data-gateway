@@ -10,7 +10,6 @@ import io.redlink.more.data.model.garmin.GarminSummaryType;
 import io.redlink.more.data.model.garmin.transformation.GarminTimeData;
 import io.redlink.more.data.repository.StudyRepository;
 import io.redlink.more.data.util.DateTimeUtils;
-import io.redlink.more.data.util.MapperUtils;
 import io.redlink.more.data.util.SchedulerUtils;
 import org.apache.commons.lang3.Range;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,7 +18,6 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 import static io.redlink.more.data.util.StringUtils.sha256;
@@ -95,16 +93,7 @@ public abstract class AbstractGarminTransformer {
 
     protected Instant calculateEndInstant(GarminDataPoint garminDataPoint) {
         var startTime = recordingTimestamp(garminDataPoint).toInstant();
-        Map<String, Object> properties = MapperUtils.convertValue(garminDataPoint, Map.class);
-        long totalDuration = properties.entrySet().stream()
-                .filter(entry -> entry.getKey().endsWith("InSeconds") && !entry.getKey().contains("startTime") && !entry.getKey().contains("Offset"))
-                .filter(entry -> entry.getValue() instanceof Number)
-                .mapToLong(entry -> ((Number) entry.getValue()).longValue())
-                .sum();
-
-        if (totalDuration == 0) {
-            return startTime;
-        }
+        long totalDuration = garminDataPoint.getDurationInSeconds();
         return startTime.plusSeconds(totalDuration);
     }
 
