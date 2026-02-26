@@ -99,7 +99,7 @@ public class ElasticService implements StorageService {
 
         // Each Range becomes a should-clause in the bool query.
         // Chunk to avoid hitting indices.query.bool.max_clause_count.
-        final int maxRangesPerRequest = 1000;
+        final int maxRangesPerRequest = 200;
 
         long totalDeleted = 0L;
         final List<Range<Instant>> rangesList = List.copyOf(effectiveDateTimes);
