@@ -97,24 +97,38 @@ public class ElasticService implements StorageService {
             return 0L;
         }
 
-        DeleteByQueryRequest request = new DeleteByQueryRequest.Builder()
-                .index(ElasticUtils.getStudyIdString(routingInfo.studyId()))
-                .query(ElasticUtils.getDeleteDataPointsRangeFilter(
-                                routingInfo.studyId(),
-                                routingInfo.participantId(),
-                                ElasticUtils.Constants.EFFECTIVE_TIME_FRAME_FIELD,
-                                effectiveDateTimes,
-                                dataType
-                        )
-                )
-                .build();
+        // Each Range becomes a should-clause in the bool query.
+        // Chunk to avoid hitting indices.query.bool.max_clause_count.
+        final int maxRangesPerRequest = 1000;
 
-        try {
-            DeleteByQueryResponse response = client.deleteByQuery(request);
-            return response.deleted() == null ? 0L : response.deleted();
-        } catch (ElasticsearchException e) {
-            return ElasticUtils.handleDeletionException(e, routingInfo.studyId());
+        long totalDeleted = 0L;
+        final List<Range<Instant>> rangesList = List.copyOf(effectiveDateTimes);
+
+        for (int from = 0; from < rangesList.size(); from += maxRangesPerRequest) {
+            int to = Math.min(from + maxRangesPerRequest, rangesList.size());
+            Set<Range<Instant>> chunk = new java.util.HashSet<>(rangesList.subList(from, to));
+
+            DeleteByQueryRequest request = new DeleteByQueryRequest.Builder()
+                    .index(ElasticUtils.getStudyIdString(routingInfo.studyId()))
+                    .query(ElasticUtils.getDeleteDataPointsRangeFilter(
+                            routingInfo.studyId(),
+                            routingInfo.participantId(),
+                            ElasticUtils.Constants.EFFECTIVE_TIME_FRAME_FIELD,
+                            chunk,
+                            dataType
+                    ))
+                    .build();
+
+            try {
+                DeleteByQueryResponse response = client.deleteByQuery(request);
+                totalDeleted += response.deleted() == null ? 0L : response.deleted();
+            } catch (ElasticsearchException e) {
+                // preserve your existing behavior for handled deletion exceptions
+                totalDeleted += ElasticUtils.handleDeletionException(e, routingInfo.studyId());
+            }
         }
+
+        return totalDeleted;
     }
 
 
