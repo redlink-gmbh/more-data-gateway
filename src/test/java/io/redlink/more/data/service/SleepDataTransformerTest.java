@@ -52,6 +52,7 @@ class SleepDataTransformerTest extends AbstractGarminTransformerTestBase<SleepDa
                 .summaryId("sleep-summary-123")
                 .startTimeInSeconds((int) startTime.getEpochSecond())
                 .durationInSeconds((int) (endTime.getEpochSecond() - startTime.getEpochSecond()))
+                .awakeDurationInSeconds((long) 1000)
                 .startTimeOffsetInSeconds(0);
 
         // Observation schedule that clearly overlaps the Garmin datapoint time range
@@ -91,10 +92,10 @@ class SleepDataTransformerTest extends AbstractGarminTransformerTestBase<SleepDa
                 .findFirst()
                 .orElseThrow();
         assertEquals(DataType.SLEEP.name(), sleep.dataType());
-        assertEquals(endTime, sleep.effectiveDateTime());
+        assertEquals(endTime.plusSeconds(1000), sleep.effectiveDateTime());
         assertNotNull(sleep.data());
         assertEquals(startTime, sleep.data().get("startTime"));
-        assertEquals(endTime, sleep.data().get("endTime"));
+        assertEquals(endTime.plusSeconds(1000), sleep.data().get("endTime"));
     }
 
     @Test
