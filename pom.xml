@@ -37,9 +37,9 @@
     </properties>
 
     <scm>
-        <connection>https://github.com/MORE-Platform/more-dsb-gateway.git</connection>
-        <developerConnection>git@github.com:MORE-Platform/more-dsb-gateway.git</developerConnection>
-        <url>https://github.com/MORE-Platform/more-dsb-gateway</url>
+        <connection>https://github.com/MORE-Platform/more-data-gateway.git</connection>
+        <developerConnection>git@github.com:MORE-Platform/more-data-gateway.git</developerConnection>
+        <url>https://github.com/MORE-Platform/more-data-gateway</url>
         <tag>HEAD</tag>
     </scm>
 
