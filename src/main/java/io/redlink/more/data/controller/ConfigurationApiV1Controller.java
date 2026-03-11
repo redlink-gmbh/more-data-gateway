@@ -16,12 +16,13 @@ import io.redlink.more.data.service.GatewayUserDetailService;
 import io.redlink.more.data.service.PushNotificationService;
 import io.redlink.more.data.service.RegistrationService;
 import io.redlink.more.data.util.LoggingUtils;
-import java.util.List;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @Controller
 @RestController
@@ -45,9 +46,16 @@ public class ConfigurationApiV1Controller implements ConfigurationApi {
         final GatewayUserDetails userDetails = authenticationFacade
                 .assertAuthority(GatewayUserDetailService.APP_ROLE);
         try (LoggingUtils.LoggingContext ctx = LoggingUtils.createContext(userDetails.getRoutingInfo())) {
+            var study = registrationService.loadStudyByRoutingInfo(userDetails.getRoutingInfo());
+            if (study.isEmpty()) {
+                return ResponseEntity.notFound().build();
+            }
+            var participantObservationProperties = registrationService
+                    .getParticipantObservationSeeds(userDetails.getRoutingInfo().studyId(), userDetails.getRoutingInfo().participantId())
+                    .stream()
+                    .toList();
             return ResponseEntity.of(
-                    registrationService.loadStudyByRoutingInfo(userDetails.getRoutingInfo())
-                            .map(StudyTransformer::toDTO)
+                    study.map(s -> StudyTransformer.toDTO(s, participantObservationProperties))
             );
         }
     }

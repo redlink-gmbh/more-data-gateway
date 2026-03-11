@@ -3,18 +3,26 @@
  */
 package io.redlink.more.data.service;
 
+import io.redlink.more.data.controller.transformer.StudyTransformer;
+import io.redlink.more.data.event.ParticipantUpdateAction;
+import io.redlink.more.data.event.ParticipantUpdateEvent;
 import io.redlink.more.data.exception.RegistrationNotPossibleException;
 import io.redlink.more.data.model.ApiCredentials;
 import io.redlink.more.data.model.ParticipantConsent;
+import io.redlink.more.data.model.ParticipantObservationSeed;
 import io.redlink.more.data.model.RoutingInfo;
 import io.redlink.more.data.model.Study;
 import io.redlink.more.data.repository.PushTokenRepository;
 import io.redlink.more.data.repository.StudyRepository;
-import java.util.Optional;
-import java.util.UUID;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class RegistrationService {
@@ -24,14 +32,29 @@ public class RegistrationService {
 
     private final PasswordEncoder passwordEncoder;
 
-    public RegistrationService(StudyRepository studyRepository, PushTokenRepository pushTokenRepository, PasswordEncoder passwordEncoder) {
+    private final ApplicationEventPublisher eventPublisher;
+
+    public RegistrationService(StudyRepository studyRepository, PushTokenRepository pushTokenRepository, PasswordEncoder passwordEncoder, ApplicationEventPublisher eventPublisher) {
         this.studyRepository = studyRepository;
         this.pushTokenRepository = pushTokenRepository;
         this.passwordEncoder = passwordEncoder;
+        this.eventPublisher = eventPublisher;
     }
 
     public Optional<Study> loadStudyByRegistrationToken(String registrationToken) {
         return studyRepository.findByRegistrationToken(registrationToken);
+    }
+
+    public List<ParticipantObservationSeed> getParticipantObservationSeeds(Long studyId, Integer participantId) {
+        var properties = studyRepository.getAllParticpantObservationProperties(studyId, participantId);
+        if (properties == null || properties.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return properties
+                .stream()
+                .map(StudyTransformer::toParticipantObservationSeed)
+                .filter(seed -> seed.seed() != null)
+                .toList();
     }
 
     public Optional<Study> loadStudyByRoutingInfo(RoutingInfo routingInfo) {
@@ -67,7 +90,12 @@ public class RegistrationService {
     }
 
     public void unregister(String apiId, RoutingInfo routingInfo) {
+        publishParticipantDeregistrationEvent(routingInfo, ParticipantUpdateAction.DELETE);
         pushTokenRepository.clearToken(routingInfo.studyId(), routingInfo.participantId());
         studyRepository.clearCredentials(apiId);
+    }
+
+    private void publishParticipantDeregistrationEvent(RoutingInfo routingInfo, ParticipantUpdateAction action) {
+        eventPublisher.publishEvent(new ParticipantUpdateEvent(this, routingInfo.studyId(), routingInfo.participantId(), action));
     }
 }

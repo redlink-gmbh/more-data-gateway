@@ -39,3 +39,13 @@ elastic:
 push-notifications:
   fcm:
     google-service-json: classpath:google-services.json
+
+garmin:
+  oauth:
+    garmin-oauth-url: ${GARMIN_OAUTH_URL:https://connect.garmin.com/oauth2Confirm}
+    garmin-authorize-url: ${GARMIN_AUTHORIZE_URL:https://diauth.garmin.com/di-oauth2-service/oauth/token}
+    client-id: ${GARMIN_CLIENT_ID:}
+    client-secret: ${GARMIN_CLIENT_SECRET:}
+    garmin-callback-redirect-uri: ${GARMIN_CALLBACK_REDIRECT_URI:}
+    redirect-url: ${REDIRECT_URL:}
+  token-refresh: 0 5 4 1 * ? #check for tokens to be updates every first of month at 04:05

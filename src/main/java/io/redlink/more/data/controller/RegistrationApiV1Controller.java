@@ -11,17 +11,16 @@ import io.redlink.more.data.api.app.v1.model.StudyConsentDTO;
 import io.redlink.more.data.api.app.v1.model.StudyDTO;
 import io.redlink.more.data.api.app.v1.webservices.RegistrationApi;
 import io.redlink.more.data.configuration.AuthenticationFacade;
-import io.redlink.more.data.exception.RegistrationNotPossibleException;
-import io.redlink.more.data.controller.transformer.StudyTransformer;
 import io.redlink.more.data.controller.transformer.ErrorTransformer;
+import io.redlink.more.data.controller.transformer.StudyTransformer;
+import io.redlink.more.data.exception.RegistrationNotPossibleException;
 import io.redlink.more.data.model.ApiCredentials;
 import io.redlink.more.data.model.GatewayUserDetails;
 import io.redlink.more.data.model.ParticipantConsent;
+import io.redlink.more.data.model.ParticipantObservationSeed;
 import io.redlink.more.data.properties.MoreProperties;
 import io.redlink.more.data.service.GatewayUserDetailService;
 import io.redlink.more.data.service.RegistrationService;
-import java.net.URI;
-import java.util.List;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.http.HttpStatus;
@@ -32,6 +31,10 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+
+import java.net.URI;
+import java.util.Collections;
+import java.util.List;
 
 @Controller
 @RestController
@@ -54,15 +57,17 @@ public class RegistrationApiV1Controller implements RegistrationApi {
 
     @Override
     public ResponseEntity<StudyDTO> getStudyRegistrationInfo(String moreRegistrationToken) {
-        return registrationService.loadStudyByRegistrationToken(moreRegistrationToken)
-                .map(StudyTransformer::toDTO)
-                .map(study -> ResponseEntity.ok()
-                        // For better debugging: return the token for chaining
-                        .header("More-Registration-Token", moreRegistrationToken)
-                        .body(study)
-                )
-                .orElseGet(() -> ResponseEntity.notFound().build())
-                ;
+        var study = registrationService.loadStudyByRegistrationToken(moreRegistrationToken);
+        if (study.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        List<ParticipantObservationSeed> seeds = study.get().active() ? registrationService.getParticipantObservationSeeds(study.get().studyId(), study.get().participant().id()) : Collections.emptyList();
+        var studyDto = StudyTransformer.toDTO(study.get(), seeds);
+        return ResponseEntity.ok()
+                // For better debugging: return the token for chaining
+                .header("More-Registration-Token", moreRegistrationToken)
+                .body(studyDto);
+
     }
 
     @Override
