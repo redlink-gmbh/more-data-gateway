@@ -140,40 +140,6 @@ class ElasticServiceTest {
     }
 
     @Test
-    @DisplayName("storeDataPoints: polar360 data returns original datapointId, not Elastic response ids")
-    void storeDataPoints_polar360Data_returnsOriginalIds() throws Exception {
-        DataPoint dp = mock(DataPoint.class);
-        // Any key containing "polar360" triggers the explode path
-        Map<String, Object> data = Map.of("polar360hrdata", List.of(Map.of("ts", 0L, "hr", 70)));
-        when(dp.data()).thenReturn(data);
-        when(dp.datapointId()).thenReturn("polar-dp-1");
-
-        BulkResponse bulkResponse = mock(BulkResponse.class);
-        when(bulkResponse.errors()).thenReturn(false);
-        when(client.bulk(any(BulkRequest.class))).thenReturn(bulkResponse);
-
-        List<String> ids = elasticService.storeDataPoints(List.of(dp), routingInfo);
-
-        assertThat(ids).containsExactly("polar-dp-1");
-        verify(client).bulk(any(BulkRequest.class));
-    }
-
-    @Test
-    @DisplayName("storeDataPoints: polar360 data with no exploded items skips Elastic call and returns empty")
-    void storeDataPoints_polar360Data_allEmptyProducesNoCall() throws Exception {
-        DataPoint dp = mock(DataPoint.class);
-        // polar360 key present, but no actual sub-lists → explode_toElastic returns empty
-        Map<String, Object> data = Map.of("polar360hrdata", Collections.emptyList());
-        when(dp.data()).thenReturn(data);
-        when(dp.datapointId()).thenReturn("polar-dp-empty");
-
-        List<String> ids = elasticService.storeDataPoints(List.of(dp), routingInfo);
-
-        assertThat(ids).isEmpty();
-        verify(client, never()).bulk(any(BulkRequest.class));
-    }
-
-    @Test
     @DisplayName("ElasticService private helpers: generateUidPrefix and getElasticIndexName")
     void privateHelpers_generateUidPrefix_and_getElasticIndexName() throws Exception {
         Method prefixMethod = ElasticService.class.getDeclaredMethod("generateUidPrefix", RoutingInfo.class);

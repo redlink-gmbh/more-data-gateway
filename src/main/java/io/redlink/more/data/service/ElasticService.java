@@ -21,7 +21,6 @@ import io.redlink.more.data.elastic.model.ElasticDataPoint;
 import io.redlink.more.data.model.DataPoint;
 import io.redlink.more.data.model.RoutingInfo;
 import io.redlink.more.data.util.ElasticUtils;
-import java.util.ArrayList;
 import org.apache.commons.lang3.Range;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -51,38 +50,13 @@ public class ElasticService implements StorageService {
     public List<String> storeDataPoints(final List<DataPoint> dataBulk, final RoutingInfo routingInfo) throws IOException {
         final String indexName = getElasticIndexName(routingInfo);
         final String uidPrefix = generateUidPrefix(routingInfo);
-        Boolean is_exploded = false;
-        List<String> exploded_returnId = new ArrayList<>() ;
+
         try {
             final BulkRequest.Builder br = new BulkRequest.Builder()
                     .index(indexName);
 
             for (DataPoint dataPoint : dataBulk) {
                 final var uid = uidPrefix + dataPoint.datapointId();
-                //TODO create transformer so its cleaner mapping solution bulk request operations fails
-                if(dataPoint.data().keySet().stream().anyMatch(key -> key.toLowerCase().contains("polar360"))){
-                    is_exploded = true;
-                    final List<ElasticDataPoint> elasticItems = ElasticDataPoint.explode_toElastic(dataPoint, routingInfo);
-                    if (elasticItems.isEmpty()) {
-                        LOG.warn("polar360 data point {} produced no exploded items, skipping", dataPoint.datapointId());
-                        continue;
-                    }
-                    exploded_returnId.add(dataPoint.datapointId());
-                    int counter = 0;
-                    for (ElasticDataPoint e : elasticItems) {
-                    final String explodedId = uid + "-" + counter++;
-                    br.operations(op -> op
-                    .index(idx -> idx
-                        .index(indexName)
-                        .id(explodedId)      // <-- Maybe should be uid + "-" + something??
-                        .document(e)
-                    )
-                    );  // <--- MISSING SEMICOLON FIXED
-                    }
-                }
-                else{
-
-               
                 final ElasticDataPoint elasticDoc = ElasticDataPoint.toElastic(dataPoint, routingInfo);
                 br.operations(op -> op
                         .index(idx -> idx
@@ -90,13 +64,9 @@ public class ElasticService implements StorageService {
                                 .id(uid)
                                 .document(elasticDoc)
                         )
-                ); }
+                );
             }
 
-            if (exploded_returnId.isEmpty() && is_exploded) {
-                LOG.warn("All polar360 data points produced no exploded items, nothing to store");
-                return List.of();
-            }
             LOG.debug("Sending {} data-points to {}", dataBulk.size(), indexName);
             final BulkResponse result = client.bulk(br.build());
 
@@ -109,17 +79,13 @@ public class ElasticService implements StorageService {
                     }
                 }
             }
-            if (is_exploded) {
-                return exploded_returnId;
-            }
-            else{
+
             return result.items().stream()
                     .filter(i -> i.error() == null)
                     .map(BulkResponseItem::id)
                     .filter(StringUtils::isNotBlank)
                     .map(i -> i.substring(uidPrefix.length()))
                     .toList();
-            }
         } catch (IOException | ElasticsearchException e) {
             LOG.warn("Error when sending data bulk to elastic index. Error message: {}", e.toString());
             throw e;
