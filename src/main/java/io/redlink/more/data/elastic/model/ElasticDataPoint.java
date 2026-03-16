@@ -99,16 +99,16 @@ public record ElasticDataPoint(
     public static List<ElasticDataPoint> explode_toElastic(DataPoint dataPoint,RoutingInfo elasticInfo){
         List<ElasticDataPoint> items = new ArrayList<ElasticDataPoint>();
         Boolean idcheck_set = false;
-        if(dataPoint.data().containsKey("explode"))
+        if(dataPoint.data().keySet().stream().anyMatch(key -> key.toLowerCase().contains("polar360")))
         {
                 Instant POLAR_EPOCH = Instant.parse("2000-01-01T00:00:00Z");
-                List<Map<String, Object>> hrRaw =(List<Map<String, Object>>) dataPoint.data().get("hr_data");
+                List<Map<String, Object>> hrRaw =(List<Map<String, Object>>) dataPoint.data().get("polar360hrdata");
                 if(hrRaw != null && !hrRaw.isEmpty()){
-                
+
                         List<HrData> hrList = hrRaw.stream()
-                                .filter(m -> m.get("timestamp") != null && m.get("hr") != null)
+                                .filter(m -> m.get("ts") != null && m.get("hr") != null)
                                 .map(m -> {
-                                    long nanos = ((Number) m.get("timestamp")).longValue();
+                                    long nanos = ((Number) m.get("ts")).longValue();
                                     Instant ts = POLAR_EPOCH.plusNanos(nanos);
                                     return new HrData(ts, ((Number) m.get("hr")).intValue());
                                 })
@@ -165,7 +165,7 @@ public record ElasticDataPoint(
 
                 }
 
-                List<Map<String, Object>> accRaw = (List<Map<String, Object>>) dataPoint.data().get("acc_data");
+                List<Map<String, Object>> accRaw = (List<Map<String, Object>>) dataPoint.data().get("polar360accdata");
                 if (accRaw!= null && !accRaw.isEmpty()) {
 
                         List<AccData> accList = accRaw.stream()
@@ -233,7 +233,7 @@ public record ElasticDataPoint(
                         }
                         
                 }
-                List<Map<String, Object>> tempRaw =(List<Map<String, Object>>) dataPoint.data().get("temp_data");
+                List<Map<String, Object>> tempRaw =(List<Map<String, Object>>) dataPoint.data().get("polar360tempdata");
                 if (tempRaw!=null && !tempRaw.isEmpty()) {
                         List<TempData> tempList = tempRaw.stream()
                                 .filter(m -> m.get("timestamp") != null && m.get("temp") != null)
@@ -293,7 +293,7 @@ public record ElasticDataPoint(
                                
                         }
                 }
-                List<Map<String, Object>> ppiRaw =(List<Map<String, Object>>) dataPoint.data().get("ppi_data");
+                List<Map<String, Object>> ppiRaw =(List<Map<String, Object>>) dataPoint.data().get("polar360ppidata");
                 if (ppiRaw!= null && !ppiRaw.isEmpty()) {
                          List<PpiData> ppiList = ppiRaw.stream()
                                 .filter(m -> m.get("timestamp") != null && m.get("hr") != null && m.get("ppiInMs") != null && m.get("ppiErrorEstimate") != null)

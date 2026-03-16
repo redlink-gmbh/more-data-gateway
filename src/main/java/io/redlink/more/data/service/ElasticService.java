@@ -59,11 +59,16 @@ public class ElasticService implements StorageService {
 
             for (DataPoint dataPoint : dataBulk) {
                 final var uid = uidPrefix + dataPoint.datapointId();
-                if(dataPoint.data().containsKey("explode")){
+                //TODO create transformer so its cleaner mapping solution bulk request operations fails
+                if(dataPoint.data().keySet().stream().anyMatch(key -> key.toLowerCase().contains("polar360"))){
                     is_exploded = true;
-                    exploded_returnId.add(dataPoint.datapointId()) ;
-                    int counter = 0;
                     final List<ElasticDataPoint> elasticItems = ElasticDataPoint.explode_toElastic(dataPoint, routingInfo);
+                    if (elasticItems.isEmpty()) {
+                        LOG.warn("polar360 data point {} produced no exploded items, skipping", dataPoint.datapointId());
+                        continue;
+                    }
+                    exploded_returnId.add(dataPoint.datapointId());
+                    int counter = 0;
                     for (ElasticDataPoint e : elasticItems) {
                     final String explodedId = uid + "-" + counter++;
                     br.operations(op -> op
@@ -88,6 +93,10 @@ public class ElasticService implements StorageService {
                 ); }
             }
 
+            if (exploded_returnId.isEmpty() && is_exploded) {
+                LOG.warn("All polar360 data points produced no exploded items, nothing to store");
+                return List.of();
+            }
             LOG.debug("Sending {} data-points to {}", dataBulk.size(), indexName);
             final BulkResponse result = client.bulk(br.build());
 
