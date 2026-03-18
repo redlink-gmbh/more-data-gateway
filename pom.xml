@@ -370,6 +370,19 @@
                         </configuration>
                     </execution>
                     <execution>
+                        <id>participant-portal-api</id>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                        <configuration>
+                            <inputSpec>${project.basedir}/src/main/resources/openapi/ParticipantPortalAPI.yaml</inputSpec>
+                            <output>${project.build.directory}/generated-sources/participant-portal</output>
+                            <apiPackage>io.redlink.more.data.api.participant.v1.webservices</apiPackage>
+                            <modelPackage>io.redlink.more.data.api.participant.v1.model</modelPackage>
+                            <modelNameSuffix>DTO</modelNameSuffix>
+                        </configuration>
+                    </execution>
+                    <execution>
                         <id>garmin-api</id>
                         <goals>
                             <goal>generate</goal>
@@ -458,7 +471,7 @@
                     <apiPackage>io.redlink.more.data.api.app.v1.webservices</apiPackage>
 
                     <generateModels>true</generateModels>
-                    <apiPackage>io.redlink.more.data.api.app.v1.model</apiPackage>
+                    <modelPackage>io.redlink.more.data.api.app.v1.model</modelPackage>
 
                     <generateApiTests>false</generateApiTests>
                     <generateApiDocumentation>true</generateApiDocumentation>

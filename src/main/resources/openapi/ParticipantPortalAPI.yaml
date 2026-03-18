@@ -1,0 +1,115 @@
+openapi: 3.1.0
+info:
+  title: Participant Portal API
+  description: Participant Portal API
+  version: 1.0.0
+servers:
+  - url: /participant-portal/api/v1
+
+tags:
+  - name: Authorization
+    description: |
+      Login endpoints to authorize the user.
+  - name: Configuration
+    description: |
+      Accessing configuration data from study, like a single observation configuration
+
+security:
+  - apiKey: [ ]
+
+paths:
+  /login/{studyId}/{userDataReference}:
+    post:
+      operationId: participantLogin
+      description: Login the participant with the login code
+      tags:
+        - Authorization
+      security: [ ]
+      parameters:
+        - $ref: '#/components/parameters/StudyId'
+        - $ref: '#/components/parameters/UserDataReference'
+        - $ref: '#/components/parameters/LoginCode'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: 'BaseComponents.yaml#/components/schemas/ApiKey'
+        '401':
+          description: 'Unauthorized'
+
+  /consent:
+    get:
+      operationId: retrieveConsentData
+      description: Query study information to create consent
+      tags:
+        - Authorization
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: 'BaseComponents.yaml#/components/responses/StudyInfoResponse'
+          description: OK
+        '302':
+          description: 'On existing given consent, the browser gets redirected to the real destination'
+        '403':
+          description: 'Forbidden'
+
+    post:
+      operationId: acceptConsent
+      description: Sends the accepted user consent and returns with a redirect
+      tags:
+        - Authorization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: 'BaseComponents.yaml#/components/schemas/StudyConsent'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: 'BaseComponents.yaml#/components/schemas/Observation'
+        '302':
+          description: 'On existing given consent, the browser gets redirected to the real destination'
+        '403':
+          description: 'Forbidden'
+
+components:
+  parameters:
+    LoginCode:
+      name: More-Login-Code
+      in: header
+      required: true
+      schema:
+        type: string
+      description: The login token, hashed with sha256 and encrypted in base64
+    StudyId:
+      name: studyId
+      in: path
+      description: The unique identifier of the study
+      required: true
+      schema:
+        type: string
+    UserDataReference:
+      name: more-user-data-reference
+      in: path
+      description: A unique identifier for an action or dataquey
+      schema:
+        type: string
+      required: true
+  responses:
+    StudyInfoResponse:
+      $ref: 'BaseComponents.yaml#/components/responses/StudyInfoResponse'
+
+  securitySchemes:
+    apiKey:
+      description: |
+        Login with `apiId` as username and `apiKey` as password
+      type: http
+      scheme: basic
