@@ -100,7 +100,7 @@ components:
       required: true
       schema:
         type: string
-      description: The login token, hashed with sha256 and encrypted in base64
+      description: The login token encrypted in base64
     StudyId:
       name: more-study-id
       in: path
