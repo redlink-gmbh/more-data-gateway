@@ -12,13 +12,13 @@ tags:
       Login endpoints to authorize the user.
   - name: Configuration
     description: |
-      Accessing configuration data from study, like a single observation configuration
+      Accessing data like study configurations, observation data and schedules
 
 security:
   - apiKey: [ ]
 
 paths:
-  /login/{studyId}/{userDataReference}:
+  /login/{more-study-id}/{more-user-data-reference}:
     post:
       operationId: participantLogin
       description: Login the participant with the login code
@@ -83,7 +83,7 @@ paths:
   /config/study:
     get:
       operationId: getStudyConfiguration
-      description: (re)load the study configuration
+      description: Loads study-, observation and schedule information
       tags:
         - Configuration
       responses:
@@ -95,14 +95,14 @@ paths:
 components:
   parameters:
     LoginCode:
-      name: More-Login-Code
+      name: more-login-code
       in: header
       required: true
       schema:
         type: string
       description: The login token, hashed with sha256 and encrypted in base64
     StudyId:
-      name: studyId
+      name: more-study-id
       in: path
       description: The unique identifier of the study
       required: true
