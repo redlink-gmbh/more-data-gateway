@@ -54,13 +54,13 @@ class LoginTokenServiceTest {
 
     @Test
     void testValidateConfigurationSuccess() {
-        assertDoesNotThrow(() -> loginTokenService.validateConfiguration());
+        assertDoesNotThrow(() -> properties.validateConfiguration());
     }
 
     @Test
     void testValidateConfigurationInvalidHashAlgorithm() {
         properties.setHashAlgorithm("INVALID-ALGORITHM");
-        assertThrows(IllegalStateException.class, () -> loginTokenService.validateConfiguration());
+        assertThrows(IllegalStateException.class, () -> properties.validateConfiguration());
     }
 
     @Test
