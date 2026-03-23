@@ -8,8 +8,12 @@
  */
 package io.redlink.more.data.configuration;
 
+import jakarta.annotation.PostConstruct;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
+
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 
 @Component
 @ConfigurationProperties(prefix = "more.login-token")
@@ -23,5 +27,14 @@ public class LoginTokenProperties {
 
     public void setHashAlgorithm(String hashAlgorithm) {
         this.hashAlgorithm = hashAlgorithm;
+    }
+
+    @PostConstruct
+    public void validateConfiguration() {
+        try {
+            MessageDigest.getInstance(getHashAlgorithm());
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("Invalid hash algorithm: " + getHashAlgorithm(), e);
+        }
     }
 }

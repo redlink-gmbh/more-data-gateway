@@ -13,7 +13,6 @@ import io.redlink.more.data.event.ParticipantUpdateEvent;
 import io.redlink.more.data.model.RoutingInfo;
 import io.redlink.more.data.repository.LoginTokenRepository;
 import io.redlink.more.data.repository.StudyRepository;
-import jakarta.annotation.PostConstruct;
 import org.apache.commons.codec.binary.Hex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,16 +38,7 @@ public class LoginTokenService implements ApplicationListener<ParticipantUpdateE
         this.properties = properties;
         this.studyRepository = studyRepository;
     }
-
-    @PostConstruct
-    public void validateConfiguration() {
-        try {
-            MessageDigest.getInstance(properties.getHashAlgorithm());
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("Invalid hash algorithm: " + properties.getHashAlgorithm(), e);
-        }
-    }
-
+    
     public Optional<RoutingInfo> validateToken(String code, Long studyId, String application) {
         return loginTokenRepository
                 .findByCodeHash(hashToken(code), studyId, application)
