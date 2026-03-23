@@ -30,6 +30,9 @@ more:
   gateway:
     baseUrl: ${BASE_URL:}
 
+  login-token:
+    hash-algorithm: ${LOGIN_TOKEN_HASH_ALGORITHM:SHA-256}
+
 elastic:
   host: ${ELASTIC_HOST:localhost}
   port: ${ELASTIC_PORT:9200}
