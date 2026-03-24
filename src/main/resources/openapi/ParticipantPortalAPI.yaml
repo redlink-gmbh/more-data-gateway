@@ -30,12 +30,8 @@ paths:
         - $ref: '#/components/parameters/UserDataReference'
         - $ref: '#/components/parameters/LoginCode'
       responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: 'BaseComponents.yaml#/components/schemas/ApiKey'
+        '204':
+          description: Success
         '401':
           description: 'Unauthorized'
 
@@ -47,11 +43,7 @@ paths:
         - Authorization
       responses:
         '200':
-          content:
-            application/json:
-              schema:
-                $ref: 'BaseComponents.yaml#/components/responses/StudyInfoResponse'
-          description: OK
+          $ref: 'BaseComponents.yaml#/components/responses/StudyInfoResponse'
         '208':
           description: 'Consent was already accepted'
         '403':
@@ -93,6 +85,7 @@ paths:
           description: 'Forbidden'
 
 components:
+
   parameters:
     LoginCode:
       name: more-login-code
@@ -107,7 +100,8 @@ components:
       description: The unique identifier of the study
       required: true
       schema:
-        type: string
+        type: integer
+        format: int64
     UserDataReference:
       name: more-user-data-reference
       in: path

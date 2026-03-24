@@ -751,7 +751,7 @@ public class StudyRepository {
         namedTemplate.update(SQL_SET_PARTICIPANT_STATUS, parameterSource);
     }
 
-    private void storeConsent(long studyId, int participantId, ParticipantConsent consent) {
+    public void storeConsent(long studyId, int participantId, ParticipantConsent consent) {
         // Store Study-Consent
         namedTemplate.update(SQL_INSERT_STUDY_CONSENT, toParameterSource(studyId, participantId, consent));
         // Store Consent for individual Observations
