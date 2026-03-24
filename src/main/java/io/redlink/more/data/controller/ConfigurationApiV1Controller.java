@@ -14,7 +14,7 @@ import io.redlink.more.data.controller.transformer.StudyTransformer;
 import io.redlink.more.data.model.GatewayUserDetails;
 import io.redlink.more.data.service.GatewayUserDetailService;
 import io.redlink.more.data.service.PushNotificationService;
-import io.redlink.more.data.service.RegistrationService;
+import io.redlink.more.data.service.StudyService;
 import io.redlink.more.data.util.LoggingUtils;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -31,14 +31,14 @@ public class ConfigurationApiV1Controller implements ConfigurationApi {
 
     private final AuthenticationFacade authenticationFacade;
 
-    private final RegistrationService registrationService;
-
     private final PushNotificationService pushNotificationService;
 
-    public ConfigurationApiV1Controller(AuthenticationFacade authenticationFacade, RegistrationService registrationService, PushNotificationService pushNotificationService) {
+    private final StudyService studyService;
+
+    public ConfigurationApiV1Controller(AuthenticationFacade authenticationFacade, PushNotificationService pushNotificationService, StudyService studyService) {
         this.authenticationFacade = authenticationFacade;
-        this.registrationService = registrationService;
         this.pushNotificationService = pushNotificationService;
+        this.studyService = studyService;
     }
 
     @Override
@@ -46,17 +46,11 @@ public class ConfigurationApiV1Controller implements ConfigurationApi {
         final GatewayUserDetails userDetails = authenticationFacade
                 .assertAuthority(GatewayUserDetailService.APP_ROLE);
         try (LoggingUtils.LoggingContext ctx = LoggingUtils.createContext(userDetails.getRoutingInfo())) {
-            var study = registrationService.loadStudyByRoutingInfo(userDetails.getRoutingInfo());
-            if (study.isEmpty()) {
+            var studyData = studyService.getStudy(userDetails.getRoutingInfo());
+            if (studyData.isEmpty()) {
                 return ResponseEntity.notFound().build();
             }
-            var participantObservationProperties = registrationService
-                    .getParticipantObservationSeeds(userDetails.getRoutingInfo().studyId(), userDetails.getRoutingInfo().participantId())
-                    .stream()
-                    .toList();
-            return ResponseEntity.of(
-                    study.map(s -> StudyTransformer.toDTO(s, participantObservationProperties))
-            );
+            return ResponseEntity.of(studyData.map(s -> StudyTransformer.toDTO(s.getLeft(), s.getRight())));
         }
     }
 

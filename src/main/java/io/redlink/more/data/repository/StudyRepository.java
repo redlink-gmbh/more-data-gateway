@@ -150,6 +150,16 @@ public class StudyRepository {
                     SET consent_withdrawn = now()
                     WHERE study_id = :study_id AND participant_id = :participant_id""";
 
+    private static final String SQL_GET_CONSENT = """
+            SELECT accepted, origin, content_md5, consent_timestamp, consent_withdrawn
+            FROM participation_consents
+            WHERE study_id = :study_id AND participant_id = :participant_id""";
+
+    private static final String SQL_GET_OBSERVATION_CONSENTS = """
+            SELECT observation_id
+            FROM observation_consents
+            WHERE study_id = :study_id AND participant_id = :participant_id""";
+
     private static final String SQL_INSERT_OBSERVATION_CONSENT =
             """
                     INSERT INTO observation_consents(study_id, participant_id, observation_id) VALUES (:study_id, :participant_id, :observation_id)
@@ -759,6 +769,40 @@ public class StudyRepository {
                 consent.observationConsents().stream()
                         .map(c -> toParameterSource(studyId, participantId, c))
                         .toArray(SqlParameterSource[]::new));
+    }
+
+    public Optional<ParticipantConsent> getConsent(long studyId, Integer participantId) {
+        try {
+            return namedTemplate.query(SQL_GET_CONSENT,
+                    new MapSqlParameterSource()
+                            .addValue("study_id", studyId)
+                            .addValue("participant_id", participantId),
+                    rs -> {
+                        if (rs.next()) {
+                            return Optional.of(new ParticipantConsent(
+                                    rs.getBoolean("accepted"),
+                                    rs.getString("origin"),
+                                    rs.getString("content_md5"),
+                                    toInstant(rs.getTimestamp("consent_timestamp")),
+                                    getObservationConsents(studyId, participantId)
+                            ));
+                        }
+                        return Optional.empty();
+                    });
+        } catch (DataAccessException e) {
+            return Optional.empty();
+        }
+    }
+
+    private List<ParticipantConsent.ObservationConsent> getObservationConsents(long studyId, int participantId) {
+        return namedTemplate.query(SQL_GET_OBSERVATION_CONSENTS,
+                new MapSqlParameterSource()
+                        .addValue("study_id", studyId)
+                        .addValue("participant_id", participantId),
+                (rs, rowNum) -> new ParticipantConsent.ObservationConsent(
+                        rs.getInt("observation_id"),
+                        null
+                ));
     }
 
     private void withdrawConsent(long studyId, int participantId) {

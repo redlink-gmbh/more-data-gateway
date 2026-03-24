@@ -6,7 +6,6 @@ package io.redlink.more.data.controller;
 import io.redlink.more.data.api.app.v1.model.ApiKeyDTO;
 import io.redlink.more.data.api.app.v1.model.AppConfigurationDTO;
 import io.redlink.more.data.api.app.v1.model.ErrorDTO;
-import io.redlink.more.data.api.app.v1.model.ObservationConsentDTO;
 import io.redlink.more.data.api.app.v1.model.StudyConsentDTO;
 import io.redlink.more.data.api.app.v1.model.StudyDTO;
 import io.redlink.more.data.api.app.v1.webservices.RegistrationApi;
@@ -21,7 +20,8 @@ import io.redlink.more.data.model.ParticipantObservationSeed;
 import io.redlink.more.data.properties.MoreProperties;
 import io.redlink.more.data.service.GatewayUserDetailService;
 import io.redlink.more.data.service.RegistrationService;
-import org.apache.commons.lang3.StringUtils;
+import io.redlink.more.data.service.StudyService;
+import io.redlink.more.data.util.ParticipantUtils;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -48,11 +48,14 @@ public class RegistrationApiV1Controller implements RegistrationApi {
 
     private final AuthenticationFacade authenticationFacade;
 
+    private final StudyService studyService;
 
-    public RegistrationApiV1Controller(MoreProperties moreProperties, RegistrationService registrationService, AuthenticationFacade authenticationFacade) {
+
+    public RegistrationApiV1Controller(MoreProperties moreProperties, RegistrationService registrationService, AuthenticationFacade authenticationFacade, StudyService studyService) {
         this.moreProperties = moreProperties;
         this.registrationService = registrationService;
         this.authenticationFacade = authenticationFacade;
+        this.studyService = studyService;
     }
 
     @Override
@@ -61,7 +64,7 @@ public class RegistrationApiV1Controller implements RegistrationApi {
         if (study.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
-        List<ParticipantObservationSeed> seeds = study.get().active() ? registrationService.getParticipantObservationSeeds(study.get().studyId(), study.get().participant().id()) : Collections.emptyList();
+        List<ParticipantObservationSeed> seeds = study.get().active() ? studyService.getParticipantObservationSeeds(study.get().studyId(), study.get().participant().id()) : Collections.emptyList();
         var studyDto = StudyTransformer.toDTO(study.get(), seeds);
         return ResponseEntity.ok()
                 // For better debugging: return the token for chaining
@@ -72,9 +75,9 @@ public class RegistrationApiV1Controller implements RegistrationApi {
 
     @Override
     public ResponseEntity<AppConfigurationDTO> registerForStudy(String moreRegistrationToken, StudyConsentDTO studyConsentDTO) {
-        final ParticipantConsent consent = convert(studyConsentDTO);
+        final ParticipantConsent consent = ParticipantUtils.convert(studyConsentDTO);
 
-        if (registrationService.validateConsent(consent)) {
+        if (consent.accepted()) {
             return ResponseEntity.of(
                     registrationService.register(moreRegistrationToken, consent)
                             .map(RegistrationApiV1Controller::convert)
@@ -122,45 +125,6 @@ public class RegistrationApiV1Controller implements RegistrationApi {
                     .normalize()
                     .toUri();
         }
-    }
-
-    private static ParticipantConsent convert(StudyConsentDTO dto) {
-        return new ParticipantConsent(
-                dto.getConsent(),
-                obfuscate(dto.getDeviceId()),
-                dto.getConsentInfoMD5(),
-                null,
-                convert(dto.getObservations())
-        );
-    }
-
-    /**
-     * Device-ID has the format "[MODEL]#[SERIAL], we obfuscate to [MODEL]#[SERIAL:0:6]...[SERIAL:-6:-0]
-     */
-    private static String obfuscate(String string) {
-        final String unknown = "unknown";
-        if (string == null) return unknown;
-
-        final int keepChars = 6;
-        final int delim = string.indexOf('#');
-        return "%s#%s...%s".formatted(
-                StringUtils.defaultIfEmpty(StringUtils.left(string, delim), unknown),
-                StringUtils.mid(string, delim + 1, keepChars),
-                StringUtils.right(string, keepChars)
-        );
-    }
-
-    private static List<ParticipantConsent.ObservationConsent> convert(List<ObservationConsentDTO> observations) {
-        return observations.stream()
-                .map(RegistrationApiV1Controller::convert)
-                .toList();
-    }
-
-    private static ParticipantConsent.ObservationConsent convert(ObservationConsentDTO observations) {
-        return new ParticipantConsent.ObservationConsent(
-                Integer.parseInt(observations.getObservationId()),
-                null
-        );
     }
 
     private static ApiKeyDTO convert(ApiCredentials credentials) {
