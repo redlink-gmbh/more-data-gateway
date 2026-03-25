@@ -34,7 +34,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 
 @Controller
 @RestController
-@RequestMapping(value = "/participantPortal/api/v1", produces = MediaType.APPLICATION_JSON_VALUE)
+@RequestMapping(value = "/participant-portal/api/v1", produces = MediaType.APPLICATION_JSON_VALUE)
 public class ParticipantPortalAuthController implements AuthorizationApi {
     private static final Logger LOG = LoggerFactory.getLogger(ParticipantPortalAuthController.class);
     private final ApplicationAccessService applicationAccessService;

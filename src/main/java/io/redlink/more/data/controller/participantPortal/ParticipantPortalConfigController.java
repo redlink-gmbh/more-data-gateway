@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @Controller
 @RestController
-@RequestMapping(value = "/participantPortal/api/v1", produces = MediaType.APPLICATION_JSON_VALUE)
+@RequestMapping(value = "/participant-portal/api/v1", produces = MediaType.APPLICATION_JSON_VALUE)
 public class ParticipantPortalConfigController implements ConfigurationApi {
     private final StudyService studyService;
 

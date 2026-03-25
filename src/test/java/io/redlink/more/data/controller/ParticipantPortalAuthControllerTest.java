@@ -90,7 +90,7 @@ class ParticipantPortalAuthControllerTest {
         when(applicationAccessService.validateLogin(studyId, userDataRef, loginCode))
                 .thenReturn(Optional.of(routingInfo));
 
-        MvcResult result = mockMvc.perform(post("/participantPortal/api/v1/login/{studyId}/{userDataRef}", studyId, userDataRef)
+        MvcResult result = mockMvc.perform(post("/participant-portal/api/v1/login/{studyId}/{userDataRef}", studyId, userDataRef)
                         .with(csrf())
                         .header("more-login-code", encodedCode))
                 .andExpect(status().isNoContent())
@@ -107,7 +107,7 @@ class ParticipantPortalAuthControllerTest {
         String userDataRef = "user-ref";
         String invalidEncodedCode = "!!! not base64 !!!";
 
-        mockMvc.perform(post("/participantPortal/api/v1/login/{studyId}/{userDataRef}", studyId, userDataRef)
+        mockMvc.perform(post("/participant-portal/api/v1/login/{studyId}/{userDataRef}", studyId, userDataRef)
                         .with(csrf())
                         .header("more-login-code", invalidEncodedCode))
                 .andExpect(status().isUnauthorized());
@@ -123,7 +123,7 @@ class ParticipantPortalAuthControllerTest {
         when(applicationAccessService.validateLogin(studyId, userDataRef, loginCode))
                 .thenReturn(Optional.empty());
 
-        mockMvc.perform(post("/participantPortal/api/v1/login/{studyId}/{userDataRef}", studyId, userDataRef)
+        mockMvc.perform(post("/participant-portal/api/v1/login/{studyId}/{userDataRef}", studyId, userDataRef)
                         .with(csrf())
                         .header("more-login-code", encodedCode))
                 .andExpect(status().isUnauthorized());
@@ -140,7 +140,7 @@ class ParticipantPortalAuthControllerTest {
 
         when(applicationAccessService.hasConsent(routingInfo)).thenReturn(false);
 
-        mockMvc.perform(post("/participantPortal/api/v1/consent")
+        mockMvc.perform(post("/participant-portal/api/v1/consent")
                         .with(csrf())
                         .with(user(userDetails))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -157,7 +157,7 @@ class ParticipantPortalAuthControllerTest {
 
         when(applicationAccessService.hasConsent(routingInfo)).thenReturn(true);
 
-        mockMvc.perform(post("/participantPortal/api/v1/consent")
+        mockMvc.perform(post("/participant-portal/api/v1/consent")
                         .with(csrf())
                         .with(user(userDetails))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -179,7 +179,7 @@ class ParticipantPortalAuthControllerTest {
         when(applicationAccessService.hasConsent(routingInfo)).thenReturn(false);
         when(studyService.getStudy(routingInfo)).thenReturn(Optional.of(Pair.of(study, Collections.emptyList())));
 
-        mockMvc.perform(get("/participantPortal/api/v1/consent")
+        mockMvc.perform(get("/participant-portal/api/v1/consent")
                         .with(user(userDetails)))
                 .andExpect(status().isOk());
     }
@@ -191,7 +191,7 @@ class ParticipantPortalAuthControllerTest {
 
         when(studyService.getCompleteRoutingInfo(routingInfo)).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/participantPortal/api/v1/consent")
+        mockMvc.perform(get("/participant-portal/api/v1/consent")
                         .with(user(userDetails)))
                 .andExpect(status().isUnauthorized());
     }
@@ -204,7 +204,7 @@ class ParticipantPortalAuthControllerTest {
         when(studyService.getCompleteRoutingInfo(routingInfo)).thenReturn(Optional.of(routingInfo));
         when(applicationAccessService.hasConsent(routingInfo)).thenReturn(true);
 
-        mockMvc.perform(get("/participantPortal/api/v1/consent")
+        mockMvc.perform(get("/participant-portal/api/v1/consent")
                         .with(user(userDetails)))
                 .andExpect(status().isConflict());
     }
@@ -218,7 +218,7 @@ class ParticipantPortalAuthControllerTest {
         when(applicationAccessService.hasConsent(routingInfo)).thenReturn(false);
         when(studyService.getStudy(routingInfo)).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/participantPortal/api/v1/consent")
+        mockMvc.perform(get("/participant-portal/api/v1/consent")
                         .with(user(userDetails)))
                 .andExpect(status().isNotFound());
     }
@@ -228,7 +228,7 @@ class ParticipantPortalAuthControllerTest {
     void testAcceptConsentWithMockUserFails() throws Exception {
         // This should fail because the principal is not RoutingInfoUserDetails
         // It's now handled by the ExceptionHandler and returns 500
-        mockMvc.perform(post("/participantPortal/api/v1/consent")
+        mockMvc.perform(post("/participant-portal/api/v1/consent")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))

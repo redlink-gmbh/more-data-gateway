@@ -70,7 +70,7 @@ class ParticipantPortalConfigControllerTest {
         when(studyService.getCompleteRoutingInfo(routingInfo)).thenReturn(Optional.of(routingInfo));
         when(studyService.getStudy(routingInfo)).thenReturn(Optional.of(Pair.of(study, Collections.emptyList())));
 
-        mockMvc.perform(get("/participantPortal/api/v1/config/study")
+        mockMvc.perform(get("/participant-portal/api/v1/config/study")
                         .with(user(userDetails)))
                 .andExpect(status().isOk());
     }
@@ -82,7 +82,7 @@ class ParticipantPortalConfigControllerTest {
 
         when(studyService.getCompleteRoutingInfo(routingInfo)).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/participantPortal/api/v1/config/study")
+        mockMvc.perform(get("/participant-portal/api/v1/config/study")
                         .with(user(userDetails)))
                 .andExpect(status().isUnauthorized());
     }
@@ -95,7 +95,7 @@ class ParticipantPortalConfigControllerTest {
         when(studyService.getCompleteRoutingInfo(routingInfo)).thenReturn(Optional.of(routingInfo));
         when(studyService.getStudy(routingInfo)).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/participantPortal/api/v1/config/study")
+        mockMvc.perform(get("/participant-portal/api/v1/config/study")
                         .with(user(userDetails)))
                 .andExpect(status().isNotFound());
     }
