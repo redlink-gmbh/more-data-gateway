@@ -60,6 +60,8 @@ public class SecurityConfig {
                             .permitAll();
                     req.requestMatchers("/api/v1/login/**")
                             .permitAll();
+                    req.requestMatchers("/participantPortal/api/v1/login/**")
+                            .permitAll();
                     //External Data Gateway
                     req.requestMatchers("/api/v1/external/bulk")
                             .permitAll();
@@ -78,6 +80,8 @@ public class SecurityConfig {
                             .permitAll();
                     // all other apis require credentials
                     req.requestMatchers("/api/v1/**")
+                            .authenticated();
+                    req.requestMatchers("/participantPortal/api/v1/**")
                             .authenticated();
                     // actuator only from localhost
                     req.requestMatchers(
