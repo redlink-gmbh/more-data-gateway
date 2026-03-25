@@ -58,6 +58,8 @@ public class SecurityConfig {
                             .permitAll();
                     req.requestMatchers("/api/v1/signup")
                             .permitAll();
+                    req.requestMatchers("/api/v1/login/**")
+                            .permitAll();
                     //External Data Gateway
                     req.requestMatchers("/api/v1/external/bulk")
                             .permitAll();

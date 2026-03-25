@@ -12,6 +12,7 @@ import io.redlink.more.data.configuration.LoginTokenProperties;
 import io.redlink.more.data.event.ParticipantUpdateAction;
 import io.redlink.more.data.event.ParticipantUpdateEvent;
 import io.redlink.more.data.model.LoginToken;
+import io.redlink.more.data.model.ParticipantApplication;
 import io.redlink.more.data.model.RoutingInfo;
 import io.redlink.more.data.repository.LoginTokenRepository;
 import io.redlink.more.data.repository.StudyRepository;
@@ -68,22 +69,27 @@ class LoginTokenServiceTest {
         String code = "test-code";
         Long studyId = 1L;
         Integer participantId = 10;
-        String application = "test-app";
+        String applicationName = "test-app";
         String hashedCode = hash(code);
+
+        ParticipantApplication application = new ParticipantApplication()
+                .setStudyId(studyId)
+                .setParticipantId(participantId)
+                .setApplication(applicationName);
 
         LoginToken token = new LoginToken()
                 .setStudyId(studyId)
                 .setParticipantId(participantId)
-                .setApplication(application)
+                .setApplication(applicationName)
                 .setCode("encrypted-code")
                 .setCodeHash(hashedCode);
 
         RoutingInfo routingInfo = new RoutingInfo(studyId, participantId, 1, Collections.emptySet(), true, true);
 
-        when(loginTokenRepository.findByCodeHash(hashedCode, studyId, application)).thenReturn(Optional.of(token));
+        when(loginTokenRepository.findByCodeHash(hashedCode, application)).thenReturn(Optional.of(token));
         when(studyRepository.getRoutingInfo(studyId, participantId)).thenReturn(Optional.of(routingInfo));
 
-        Optional<RoutingInfo> validatedToken = loginTokenService.validateToken(code, studyId, application);
+        Optional<RoutingInfo> validatedToken = loginTokenService.validateToken(code, application);
 
         assertTrue(validatedToken.isPresent());
         assertEquals(studyId, validatedToken.get().studyId());
@@ -94,12 +100,18 @@ class LoginTokenServiceTest {
     void testValidateTokenNotFound() throws NoSuchAlgorithmException {
         String code = "test-code";
         Long studyId = 1L;
-        String application = "test-app";
+        Integer participantId = 10;
+        String applicationName = "test-app";
         String hashedCode = hash(code);
 
-        when(loginTokenRepository.findByCodeHash(hashedCode, studyId, application)).thenReturn(Optional.empty());
+        ParticipantApplication application = new ParticipantApplication()
+                .setStudyId(studyId)
+                .setParticipantId(participantId)
+                .setApplication(applicationName);
 
-        Optional<RoutingInfo> validatedToken = loginTokenService.validateToken(code, studyId, application);
+        when(loginTokenRepository.findByCodeHash(hashedCode, application)).thenReturn(Optional.empty());
+
+        Optional<RoutingInfo> validatedToken = loginTokenService.validateToken(code, application);
 
         assertFalse(validatedToken.isPresent());
     }
@@ -107,11 +119,17 @@ class LoginTokenServiceTest {
     @Test
     void testValidateTokenNullCode() {
         Long studyId = 1L;
-        String application = "test-app";
+        Integer participantId = 10;
+        String applicationName = "test-app";
 
-        when(loginTokenRepository.findByCodeHash(null, studyId, application)).thenReturn(Optional.empty());
+        ParticipantApplication application = new ParticipantApplication()
+                .setStudyId(studyId)
+                .setParticipantId(participantId)
+                .setApplication(applicationName);
 
-        Optional<RoutingInfo> validatedToken = loginTokenService.validateToken(null, studyId, application);
+        when(loginTokenRepository.findByCodeHash(null, application)).thenReturn(Optional.empty());
+
+        Optional<RoutingInfo> validatedToken = loginTokenService.validateToken(null, application);
 
         assertFalse(validatedToken.isPresent());
     }
@@ -121,18 +139,23 @@ class LoginTokenServiceTest {
         String code = "test-code";
         Long studyId = 1L;
         Integer participantId = 10;
-        String application = "test-app";
+        String applicationName = "test-app";
         String hashedCode = hash(code);
+
+        ParticipantApplication application = new ParticipantApplication()
+                .setStudyId(studyId)
+                .setParticipantId(participantId)
+                .setApplication(applicationName);
 
         LoginToken token = new LoginToken()
                 .setStudyId(studyId)
                 .setParticipantId(participantId)
-                .setApplication(application);
+                .setApplication(applicationName);
 
-        when(loginTokenRepository.findByCodeHash(hashedCode, studyId, application)).thenReturn(Optional.of(token));
+        when(loginTokenRepository.findByCodeHash(hashedCode, application)).thenReturn(Optional.of(token));
         when(studyRepository.getRoutingInfo(studyId, participantId)).thenReturn(Optional.empty());
 
-        Optional<RoutingInfo> validatedToken = loginTokenService.validateToken(code, studyId, application);
+        Optional<RoutingInfo> validatedToken = loginTokenService.validateToken(code, application);
 
         assertFalse(validatedToken.isPresent());
     }

@@ -10,6 +10,7 @@ package io.redlink.more.data.service;
 
 import io.redlink.more.data.configuration.LoginTokenProperties;
 import io.redlink.more.data.event.ParticipantUpdateEvent;
+import io.redlink.more.data.model.ParticipantApplication;
 import io.redlink.more.data.model.RoutingInfo;
 import io.redlink.more.data.repository.LoginTokenRepository;
 import io.redlink.more.data.repository.StudyRepository;
@@ -38,10 +39,10 @@ public class LoginTokenService implements ApplicationListener<ParticipantUpdateE
         this.properties = properties;
         this.studyRepository = studyRepository;
     }
-    
-    public Optional<RoutingInfo> validateToken(String code, Long studyId, String application) {
+
+    public Optional<RoutingInfo> validateToken(String code, ParticipantApplication application) {
         return loginTokenRepository
-                .findByCodeHash(hashToken(code), studyId, application)
+                .findByCodeHash(hashToken(code), application)
                 .flatMap(token -> studyRepository.getRoutingInfo(token.getStudyId(), token.getParticipantId()));
     }
 

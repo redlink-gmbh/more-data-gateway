@@ -9,6 +9,7 @@
 package io.redlink.more.data.repository;
 
 import io.redlink.more.data.model.LoginToken;
+import io.redlink.more.data.model.ParticipantApplication;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
@@ -18,7 +19,7 @@ import java.util.Optional;
 @Repository
 public class LoginTokenRepository {
     private static final String SELECT_BY_CODE_HASH =
-            "SELECT * FROM login_tokens WHERE code_hash = ? AND study_id = ? AND application = ?";
+            "SELECT * FROM login_tokens WHERE code_hash = ? AND study_id = ? AND application = ? AND participant_id = ?";
     private static final String DELETE_SALT =
             "DELETE FROM salt_tokens WHERE study_id = ? AND participant_id = ?";
     private static final String DELETE_BY_PARTICIPANT =
@@ -30,8 +31,8 @@ public class LoginTokenRepository {
         this.template = template;
     }
 
-    public Optional<LoginToken> findByCodeHash(String codeHash, Long studyId, String application) {
-        return template.query(SELECT_BY_CODE_HASH, getRowMapper(), codeHash, studyId, application)
+    public Optional<LoginToken> findByCodeHash(String codeHash, ParticipantApplication application) {
+        return template.query(SELECT_BY_CODE_HASH, getRowMapper(), codeHash, application.getStudyId(), application.getApplication(), application.getParticipantId())
                 .stream().findFirst();
     }
 
