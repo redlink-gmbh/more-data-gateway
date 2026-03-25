@@ -11,7 +11,6 @@ import io.redlink.more.data.service.ApplicationAccessService;
 import io.redlink.more.data.service.StudyService;
 import io.redlink.more.data.util.ParticipantUtils;
 import io.redlink.more.data.util.RoutingInfoUserDetails;
-import io.redlink.more.data.util.SecurityUtils;
 import io.redlink.more.data.util.StringUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
@@ -90,9 +89,9 @@ public class ParticipantPortalAuthController implements AuthorizationApi {
 
     @Override
     public ResponseEntity<Void> acceptConsent(StudyConsentDTO studyConsentDTO) {
-        RoutingInfo routingInfo = SecurityUtils.routingInfoFromSecurityContext();
+        RoutingInfo routingInfo = RoutingInfoUserDetails.getCurrent().getRoutingInfo();
         if (applicationAccessService.hasConsent(routingInfo)) {
-            return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
         }
         final ParticipantConsent consent = ParticipantUtils.convert(studyConsentDTO);
         applicationAccessService.validateAndStoreConsent(routingInfo, consent);
@@ -103,10 +102,10 @@ public class ParticipantPortalAuthController implements AuthorizationApi {
     @Override
     public ResponseEntity<StudyDTO> retrieveConsentData() {
         RoutingInfo routingInfo = studyService
-                .getCompleteRoutingInfo(SecurityUtils.routingInfoFromSecurityContext())
+                .getCompleteRoutingInfo(RoutingInfoUserDetails.getCurrent().getRoutingInfo())
                 .orElseThrow(NotAuthorizedException::new);
         if (applicationAccessService.hasConsent(routingInfo)) {
-            return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
         }
         var studyData = studyService.getStudy(routingInfo);
         return studyData

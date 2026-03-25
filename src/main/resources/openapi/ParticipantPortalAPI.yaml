@@ -44,12 +44,12 @@ paths:
             application/json:
               schema:
                 $ref: 'BaseComponents.yaml#/components/schemas/Study'
-        '208':
-          description: 'Consent was already accepted'
         '403':
           description: 'Forbidden'
         '404':
           description: 'Data not found'
+        '409':
+          description: 'Consent was already accepted'
 
     post:
       operationId: acceptConsent
@@ -65,10 +65,10 @@ paths:
       responses:
         '204':
           description: OK
-        '208':
-          description: 'Consent was already accepted'
         '403':
           description: 'Forbidden'
+        '409':
+          description: 'Consent was already accepted'
 
   /config/study:
     get:

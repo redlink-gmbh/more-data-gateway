@@ -6,7 +6,7 @@ import io.redlink.more.data.controller.transformer.ParticipantPortalTransformer;
 import io.redlink.more.data.exception.NotAuthorizedException;
 import io.redlink.more.data.model.RoutingInfo;
 import io.redlink.more.data.service.StudyService;
-import io.redlink.more.data.util.SecurityUtils;
+import io.redlink.more.data.util.RoutingInfoUserDetails;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -27,7 +27,7 @@ public class ParticipantPortalConfigController implements ConfigurationApi {
     @Override
     public ResponseEntity<StudyDTO> getStudyConfiguration() {
         RoutingInfo routingInfo = studyService
-                .getCompleteRoutingInfo(SecurityUtils.routingInfoFromSecurityContext())
+                .getCompleteRoutingInfo(RoutingInfoUserDetails.getCurrent().getRoutingInfo())
                 .orElseThrow(NotAuthorizedException::new);
 
         var studyData = studyService.getStudy(routingInfo);

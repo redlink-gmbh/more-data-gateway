@@ -162,7 +162,7 @@ class ParticipantPortalAuthControllerTest {
                         .with(user(userDetails))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
-                .andExpect(status().isAlreadyReported());
+                .andExpect(status().isConflict());
     }
 
     @Test
@@ -206,7 +206,7 @@ class ParticipantPortalAuthControllerTest {
 
         mockMvc.perform(get("/api/v1/consent")
                         .with(user(userDetails)))
-                .andExpect(status().isAlreadyReported());
+                .andExpect(status().isConflict());
     }
 
     @Test

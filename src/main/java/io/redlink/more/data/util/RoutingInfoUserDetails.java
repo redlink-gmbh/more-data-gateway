@@ -1,5 +1,6 @@
 package io.redlink.more.data.util;
 
+import io.redlink.more.data.exception.NotAuthorizedException;
 import io.redlink.more.data.model.RoutingInfo;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -72,6 +73,6 @@ public class RoutingInfoUserDetails implements UserDetails {
         if (principal instanceof RoutingInfoUserDetails details) {
             return details;
         }
-        throw new IllegalStateException("Current user is not a ParticipantUserDetails");
+        throw new NotAuthorizedException("This user is not authorized!");
     }
 }
