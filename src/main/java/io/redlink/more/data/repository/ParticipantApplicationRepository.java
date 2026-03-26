@@ -23,8 +23,13 @@ public class ParticipantApplicationRepository {
     }
 
     public Optional<ParticipantApplication> findByUserDataReference(Long studyId, String userDataReference) {
-        return template.query(SELECT_BY_UUID, getRowMapper(), studyId, userDataReference)
-                .stream().findFirst();
+        try {
+            UUID uuid = UUID.fromString(userDataReference);
+            return template.query(SELECT_BY_UUID, getRowMapper(), studyId, uuid)
+                    .stream().findFirst();
+        } catch (IllegalArgumentException e) {
+            return Optional.empty();
+        }
     }
 
     public void deleteAllByParticipant(Long studyId, Integer participantId) {

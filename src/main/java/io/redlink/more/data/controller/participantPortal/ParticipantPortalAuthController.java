@@ -88,6 +88,26 @@ public class ParticipantPortalAuthController implements AuthorizationApi {
     }
 
     @Override
+    public ResponseEntity<Void> participantLogout() {
+        RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
+        if (!(requestAttributes instanceof ServletRequestAttributes servletRequestAttributes)) {
+            throw new IllegalStateException("Request is not a ServletRequest");
+        }
+
+        HttpServletRequest request = servletRequestAttributes.getRequest();
+        HttpSession session = request.getSession(false);
+
+        if (session != null) {
+            session.removeAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY);
+            session.invalidate();
+        }
+
+        SecurityContextHolder.clearContext();
+
+        return ResponseEntity.noContent().build();
+    }
+
+    @Override
     public ResponseEntity<Void> acceptConsent(StudyConsentDTO studyConsentDTO) {
         RoutingInfo routingInfo = RoutingInfoUserDetails.getCurrent().getRoutingInfo();
         if (applicationAccessService.hasConsent(routingInfo)) {
