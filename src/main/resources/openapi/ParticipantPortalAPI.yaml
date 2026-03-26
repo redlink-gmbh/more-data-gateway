@@ -30,6 +30,17 @@ paths:
           description: Success
         '401':
           description: 'Unauthorized'
+  /logout:
+    post:
+      operationId: participantLogout
+      description: Logout the current participant
+      tags:
+        - Authorization
+      responses:
+        '204':
+          description: Successfully logged out
+        '403':
+          description: Forbidden
 
   /consent:
     get:

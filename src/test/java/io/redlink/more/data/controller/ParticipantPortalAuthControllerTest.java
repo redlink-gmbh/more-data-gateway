@@ -40,6 +40,7 @@ import java.util.OptionalInt;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
@@ -126,6 +127,41 @@ class ParticipantPortalAuthControllerTest {
         mockMvc.perform(post("/participant-portal/api/v1/login/{studyId}/{userDataRef}", studyId, userDataRef)
                         .with(csrf())
                         .header("more-login-code", encodedCode))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void testParticipantLogout() throws Exception {
+        RoutingInfo routingInfo = new RoutingInfo(1L, 1, OptionalInt.empty(), Set.of(), true, true);
+        RoutingInfoUserDetails userDetails = new RoutingInfoUserDetails(routingInfo, null);
+
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, "some-context");
+
+        mockMvc.perform(post("/participant-portal/api/v1/logout")
+                        .with(user(userDetails))
+                        .session(session)
+                        .with(csrf()))
+                .andExpect(status().isNoContent());
+
+        assertTrue(session.isInvalid());
+    }
+
+    @Test
+    void testParticipantLogoutNoSession() throws Exception {
+        RoutingInfo routingInfo = new RoutingInfo(1L, 1, OptionalInt.empty(), Set.of(), true, true);
+        RoutingInfoUserDetails userDetails = new RoutingInfoUserDetails(routingInfo, null);
+
+        mockMvc.perform(post("/participant-portal/api/v1/logout")
+                        .with(user(userDetails))
+                        .with(csrf()))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void testParticipantLogoutUnauthenticated() throws Exception {
+        mockMvc.perform(post("/participant-portal/api/v1/logout")
+                        .with(csrf()))
                 .andExpect(status().isUnauthorized());
     }
 
