@@ -738,10 +738,15 @@ public class StudyRepository {
 
         if (apiId != null) {
             jdbcTemplate.update(SQL_CLEAR_TOKEN, registrationToken);
-            updateParticipantStatus(routingInfo.studyId(), routingInfo.studyGroupId().orElse(0), routingInfo.observationGroupIds(), routingInfo.participantId(), "new", "active");
+            updateParticipantStatus(routingInfo, "new", "active");
+            updateParticipantStatus(routingInfo, "invited", "active");
             return Optional.of(apiId);
         }
         throw new IllegalStateException("Creating API-Credentials failed!");
+    }
+
+    public void updateParticipantStatus(RoutingInfo routingInfo, String oldStatus, String newStatus) {
+        updateParticipantStatus(routingInfo.studyId(), routingInfo.studyGroupId().orElse(0), routingInfo.observationGroupIds(), routingInfo.participantId(), oldStatus, newStatus);
     }
 
     private void updateParticipantStatus(long studyId, int studyGroupId, Collection<Integer> observationGroupIds, int participantId, String oldStatus, String newStatus) {

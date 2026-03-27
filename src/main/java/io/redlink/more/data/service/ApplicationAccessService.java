@@ -51,6 +51,7 @@ public class ApplicationAccessService implements ApplicationListener<Participant
     public void validateAndStoreConsent(RoutingInfo routingInfo, ParticipantConsent consent) {
         if (consent.accepted()) {
             studyRepository.storeConsent(routingInfo.studyId(), routingInfo.participantId(), consent);
+            studyRepository.updateParticipantStatus(routingInfo, "invited", "active");
         } else {
             LOG.warn("Consent {} is not accepted by user {}", consent, routingInfo);
             throw new IllegalStateException("Consent was not accepted!");
