@@ -738,7 +738,7 @@ public class StudyRepository {
 
         if (apiId != null) {
             jdbcTemplate.update(SQL_CLEAR_TOKEN, registrationToken);
-            updateParticipantStatus(routingInfo, "new", "active");
+            updateParticipantStatus(routingInfo, "new", "invited");
             updateParticipantStatus(routingInfo, "invited", "active");
             return Optional.of(apiId);
         }
