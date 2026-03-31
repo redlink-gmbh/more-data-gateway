@@ -44,7 +44,6 @@ public final class ParticipantPortalTransformer {
             case "active" -> StudyDTO.StudyStateEnum.ACTIVE;
             case "preview" -> StudyDTO.StudyStateEnum.PREVIEW;
             case "paused", "paused-preview" -> StudyDTO.StudyStateEnum.PAUSED;
-            case "draft" -> StudyDTO.StudyStateEnum.DRAFT;
             default -> StudyDTO.StudyStateEnum.CLOSED;
         };
     }

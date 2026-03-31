@@ -24,7 +24,6 @@ components:
             - active
             - preview
             - paused
-            - draft
             - closed
         participant:
           $ref: '#/components/schemas/SimpleParticipant'
