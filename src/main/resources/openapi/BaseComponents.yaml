@@ -22,7 +22,9 @@ components:
           type: string
           enum:
             - active
+            - preview
             - paused
+            - draft
             - closed
         participant:
           $ref: '#/components/schemas/SimpleParticipant'
