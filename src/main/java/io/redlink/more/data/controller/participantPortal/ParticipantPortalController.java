@@ -3,6 +3,7 @@ package io.redlink.more.data.controller.participantPortal;
 import io.redlink.more.data.api.participant.v1.model.StudyConsentDTO;
 import io.redlink.more.data.api.participant.v1.model.StudyDTO;
 import io.redlink.more.data.api.participant.v1.webservices.AuthorizationApi;
+import io.redlink.more.data.api.participant.v1.webservices.ConfigurationApi;
 import io.redlink.more.data.controller.transformer.ParticipantPortalTransformer;
 import io.redlink.more.data.exception.NotAuthorizedException;
 import io.redlink.more.data.model.ParticipantConsent;
@@ -32,15 +33,22 @@ import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
+import java.util.Collection;
+import java.util.Optional;
+import java.util.Set;
+
 @Controller
 @RestController
 @RequestMapping(value = "/participant-portal/api/v1", produces = MediaType.APPLICATION_JSON_VALUE)
-public class ParticipantPortalAuthController implements AuthorizationApi {
-    private static final Logger LOG = LoggerFactory.getLogger(ParticipantPortalAuthController.class);
+public class ParticipantPortalController implements AuthorizationApi, ConfigurationApi {
+    private static final Logger LOG = LoggerFactory.getLogger(ParticipantPortalController.class);
+
+    private static final Collection<String> ALLOWED_STUDY_STATES = Set.of("active", "paused", "preview", "paused-preview");
+
     private final ApplicationAccessService applicationAccessService;
     private final StudyService studyService;
 
-    ParticipantPortalAuthController(ApplicationAccessService applicationAccessService, StudyService studyService) {
+    ParticipantPortalController(ApplicationAccessService applicationAccessService, StudyService studyService) {
         this.applicationAccessService = applicationAccessService;
         this.studyService = studyService;
     }
@@ -64,6 +72,7 @@ public class ParticipantPortalAuthController implements AuthorizationApi {
         }
 
         RoutingInfo routingInfo = applicationAccessService.validateLogin(moreStudyId, moreUserDataReference, decodedToken)
+                .filter(this::validateStudyState)
                 .orElseThrow(NotAuthorizedException::new);
         RoutingInfoUserDetails userDetails = new RoutingInfoUserDetails(
                 routingInfo,
@@ -109,7 +118,8 @@ public class ParticipantPortalAuthController implements AuthorizationApi {
 
     @Override
     public ResponseEntity<Void> acceptConsent(StudyConsentDTO studyConsentDTO) {
-        RoutingInfo routingInfo = RoutingInfoUserDetails.getCurrent().getRoutingInfo();
+        RoutingInfo routingInfo = validateRoutingInfo()
+                .orElseThrow(NotAuthorizedException::new);
         if (applicationAccessService.hasConsent(routingInfo)) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
         }
@@ -121,8 +131,7 @@ public class ParticipantPortalAuthController implements AuthorizationApi {
 
     @Override
     public ResponseEntity<StudyDTO> retrieveConsentData() {
-        RoutingInfo routingInfo = studyService
-                .getCompleteRoutingInfo(RoutingInfoUserDetails.getCurrent().getRoutingInfo())
+        RoutingInfo routingInfo = validateRoutingInfo()
                 .orElseThrow(NotAuthorizedException::new);
         if (applicationAccessService.hasConsent(routingInfo)) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
@@ -135,10 +144,38 @@ public class ParticipantPortalAuthController implements AuthorizationApi {
                         ResponseEntity.status(HttpStatus.NOT_FOUND).build());
     }
 
+    @Override
+    public ResponseEntity<StudyDTO> getStudyConfiguration() {
+        RoutingInfo routingInfo = validateRoutingInfo()
+                .orElseThrow(NotAuthorizedException::new);
+
+        var studyData = studyService.getStudy(routingInfo);
+        return studyData
+                //only return data for active and paused studies
+                .filter(sd -> sd.getLeft().active() || "paused".equals(sd.getLeft().studyState()))
+                .map(studyListPair ->
+                        ResponseEntity.ok(ParticipantPortalTransformer.toDTO(studyListPair.getLeft(), studyListPair.getRight())))
+                .orElseGet(() ->
+                        ResponseEntity.status(HttpStatus.NOT_FOUND).build());
+    }
+
+
+    private Optional<RoutingInfo> validateRoutingInfo(){
+        return studyService.getCompleteRoutingInfo(RoutingInfoUserDetails.getCurrent().getRoutingInfo())
+                .filter(this::validateStudyState);
+    }
+
+    private boolean validateStudyState(RoutingInfo routingInfo) {
+        return studyService.getStudyState(routingInfo)
+                .filter(ALLOWED_STUDY_STATES::contains)
+                .isPresent();
+    }
+
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<Void> handleIllegalState(IllegalStateException ex) {
         LOG.error("Illegal state: {}", ex.getMessage());
         return ResponseEntity.internalServerError().build();
     }
+
 
 }

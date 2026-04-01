@@ -3,7 +3,7 @@ package io.redlink.more.data.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.redlink.more.data.api.participant.v1.model.StudyConsentDTO;
 import io.redlink.more.data.configuration.SecurityConfig;
-import io.redlink.more.data.controller.participantPortal.ParticipantPortalAuthController;
+import io.redlink.more.data.controller.participantPortal.ParticipantPortalController;
 import io.redlink.more.data.model.Contact;
 import io.redlink.more.data.model.RoutingInfo;
 import io.redlink.more.data.model.SimpleParticipant;
@@ -51,10 +51,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(ParticipantPortalAuthController.class)
+@WebMvcTest(ParticipantPortalController.class)
 @Import(SecurityConfig.class)
 @AutoConfigureMockMvc
-class ParticipantPortalAuthControllerTest {
+class ParticipantPortalControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -90,6 +90,7 @@ class ParticipantPortalAuthControllerTest {
 
         when(applicationAccessService.validateLogin(studyId, userDataRef, loginCode))
                 .thenReturn(Optional.of(routingInfo));
+        when(studyService.getStudyState(routingInfo)).thenReturn(Optional.of("active"));
 
         MvcResult result = mockMvc.perform(post("/participant-portal/api/v1/login/{studyId}/{userDataRef}", studyId, userDataRef)
                         .with(csrf())
@@ -175,6 +176,8 @@ class ParticipantPortalAuthControllerTest {
         consentDTO.setDeviceId("MODEL#SERIAL");
 
         when(applicationAccessService.hasConsent(routingInfo)).thenReturn(false);
+        when(studyService.getCompleteRoutingInfo(routingInfo)).thenReturn(Optional.of(routingInfo));
+        when(studyService.getStudyState(routingInfo)).thenReturn(Optional.of("active"));
 
         mockMvc.perform(post("/participant-portal/api/v1/consent")
                         .with(csrf())
@@ -192,6 +195,8 @@ class ParticipantPortalAuthControllerTest {
         RoutingInfoUserDetails userDetails = new RoutingInfoUserDetails(routingInfo, null);
 
         when(applicationAccessService.hasConsent(routingInfo)).thenReturn(true);
+        when(studyService.getCompleteRoutingInfo(routingInfo)).thenReturn(Optional.of(routingInfo));
+        when(studyService.getStudyState(routingInfo)).thenReturn(Optional.of("active"));
 
         mockMvc.perform(post("/participant-portal/api/v1/consent")
                         .with(csrf())
@@ -213,6 +218,7 @@ class ParticipantPortalAuthControllerTest {
 
         when(studyService.getCompleteRoutingInfo(routingInfo)).thenReturn(Optional.of(routingInfo));
         when(applicationAccessService.hasConsent(routingInfo)).thenReturn(false);
+        when(studyService.getStudyState(routingInfo)).thenReturn(Optional.of("active"));
         when(studyService.getStudy(routingInfo)).thenReturn(Optional.of(Pair.of(study, Collections.emptyList())));
 
         mockMvc.perform(get("/participant-portal/api/v1/consent")
@@ -238,6 +244,7 @@ class ParticipantPortalAuthControllerTest {
         RoutingInfoUserDetails userDetails = new RoutingInfoUserDetails(routingInfo, null);
 
         when(studyService.getCompleteRoutingInfo(routingInfo)).thenReturn(Optional.of(routingInfo));
+        when(studyService.getStudyState(routingInfo)).thenReturn(Optional.of("active"));
         when(applicationAccessService.hasConsent(routingInfo)).thenReturn(true);
 
         mockMvc.perform(get("/participant-portal/api/v1/consent")
@@ -252,6 +259,7 @@ class ParticipantPortalAuthControllerTest {
 
         when(studyService.getCompleteRoutingInfo(routingInfo)).thenReturn(Optional.of(routingInfo));
         when(applicationAccessService.hasConsent(routingInfo)).thenReturn(false);
+        when(studyService.getStudyState(routingInfo)).thenReturn(Optional.of("active"));
         when(studyService.getStudy(routingInfo)).thenReturn(Optional.empty());
 
         mockMvc.perform(get("/participant-portal/api/v1/consent")
@@ -270,4 +278,50 @@ class ParticipantPortalAuthControllerTest {
                         .content("{}"))
                 .andExpect(status().isUnauthorized());
     }
+
+    @Test
+    void testGetStudyConfigurationSuccess() throws Exception {
+        RoutingInfo routingInfo = new RoutingInfo(1L, 1, OptionalInt.empty(), Set.of(), true, true);
+        RoutingInfoUserDetails userDetails = new RoutingInfoUserDetails(routingInfo, null);
+        Study study = new Study(1L, "Title", true, "Info", "Finish", "active", "Consent",
+                new Contact("Inst", "Person", "email", "phone"),
+                LocalDate.now(), LocalDate.now(), LocalDate.now().plusDays(10),
+                Collections.emptyList(), Instant.now(), Instant.now(),
+                new SimpleParticipant(1, "alias", Instant.now(), Instant.now().plus(Duration.ofDays(10))));
+
+        when(studyService.getCompleteRoutingInfo(routingInfo)).thenReturn(Optional.of(routingInfo));
+        when(studyService.getStudyState(routingInfo)).thenReturn(Optional.of("active"));
+        when(studyService.getStudy(routingInfo)).thenReturn(Optional.of(Pair.of(study, Collections.emptyList())));
+
+        mockMvc.perform(get("/participant-portal/api/v1/config/study")
+                        .with(user(userDetails)))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void testGetStudyConfigurationUnauthorized() throws Exception {
+        RoutingInfo routingInfo = new RoutingInfo(1L, 1, OptionalInt.empty(), Set.of(), true, true);
+        RoutingInfoUserDetails userDetails = new RoutingInfoUserDetails(routingInfo, null);
+
+        when(studyService.getCompleteRoutingInfo(routingInfo)).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/participant-portal/api/v1/config/study")
+                        .with(user(userDetails)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void testGetStudyConfigurationNotFound() throws Exception {
+        RoutingInfo routingInfo = new RoutingInfo(1L, 1, OptionalInt.empty(), Set.of(), true, true);
+        RoutingInfoUserDetails userDetails = new RoutingInfoUserDetails(routingInfo, null);
+
+        when(studyService.getCompleteRoutingInfo(routingInfo)).thenReturn(Optional.of(routingInfo));
+        when(studyService.getStudyState(routingInfo)).thenReturn(Optional.of("active"));
+        when(studyService.getStudy(routingInfo)).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/participant-portal/api/v1/config/study")
+                        .with(user(userDetails)))
+                .andExpect(status().isNotFound());
+    }
+
 }

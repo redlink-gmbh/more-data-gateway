@@ -24,6 +24,10 @@ public class StudyService {
         return studyRepository.getRoutingInfo(routingInfo.studyId(), routingInfo.participantId());
     }
 
+    public Optional<String> getStudyState(RoutingInfo routingInfo) {
+        return studyRepository.getStudyState(routingInfo.studyId());
+    }
+
     public Optional<Pair<Study, List<ParticipantObservationSeed>>> getStudy(RoutingInfo routingInfo) {
         if (routingInfo == null) {
             return Optional.empty();
