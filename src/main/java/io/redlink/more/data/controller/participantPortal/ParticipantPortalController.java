@@ -11,7 +11,7 @@ import io.redlink.more.data.model.RoutingInfo;
 import io.redlink.more.data.service.ApplicationAccessService;
 import io.redlink.more.data.service.StudyService;
 import io.redlink.more.data.util.ParticipantUtils;
-import io.redlink.more.data.util.RoutingInfoUserDetails;
+import io.redlink.more.data.util.StudyParticipantUserDetails;
 import io.redlink.more.data.util.StringUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
@@ -72,10 +72,10 @@ public class ParticipantPortalController implements AuthorizationApi, Configurat
         }
 
         RoutingInfo routingInfo = applicationAccessService.validateLogin(moreStudyId, moreUserDataReference, decodedToken)
-                .filter(this::validateStudyState)
+                .filter(ri -> validateStudyState(ri.studyId()))
                 .orElseThrow(NotAuthorizedException::new);
-        RoutingInfoUserDetails userDetails = new RoutingInfoUserDetails(
-                routingInfo,
+        StudyParticipantUserDetails userDetails = new StudyParticipantUserDetails(
+                routingInfo.studyId(), routingInfo.participantId(),
                 null);
         Authentication auth = new UsernamePasswordAuthenticationToken(
                 userDetails,
@@ -161,12 +161,13 @@ public class ParticipantPortalController implements AuthorizationApi, Configurat
 
 
     private Optional<RoutingInfo> validateRoutingInfo(){
-        return studyService.getCompleteRoutingInfo(RoutingInfoUserDetails.getCurrent().getRoutingInfo())
-                .filter(this::validateStudyState);
+        var studyParticipant = StudyParticipantUserDetails.getCurrent().getStudyParticipantReference();
+        return studyService.getRoutingInfo(studyParticipant.studyId(), studyParticipant.participantId())
+                .filter(routingInfo -> validateStudyState(routingInfo.studyId()));
     }
 
-    private boolean validateStudyState(RoutingInfo routingInfo) {
-        return studyService.getStudyState(routingInfo)
+    private boolean validateStudyState(long studyId) {
+        return studyService.getStudyState(studyId)
                 .filter(ALLOWED_STUDY_STATES::contains)
                 .isPresent();
     }
