@@ -39,7 +39,7 @@ public class StudyServiceTest {
     }
 
     @Test
-    void testGetCompleteRoutingInfo() {
+    void testGetRoutingInfo() {
         long studyId = 1L;
         int participantId = 1;
         RoutingInfo routingInfo = new RoutingInfo(studyId, participantId, OptionalInt.empty(), Set.of(), true, true);
