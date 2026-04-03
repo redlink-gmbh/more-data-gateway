@@ -1,9 +1,8 @@
-package io.redlink.more.data.controller;
+package io.redlink.more.data.controller.participantportal;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.redlink.more.data.api.participant.v1.model.StudyConsentDTO;
 import io.redlink.more.data.configuration.SecurityConfig;
-import io.redlink.more.data.controller.participantPortal.ParticipantPortalController;
 import io.redlink.more.data.model.Contact;
 import io.redlink.more.data.model.RoutingInfo;
 import io.redlink.more.data.model.SimpleParticipant;

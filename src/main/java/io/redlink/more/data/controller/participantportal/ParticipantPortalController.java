@@ -1,4 +1,4 @@
-package io.redlink.more.data.controller.participantPortal;
+package io.redlink.more.data.controller.participantportal;
 
 import io.redlink.more.data.api.participant.v1.model.StudyConsentDTO;
 import io.redlink.more.data.api.participant.v1.model.StudyDTO;
