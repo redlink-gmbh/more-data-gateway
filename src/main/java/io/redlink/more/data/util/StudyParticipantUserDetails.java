@@ -1,26 +1,24 @@
 package io.redlink.more.data.util;
 
 import io.redlink.more.data.exception.NotAuthorizedException;
-import io.redlink.more.data.model.RoutingInfo;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Objects;
 
-public class RoutingInfoUserDetails implements UserDetails {
+public class StudyParticipantUserDetails implements UserDetails {
 
-    private final RoutingInfo routingInfo;                    // e.g., userDataReference
+    private final StudyParticipantReference reference;
     private final Collection<? extends GrantedAuthority> authorities;
 
     // You can add more fields as needed (email, language, etc.)
 
-    public RoutingInfoUserDetails(RoutingInfo routingInfo,
-                                  Collection<? extends GrantedAuthority> authorities) {
+    public StudyParticipantUserDetails(long studyId, int participantId,
+                                       Collection<? extends GrantedAuthority> authorities) {
 
-        this.routingInfo = Objects.requireNonNull(routingInfo, "routingInfo cannot be null");
+        this.reference = new StudyParticipantReference(studyId, participantId);
         this.authorities = authorities != null ? Collections.unmodifiableCollection(authorities) : Collections.emptyList();
     }
 
@@ -38,7 +36,7 @@ public class RoutingInfoUserDetails implements UserDetails {
 
     @Override
     public String getUsername() {
-        return String.format("study_%s-participant_%s", routingInfo.studyId(), routingInfo.participantId());
+        return String.format("study_%s-participant_%s", reference.studyId(), reference.participantId());
     }
 
     @Override
@@ -63,16 +61,22 @@ public class RoutingInfoUserDetails implements UserDetails {
 
     // ==================== Custom getters ====================
 
-    public RoutingInfo getRoutingInfo() {
-        return routingInfo;
+    public StudyParticipantReference getStudyParticipantReference() {
+        return reference;
     }
 
     // Optional: Helper method to get current user details easily
-    public static RoutingInfoUserDetails getCurrent() {
+    public static StudyParticipantUserDetails getCurrent() {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        if (principal instanceof RoutingInfoUserDetails details) {
+        if (principal instanceof StudyParticipantUserDetails details) {
             return details;
         }
         throw new NotAuthorizedException("This user is not authorized!");
     }
+
+    public record StudyParticipantReference(
+            long studyId,
+            int participantId
+    ){};
+
 }

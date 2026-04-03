@@ -39,28 +39,32 @@ public class StudyServiceTest {
     }
 
     @Test
-    void testGetCompleteRoutingInfo() {
-        RoutingInfo routingInfo = new RoutingInfo(1L, 1, OptionalInt.empty(), Set.of(), true, true);
-        when(studyRepository.getRoutingInfo(1L, 1)).thenReturn(Optional.of(routingInfo));
+    void testGetRoutingInfo() {
+        long studyId = 1L;
+        int participantId = 1;
+        RoutingInfo routingInfo = new RoutingInfo(studyId, participantId, OptionalInt.empty(), Set.of(), true, true);
+        when(studyRepository.getRoutingInfo(studyId, participantId)).thenReturn(Optional.of(routingInfo));
 
-        Optional<RoutingInfo> result = studyService.getCompleteRoutingInfo(routingInfo);
+        Optional<RoutingInfo> result = studyService.getRoutingInfo(studyId, participantId);
 
         assertTrue(result.isPresent());
         assertEquals(routingInfo, result.get());
-        verify(studyRepository).getRoutingInfo(1L, 1);
+        verify(studyRepository).getRoutingInfo(studyId, participantId);
     }
 
     @Test
     void testGetStudySuccess() {
-        RoutingInfo routingInfo = new RoutingInfo(1L, 1, OptionalInt.empty(), Set.of(), true, true);
-        Study study = new Study(1L, "Title", true, "Info", "Finish", "active", "Consent",
+        long studyId = 1L;
+        int participantId = 1;
+        RoutingInfo routingInfo = new RoutingInfo(studyId, participantId, OptionalInt.empty(), Set.of(), true, true);
+        Study study = new Study(studyId, "Title", true, "Info", "Finish", "active", "Consent",
                 new Contact("Inst", "Person", "email", "phone"),
                 LocalDate.now(), LocalDate.now(), LocalDate.now().plusDays(10),
                 Collections.emptyList(), Instant.now(), Instant.now(),
-                new SimpleParticipant(1, "alias", Instant.now(), Instant.now().plus(Duration.ofDays(10))));
+                new SimpleParticipant(participantId, "alias", Instant.now(), Instant.now().plus(Duration.ofDays(10))));
 
         when(studyRepository.findStudy(routingInfo)).thenReturn(Optional.of(study));
-        when(studyRepository.getAllParticpantObservationProperties(1L, 1)).thenReturn(Collections.emptyList());
+        when(studyRepository.getAllParticpantObservationProperties(studyId, participantId)).thenReturn(Collections.emptyList());
 
         Optional<Pair<Study, List<ParticipantObservationSeed>>> result = studyService.getStudy(routingInfo);
 
@@ -71,12 +75,14 @@ public class StudyServiceTest {
 
     @Test
     void testGetStudyInactive() {
-        RoutingInfo routingInfo = new RoutingInfo(1L, 1, OptionalInt.empty(), Set.of(), true, true);
-        Study study = new Study(1L, "Title", false, "Info", "Finish", "active", "Consent",
+        long studyId = 1L;
+        int participantId = 1;
+        RoutingInfo routingInfo = new RoutingInfo(studyId, participantId, OptionalInt.empty(), Set.of(), true, true);
+        Study study = new Study(studyId, "Title", false, "Info", "Finish", "active", "Consent",
                 new Contact("Inst", "Person", "email", "phone"),
                 LocalDate.now(), LocalDate.now(), LocalDate.now().plusDays(10),
                 Collections.emptyList(), Instant.now(), Instant.now(),
-                new SimpleParticipant(1, "alias", Instant.now(), Instant.now().plus(Duration.ofDays(10))));
+                new SimpleParticipant(participantId, "alias", Instant.now(), Instant.now().plus(Duration.ofDays(10))));
 
         when(studyRepository.findStudy(routingInfo)).thenReturn(Optional.of(study));
 
@@ -95,7 +101,9 @@ public class StudyServiceTest {
 
     @Test
     void testGetStudyNotFound() {
-        RoutingInfo routingInfo = new RoutingInfo(1L, 1, OptionalInt.empty(), Set.of(), true, true);
+        long studyId = 1L;
+        int participantId = 1;
+        RoutingInfo routingInfo = new RoutingInfo(studyId, participantId, OptionalInt.empty(), Set.of(), true, true);
         when(studyRepository.findStudy(routingInfo)).thenReturn(Optional.empty());
 
         Optional<Pair<Study, List<ParticipantObservationSeed>>> result = studyService.getStudy(routingInfo);
@@ -105,21 +113,25 @@ public class StudyServiceTest {
 
     @Test
     void testGetParticipantObservationSeedsEmpty() {
-        when(studyRepository.getAllParticpantObservationProperties(1L, 1)).thenReturn(Collections.emptyList());
+        long studyId = 1L;
+        int participantId = 1;
+        when(studyRepository.getAllParticpantObservationProperties(studyId, participantId)).thenReturn(Collections.emptyList());
 
-        List<ParticipantObservationSeed> result = studyService.getParticipantObservationSeeds(1L, 1);
+        List<ParticipantObservationSeed> result = studyService.getParticipantObservationSeeds(studyId, participantId);
 
         assertTrue(result.isEmpty());
     }
 
     @Test
     void testGetParticipantObservationSeedsSuccess() {
+        long studyId = 1L;
+        int participantId = 1;
         io.redlink.more.data.model.ParticipantWithObservationProperties props = new io.redlink.more.data.model.ParticipantWithObservationProperties(
-                1, 1L, 100, java.util.Map.of("observation_schedule_seed", 12345L)
+                participantId, studyId, 100, java.util.Map.of("observation_schedule_seed", 12345L)
         );
-        when(studyRepository.getAllParticpantObservationProperties(1L, 1)).thenReturn(List.of(props));
+        when(studyRepository.getAllParticpantObservationProperties(studyId, participantId)).thenReturn(List.of(props));
 
-        List<ParticipantObservationSeed> result = studyService.getParticipantObservationSeeds(1L, 1);
+        List<ParticipantObservationSeed> result = studyService.getParticipantObservationSeeds(studyId, participantId);
 
         assertEquals(1, result.size());
         assertEquals(100, result.get(0).observationId());
@@ -128,12 +140,14 @@ public class StudyServiceTest {
 
     @Test
     void testGetParticipantObservationSeedsFilterNoSeed() {
+        long studyId = 1L;
+        int participantId = 1;
         io.redlink.more.data.model.ParticipantWithObservationProperties props = new io.redlink.more.data.model.ParticipantWithObservationProperties(
-                1, 1L, 100, java.util.Map.of()
+                participantId, studyId, 100, java.util.Map.of()
         );
-        when(studyRepository.getAllParticpantObservationProperties(1L, 1)).thenReturn(List.of(props));
+        when(studyRepository.getAllParticpantObservationProperties(studyId, participantId)).thenReturn(List.of(props));
 
-        List<ParticipantObservationSeed> result = studyService.getParticipantObservationSeeds(1L, 1);
+        List<ParticipantObservationSeed> result = studyService.getParticipantObservationSeeds(studyId, participantId);
 
         assertTrue(result.isEmpty());
     }

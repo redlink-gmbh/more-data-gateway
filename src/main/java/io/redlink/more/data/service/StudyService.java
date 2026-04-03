@@ -20,12 +20,18 @@ public class StudyService {
         this.studyRepository = studyRepository;
     }
 
-    public Optional<RoutingInfo> getCompleteRoutingInfo(RoutingInfo routingInfo) {
-        return studyRepository.getRoutingInfo(routingInfo.studyId(), routingInfo.participantId());
+    /**
+     * Provides the full {@link RoutingInfo} for the parsed study participant reference
+     * @param studyId the study id of the participant
+     * @param participantId the id of the participant within the study
+     * @return the {@link RoutingInfo} if the referenced study participant existed
+     */
+    public Optional<RoutingInfo> getRoutingInfo(long studyId, int participantId) {
+        return studyRepository.getRoutingInfo(studyId, participantId);
     }
 
-    public Optional<String> getStudyState(RoutingInfo routingInfo) {
-        return studyRepository.getStudyState(routingInfo.studyId());
+    public Optional<String> getStudyState(long studyId) {
+        return studyRepository.getStudyState(studyId);
     }
 
     public Optional<Pair<Study, List<ParticipantObservationSeed>>> getStudy(RoutingInfo routingInfo) {
