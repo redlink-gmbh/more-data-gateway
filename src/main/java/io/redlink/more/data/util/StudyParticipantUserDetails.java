@@ -5,6 +5,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.io.Serializable;
 import java.util.Collection;
 import java.util.Collections;
 
@@ -77,6 +78,9 @@ public class StudyParticipantUserDetails implements UserDetails {
     public record StudyParticipantReference(
             long studyId,
             int participantId
-    ){};
+    ) implements Serializable {
+    }
+
+    ;
 
 }
