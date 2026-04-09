@@ -6,6 +6,9 @@ on:
         description: If set, docker img is built and tagged accordingly
         required: false
   push:
+    branches: [ "main", "develop" ]
+    tags: [ "v*.*.*" ]
+  pull_request:
 
 jobs:
   Compile-and-Test:
@@ -41,7 +44,10 @@ jobs:
   Build-and-Deploy:
     name: "Build and Push Docker Image"
     runs-on: ubuntu-latest
-    if: contains(fromJSON('["main", "develop", "redlink", "staging"]'), github.ref_name) || github.event.inputs.dockerTag != ''
+    if: |
+      contains(fromJSON('["main", "develop"]'), github.ref_name) || 
+      github.event.inputs.dockerTag != '' ||
+      startsWith(github.ref, 'refs/tags/v')
     needs:
       - Compile-and-Test
     steps:
@@ -57,6 +63,10 @@ jobs:
           if [ "$BRANCH" == "$MAIN_BRANCH" ]; then
             TAGS="latest,$TAGS"
           fi
+          if [[ $GITHUB_REF == refs/tags/v* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/v}
+            TAGS="$VERSION,v$VERSION"
+          fi
           if [ -n "$EVENT_PARAM" ]; then
             TAGS="$EVENT_PARAM"
           fi
@@ -69,16 +79,16 @@ jobs:
       - name: Build JIB container and publish to GitHub Packages
         run:
           ./mvnw -B -U
-            --no-transfer-progress
-            clean verify jib:build
-            -Drevision=${{github.run_number}}
-            -Dchangelist=
-            -Dsha1=.${GITHUB_SHA:0:7}
-            -Dquick
-            -Ddocker.namespace=${DOCKER_NAMESPACE,,}
-            -Djib.to.tags=${TAGS}
-            -Djib.to.auth.username=${{ github.actor }}
-            -Djib.to.auth.password=${{ secrets.GITHUB_TOKEN }}
+          --no-transfer-progress
+          clean verify jib:build
+          -Drevision=${{github.run_number}}
+          -Dchangelist=
+          -Dsha1=.${GITHUB_SHA:0:7}
+          -Dquick
+          -Ddocker.namespace=${DOCKER_NAMESPACE,,}
+          -Djib.to.tags=${TAGS}
+          -Djib.to.auth.username=${{ github.actor }}
+          -Djib.to.auth.password=${{ secrets.GITHUB_TOKEN }}
         env:
           DOCKER_NAMESPACE: ghcr.io/${{ github.repository_owner }}
 
