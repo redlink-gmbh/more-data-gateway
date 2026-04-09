@@ -6,7 +6,7 @@ on:
         description: If set, docker img is built and tagged accordingly
         required: false
   push:
-    branches: [ "main", "develop", "redlink", "staging" ]
+    branches: [ "main", "develop" ]
     tags: [ "v*.*.*" ]
   pull_request:
 
@@ -45,7 +45,7 @@ jobs:
     name: "Build and Push Docker Image"
     runs-on: ubuntu-latest
     if: |
-      contains(fromJSON('["main", "develop", "redlink", "staging"]'), github.ref_name) || 
+      contains(fromJSON('["main", "develop"]'), github.ref_name) || 
       github.event.inputs.dockerTag != '' ||
       startsWith(github.ref, 'refs/tags/v')
     needs:

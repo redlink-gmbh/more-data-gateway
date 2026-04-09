@@ -41,7 +41,7 @@ Example: `v1.0.1`
 
 ### Automated Deployment
 
-- **Branch Pushes**: Pushes to `main`, `develop`, `redlink`, and `staging` branches automatically trigger a Docker image
+- **Branch Pushes**: Pushes to `main`, `develop` branches automatically trigger a Docker image
   build and push to the GitHub Container Registry (GHCR), tagged with the branch name.
 - **Pull Requests**: The "Test and Compile" workflow runs on all pull requests to ensure code quality.
 - **Tag Pushes**: Pushing a tag matching the `v*.*.*` pattern triggers a build and push to GHCR. The image will be
