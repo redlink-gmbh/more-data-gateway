@@ -14,6 +14,7 @@ import java.sql.*;
 import java.sql.Date;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
@@ -21,6 +22,7 @@ import java.util.stream.Stream;
 public final class DbUtils {
 
     private static final ObjectMapper MAPPER = new ObjectMapper().registerModule(new JavaTimeModule());
+    public static final Calendar tzUTC = Calendar.getInstance(TimeZone.getTimeZone(ZoneOffset.UTC));
 
     private DbUtils() {}
 
