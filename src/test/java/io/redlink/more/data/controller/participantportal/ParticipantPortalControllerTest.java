@@ -329,7 +329,8 @@ class ParticipantPortalControllerTest {
 
         Instant absStart = now.minus(1, ChronoUnit.HOURS);
         Instant absEnd = now.plus(3, ChronoUnit.HOURS);
-        ZoneId zone = ZoneId.of("Europe/Vienna");
+
+        ZoneId zone = ZoneId.systemDefault();
 
         RoutingInfo routingInfo = new RoutingInfo(studyId, participantId, OptionalInt.empty(), Set.of(), true, true);
         StudyParticipantUserDetails userDetails = new StudyParticipantUserDetails(studyId, participantId, null);
