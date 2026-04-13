@@ -4,10 +4,20 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.redlink.more.data.api.participant.v1.model.StudyConsentDTO;
 import io.redlink.more.data.configuration.SecurityConfig;
 import io.redlink.more.data.model.Contact;
+import io.redlink.more.data.model.DataHealth;
+import io.redlink.more.data.model.Observation;
+import io.redlink.more.data.model.ObservationDataState;
 import io.redlink.more.data.model.RoutingInfo;
 import io.redlink.more.data.model.SimpleParticipant;
 import io.redlink.more.data.model.Study;
+import io.redlink.more.data.model.scheduler.Duration;
+import io.redlink.more.data.model.scheduler.Event;
+import io.redlink.more.data.model.scheduler.RelativeDate;
+import io.redlink.more.data.model.scheduler.RelativeEvent;
+import io.redlink.more.data.model.scheduler.RelativeRecurrenceRule;
+import io.redlink.more.data.model.scheduler.ScheduleEvent;
 import io.redlink.more.data.service.ApplicationAccessService;
+import io.redlink.more.data.service.DataHealthService;
 import io.redlink.more.data.service.GatewayUserDetailService;
 import io.redlink.more.data.service.LoginTokenService;
 import io.redlink.more.data.service.RegistrationService;
@@ -27,13 +37,19 @@ import org.springframework.security.web.context.HttpSessionSecurityContextReposi
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.result.MockMvcResultHandlers;
 
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalUnit;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
@@ -41,6 +57,7 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -48,6 +65,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(ParticipantPortalController.class)
@@ -78,6 +96,9 @@ class ParticipantPortalControllerTest {
 
     @MockitoBean
     private PasswordEncoder passwordEncoder;
+
+    @MockitoBean
+    private DataHealthService dataHealthService;
 
     @Test
     void testParticipantLoginSetsSession() throws Exception {
@@ -223,7 +244,7 @@ class ParticipantPortalControllerTest {
                 new Contact("Inst", "Person", "email", "phone"),
                 LocalDate.now(), LocalDate.now(), LocalDate.now().plusDays(10),
                 Collections.emptyList(), Instant.now(), Instant.now(),
-                new SimpleParticipant(participantId, "alias", Instant.now(), Instant.now().plus(Duration.ofDays(10))));
+                new SimpleParticipant(participantId, "alias", Instant.now(), Instant.now().plus(10, ChronoUnit.DAYS)));
 
         when(studyService.getRoutingInfo(studyId, participantId)).thenReturn(Optional.of(routingInfo));
         when(applicationAccessService.hasConsent(routingInfo)).thenReturn(false);
@@ -296,23 +317,143 @@ class ParticipantPortalControllerTest {
 
     @Test
     void testGetStudyConfigurationSuccess() throws Exception {
+        Instant now = Instant.now().truncatedTo(ChronoUnit.HOURS);
         long studyId = 12L;
+        var studyStart = LocalDate.now().minusDays(1);
+        var studyEnd = LocalDate.now().plusDays(14);
+
+
         int participantId = 9;
+        Instant participantStart = now.minus(26, ChronoUnit.HOURS);
+        Instant participantEnd = now.plus(10, ChronoUnit.DAYS);
+
+        Instant absStart = now.minus(1, ChronoUnit.HOURS);
+        Instant absEnd = now.plus(3, ChronoUnit.HOURS);
+        ZoneId zone = ZoneId.of("Europe/Vienna");
+
         RoutingInfo routingInfo = new RoutingInfo(studyId, participantId, OptionalInt.empty(), Set.of(), true, true);
         StudyParticipantUserDetails userDetails = new StudyParticipantUserDetails(studyId, participantId, null);
+        var observation1 = new Observation(1, null, "observation 1", "type", "participant info",
+                null,
+                new Event().setDateStart(absStart).setDateEnd(absEnd),
+                null, null, //created, modified
+                false, false, false, Set.of());
+        var observation2 = new Observation(2, null, "observation 2", "type", "participant info",
+                null,
+                new RelativeEvent()
+                        .setDtstart(new RelativeDate()
+                                .setTime(LocalTime.from(absStart.atZone(zone)))
+                                .setOffset(new Duration().setValue(1).setUnit(Duration.Unit.DAY)))
+                        .setDtend(new RelativeDate()
+                                .setTime(LocalTime.from(absEnd.atZone(zone)))
+                                .setOffset(new Duration().setValue(1).setUnit(Duration.Unit.DAY)))
+                        .setRrrule(new RelativeRecurrenceRule()
+                                .setFrequency(new Duration().setValue(1).setUnit(Duration.Unit.DAY))
+                                .setEndAfter(new Duration().setValue(8).setUnit(Duration.Unit.DAY))),
+                now.minus(1,ChronoUnit.DAYS),
+                now.minus(1,ChronoUnit.DAYS),
+                false, false, false, Set.of());
         Study study = new Study(studyId, "Title", true, "Info", "Finish", "active", "Consent",
                 new Contact("Inst", "Person", "email", "phone"),
-                LocalDate.now(), LocalDate.now(), LocalDate.now().plusDays(10),
-                Collections.emptyList(), Instant.now(), Instant.now(),
-                new SimpleParticipant(participantId, "alias", Instant.now(), Instant.now().plus(Duration.ofDays(10))));
+                studyStart, studyStart, studyEnd,
+                List.of(observation1, observation2), Instant.now(), Instant.now(),
+                new SimpleParticipant(participantId, "alias", participantStart, participantEnd));
 
         when(studyService.getRoutingInfo(studyId, participantId)).thenReturn(Optional.of(routingInfo));
         when(studyService.getStudyState(studyId)).thenReturn(Optional.of("active"));
         when(studyService.getStudy(routingInfo)).thenReturn(Optional.of(Pair.of(study, Collections.emptyList())));
+        when(dataHealthService.checkDataHealth(studyId, participantId, observation1.observationId(), absStart)).thenReturn(
+                new DataHealth(true, ObservationDataState.COMPLETE)
+        );
+        when(dataHealthService.checkDataHealth(studyId, participantId, observation2.observationId(), absStart)).thenReturn(
+                new DataHealth(false, ObservationDataState.COMPLETE)
+        );
+        //when(dataHealthService.checkDataHealth(eq(studyId), eq(participantId), anyInt(), any())).thenReturn(
+        //        new DataHealth(true, ObservationDataState.MISSING)
+        //);
 
         mockMvc.perform(get("/participant-portal/api/v1/config/study")
                         .with(user(userDetails)))
-                .andExpect(status().isOk());
+                .andDo(MockMvcResultHandlers.print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.active").value(true))
+                .andExpect(jsonPath("$.studyState").value("active"))
+
+                .andExpect(jsonPath("$.participant.id").value(9))
+                .andExpect(jsonPath("$.participant.alias").value("alias"))
+
+                .andExpect(jsonPath("$.studyTitle").value("Title"))
+                .andExpect(jsonPath("$.participantInfo").value("Info"))
+                .andExpect(jsonPath("$.consentInfo").value("Consent"))
+                .andExpect(jsonPath("$.finishText").value("Finish"))
+
+                .andExpect(jsonPath("$.contact.institute").value("Inst"))
+                .andExpect(jsonPath("$.contact.person").value("Person"))
+                .andExpect(jsonPath("$.contact.email").value("email"))
+                .andExpect(jsonPath("$.contact.phoneNumber").value("phone"))
+
+                // Study dates - using variables from the test
+                .andExpect(jsonPath("$.start").value(studyStart.toString()))
+                .andExpect(jsonPath("$.end").value(studyEnd.toString()))
+
+                // === Observation 1 ===
+                .andExpect(jsonPath("$.observations[0].observationId").value("1"))
+                .andExpect(jsonPath("$.observations[0].observationType").value("type"))
+                .andExpect(jsonPath("$.observations[0].observationTitle").value("observation 1"))
+                .andExpect(jsonPath("$.observations[0].participantInfo").value("participant info"))
+                .andExpect(jsonPath("$.observations[0].required").value(true))
+                .andExpect(jsonPath("$.observations[0].hidden").value(false))
+                .andExpect(jsonPath("$.observations[0].noSchedule").value(false))
+                .andExpect(jsonPath("$.observations[0].reminder").value(false))
+                .andExpect(jsonPath("$.observations[0].version").isEmpty())           // null in JSON
+                .andExpect(jsonPath("$.observations[0].configuration").isEmpty())
+
+                // Schedule for observation 1 (single absolute event)
+                .andExpect(jsonPath("$.observations[0].schedule[0].start").value(absStart.toString()))
+                .andExpect(jsonPath("$.observations[0].schedule[0].end").value(absEnd.toString()))
+                .andExpect(jsonPath("$.observations[0].schedule[0].dataHealth").value("completed"))
+
+                // === Observation 2 ===
+                .andExpect(jsonPath("$.observations[1].observationId").value("2"))
+                .andExpect(jsonPath("$.observations[1].observationType").value("type"))
+                .andExpect(jsonPath("$.observations[1].observationTitle").value("observation 2"))
+                .andExpect(jsonPath("$.observations[1].participantInfo").value("participant info"))
+                .andExpect(jsonPath("$.observations[1].required").value(true))
+                .andExpect(jsonPath("$.observations[1].hidden").value(false))
+                .andExpect(jsonPath("$.observations[1].noSchedule").value(false))
+                .andExpect(jsonPath("$.observations[1].reminder").value(false))
+                .andExpect(jsonPath("$.observations[1].configuration").isEmpty())
+
+                // Schedule entries for observation 2
+                .andExpect(jsonPath("$.observations[1].schedule.length()").value(8))
+
+                // First schedule entry (should be completed according to the mocked dataHealth)
+                .andExpect(jsonPath("$.observations[1].schedule[0].start").value(absStart.minus(1, ChronoUnit.DAYS).toString()))
+                .andExpect(jsonPath("$.observations[1].schedule[0].end").value(absEnd.minus(1, ChronoUnit.DAYS).toString()))
+                .andExpect(jsonPath("$.observations[1].schedule[0].dataHealth").isEmpty())  // from your mock
+
+                // The rest of the recurring entries (dataHealth is null or "invalid" as in the example JSON)
+                .andExpect(jsonPath("$.observations[1].schedule[1].start").value(absStart.toString()))
+                .andExpect(jsonPath("$.observations[1].schedule[1].end").value(absEnd.toString()))
+                .andExpect(jsonPath("$.observations[1].schedule[1].dataHealth").value("invalid"))
+                .andExpect(jsonPath("$.observations[1].schedule[2].start").value(absStart.plus(1, ChronoUnit.DAYS).toString()))
+                .andExpect(jsonPath("$.observations[1].schedule[2].end").value(absEnd.plus(1, ChronoUnit.DAYS).toString()))
+                .andExpect(jsonPath("$.observations[1].schedule[2].dataHealth").isEmpty())
+                .andExpect(jsonPath("$.observations[1].schedule[3].start").value(absStart.plus(2, ChronoUnit.DAYS).toString()))
+                .andExpect(jsonPath("$.observations[1].schedule[3].end").value(absEnd.plus(2, ChronoUnit.DAYS).toString()))
+                .andExpect(jsonPath("$.observations[1].schedule[3].dataHealth").isEmpty())
+                .andExpect(jsonPath("$.observations[1].schedule[4].start").value(absStart.plus(3, ChronoUnit.DAYS).toString()))
+                .andExpect(jsonPath("$.observations[1].schedule[4].end").value(absEnd.plus(3, ChronoUnit.DAYS).toString()))
+                .andExpect(jsonPath("$.observations[1].schedule[4].dataHealth").isEmpty())
+                .andExpect(jsonPath("$.observations[1].schedule[5].start").value(absStart.plus(4, ChronoUnit.DAYS).toString()))
+                .andExpect(jsonPath("$.observations[1].schedule[5].end").value(absEnd.plus(4, ChronoUnit.DAYS).toString()))
+                .andExpect(jsonPath("$.observations[1].schedule[5].dataHealth").isEmpty())
+                .andExpect(jsonPath("$.observations[1].schedule[6].start").value(absStart.plus(5, ChronoUnit.DAYS).toString()))
+                .andExpect(jsonPath("$.observations[1].schedule[6].end").value(absEnd.plus(5, ChronoUnit.DAYS).toString()))
+                .andExpect(jsonPath("$.observations[1].schedule[6].dataHealth").isEmpty())
+                .andExpect(jsonPath("$.observations[1].schedule[7].start").value(absStart.plus(6, ChronoUnit.DAYS).toString()))
+                .andExpect(jsonPath("$.observations[1].schedule[7].end").value(absEnd.plus(6, ChronoUnit.DAYS).toString()))
+                .andExpect(jsonPath("$.observations[1].schedule[7].dataHealth").isEmpty());
     }
 
     @Test
