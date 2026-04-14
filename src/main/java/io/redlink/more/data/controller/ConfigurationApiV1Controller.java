@@ -12,10 +12,12 @@ import io.redlink.more.data.configuration.AuthenticationFacade;
 import io.redlink.more.data.controller.transformer.NotificationServiceTransformer;
 import io.redlink.more.data.controller.transformer.StudyTransformer;
 import io.redlink.more.data.model.GatewayUserDetails;
+import io.redlink.more.data.model.NonMissingData;
 import io.redlink.more.data.service.GatewayUserDetailService;
 import io.redlink.more.data.service.PushNotificationService;
 import io.redlink.more.data.service.StudyService;
 import io.redlink.more.data.util.LoggingUtils;
+import io.redlink.more.data.util.SessionUtils;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -47,10 +49,10 @@ public class ConfigurationApiV1Controller implements ConfigurationApi {
                 .assertAuthority(GatewayUserDetailService.APP_ROLE);
         try (LoggingUtils.LoggingContext ctx = LoggingUtils.createContext(userDetails.getRoutingInfo())) {
             var studyData = studyService.getStudy(userDetails.getRoutingInfo());
-            if (studyData.isEmpty()) {
-                return ResponseEntity.notFound().build();
-            }
-            return ResponseEntity.of(studyData.map(s -> StudyTransformer.toDTO(s.getLeft(), s.getRight())));
+            List<NonMissingData> nonMissingData = SessionUtils.getNonMissingData();
+            return studyData.map(s -> StudyTransformer.toDTO(s.getLeft(), s.getRight(), nonMissingData))
+                    .map(ResponseEntity::ok)
+                    .orElseGet(() -> ResponseEntity.notFound().build());
         }
     }
 

@@ -6,12 +6,14 @@ import io.redlink.more.data.api.participant.v1.webservices.AuthorizationApi;
 import io.redlink.more.data.api.participant.v1.webservices.ConfigurationApi;
 import io.redlink.more.data.controller.transformer.ParticipantPortalTransformer;
 import io.redlink.more.data.exception.NotAuthorizedException;
+import io.redlink.more.data.model.NonMissingData;
 import io.redlink.more.data.model.ParticipantConsent;
 import io.redlink.more.data.model.RoutingInfo;
+import io.redlink.more.data.model.StudyParticipantUserDetails;
 import io.redlink.more.data.service.ApplicationAccessService;
 import io.redlink.more.data.service.StudyService;
 import io.redlink.more.data.util.ParticipantUtils;
-import io.redlink.more.data.util.StudyParticipantUserDetails;
+import io.redlink.more.data.util.SessionUtils;
 import io.redlink.more.data.util.StringUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
@@ -26,7 +28,6 @@ import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.context.request.RequestAttributes;
@@ -34,6 +35,8 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -139,7 +142,7 @@ public class ParticipantPortalController implements AuthorizationApi, Configurat
         var studyData = studyService.getStudy(routingInfo);
         return studyData
                 .map(studyListPair ->
-                        ResponseEntity.ok(ParticipantPortalTransformer.toDTO(studyListPair.getLeft(), studyListPair.getRight())))
+                        ResponseEntity.ok(ParticipantPortalTransformer.toDTO(studyListPair.getLeft(), studyListPair.getRight(), Collections.emptyList())))
                 .orElseGet(() ->
                         ResponseEntity.status(HttpStatus.NOT_FOUND).build());
     }
@@ -150,17 +153,21 @@ public class ParticipantPortalController implements AuthorizationApi, Configurat
                 .orElseThrow(NotAuthorizedException::new);
 
         var studyData = studyService.getStudy(routingInfo);
+        List<NonMissingData> nonMissingData = SessionUtils.getNonMissingData();
         return studyData
                 //only return data for active and paused studies
                 .filter(sd -> sd.getLeft().active() || "paused".equals(sd.getLeft().studyState()))
                 .map(studyListPair ->
-                        ResponseEntity.ok(ParticipantPortalTransformer.toDTO(studyListPair.getLeft(), studyListPair.getRight())))
+                        ResponseEntity.ok(
+                                ParticipantPortalTransformer.toDTO(studyListPair.getLeft(), studyListPair.getRight(), nonMissingData)
+                        )
+                )
                 .orElseGet(() ->
                         ResponseEntity.status(HttpStatus.NOT_FOUND).build());
     }
 
 
-    private Optional<RoutingInfo> validateRoutingInfo(){
+    private Optional<RoutingInfo> validateRoutingInfo() {
         var studyParticipant = StudyParticipantUserDetails.getCurrent().getStudyParticipantReference();
         return studyService.getRoutingInfo(studyParticipant.studyId(), studyParticipant.participantId())
                 .filter(routingInfo -> validateStudyState(routingInfo.studyId()));
@@ -171,12 +178,4 @@ public class ParticipantPortalController implements AuthorizationApi, Configurat
                 .filter(ALLOWED_STUDY_STATES::contains)
                 .isPresent();
     }
-
-    @ExceptionHandler(IllegalStateException.class)
-    public ResponseEntity<Void> handleIllegalState(IllegalStateException ex) {
-        LOG.error("Illegal state: {}", ex.getMessage());
-        return ResponseEntity.internalServerError().build();
-    }
-
-
 }

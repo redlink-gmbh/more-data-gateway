@@ -29,8 +29,12 @@ import org.springframework.security.web.firewall.RequestRejectedHandler;
 import org.springframework.security.web.util.matcher.AndRequestMatcher;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.security.web.util.matcher.IpAddressMatcher;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Configuration
@@ -48,6 +52,7 @@ public class SecurityConfig {
                                            AuthenticationProvider authenticationProvider) throws Exception {
 
         http.csrf(AbstractHttpConfigurer::disable)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authenticationProvider(authenticationProvider)
                 .authorizeHttpRequests(req -> {
                     // root for smoke-tests is allowed
@@ -59,6 +64,8 @@ public class SecurityConfig {
                     req.requestMatchers("/api/v1/signup")
                             .permitAll();
                     req.requestMatchers("/api/v1/login/**")
+                            .permitAll();
+                    req.requestMatchers("/api/v1/execution/callback", "/api/v1/execution/callback/end.htm")
                             .permitAll();
                     req.requestMatchers("/participant-portal/api/v1/login/**")
                             .permitAll();
@@ -119,6 +126,18 @@ public class SecurityConfig {
         encoders.put("scrypt", SCryptPasswordEncoder.defaultsForSpringSecurity_v5_8());
         encoders.put("argon2", Argon2PasswordEncoder.defaultsForSpringSecurity_v5_8());
         return new DelegatingPasswordEncoder(encodingId, encoders);
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOriginPatterns(List.of("*"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "HEAD"));
+        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setAllowCredentials(true);
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
     }
 
     @Bean

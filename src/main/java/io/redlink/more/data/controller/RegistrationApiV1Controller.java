@@ -5,16 +5,15 @@ package io.redlink.more.data.controller;
 
 import io.redlink.more.data.api.app.v1.model.ApiKeyDTO;
 import io.redlink.more.data.api.app.v1.model.AppConfigurationDTO;
-import io.redlink.more.data.api.app.v1.model.ErrorDTO;
 import io.redlink.more.data.api.app.v1.model.StudyConsentDTO;
 import io.redlink.more.data.api.app.v1.model.StudyDTO;
 import io.redlink.more.data.api.app.v1.webservices.RegistrationApi;
 import io.redlink.more.data.configuration.AuthenticationFacade;
-import io.redlink.more.data.controller.transformer.ErrorTransformer;
 import io.redlink.more.data.controller.transformer.StudyTransformer;
 import io.redlink.more.data.exception.RegistrationNotPossibleException;
 import io.redlink.more.data.model.ApiCredentials;
 import io.redlink.more.data.model.GatewayUserDetails;
+import io.redlink.more.data.model.NonMissingData;
 import io.redlink.more.data.model.ParticipantConsent;
 import io.redlink.more.data.model.ParticipantObservationSeed;
 import io.redlink.more.data.properties.MoreProperties;
@@ -22,12 +21,11 @@ import io.redlink.more.data.service.GatewayUserDetailService;
 import io.redlink.more.data.service.RegistrationService;
 import io.redlink.more.data.service.StudyService;
 import io.redlink.more.data.util.ParticipantUtils;
+import io.redlink.more.data.util.SessionUtils;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -65,7 +63,9 @@ public class RegistrationApiV1Controller implements RegistrationApi {
             return ResponseEntity.notFound().build();
         }
         List<ParticipantObservationSeed> seeds = study.get().active() ? studyService.getParticipantObservationSeeds(study.get().studyId(), study.get().participant().id()) : Collections.emptyList();
-        var studyDto = StudyTransformer.toDTO(study.get(), seeds);
+        List<NonMissingData> nonMissingData = SessionUtils.getNonMissingData();
+
+        var studyDto = StudyTransformer.toDTO(study.get(), seeds, nonMissingData);
         return ResponseEntity.ok()
                 // For better debugging: return the token for chaining
                 .header("More-Registration-Token", moreRegistrationToken)
@@ -89,20 +89,6 @@ public class RegistrationApiV1Controller implements RegistrationApi {
         }
 
         throw RegistrationNotPossibleException.noConsentGiven();
-    }
-
-    @ExceptionHandler(RegistrationNotPossibleException.class)
-    public ResponseEntity<ErrorDTO> handleRegistrationError(RegistrationNotPossibleException rnpe) {
-        return ResponseEntity.status(HttpStatus.CONFLICT)
-                .header("X-Info", "[%S] %s".formatted(rnpe.getErrorCode(), rnpe.getMessage()))
-                .body(ErrorTransformer.toDTO(rnpe));
-    }
-
-    @ExceptionHandler(RuntimeException.class)
-    public ResponseEntity<ErrorDTO> handleError(RuntimeException ex) {
-        return ResponseEntity.internalServerError()
-                .header("X-Info", ex.getMessage())
-                .body(ErrorTransformer.toDTO(ex));
     }
 
     @Override
