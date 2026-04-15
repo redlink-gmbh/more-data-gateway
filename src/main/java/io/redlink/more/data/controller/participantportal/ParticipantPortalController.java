@@ -4,7 +4,6 @@ import io.redlink.more.data.api.participant.v1.model.StudyConsentDTO;
 import io.redlink.more.data.api.participant.v1.model.StudyDTO;
 import io.redlink.more.data.api.participant.v1.webservices.AuthorizationApi;
 import io.redlink.more.data.api.participant.v1.webservices.ConfigurationApi;
-import io.redlink.more.data.configuration.SchedulerProperties;
 import io.redlink.more.data.controller.transformer.ParticipantPortalTransformer;
 import io.redlink.more.data.exception.NotAuthorizedException;
 import io.redlink.more.data.model.DataHealth;
@@ -60,7 +59,7 @@ public class ParticipantPortalController implements AuthorizationApi, Configurat
     ParticipantPortalController(
             ApplicationAccessService applicationAccessService,
             StudyService studyService,
-            DataHealthService dataHealthService, SchedulerProperties schedulerProperties) {
+            DataHealthService dataHealthService) {
         this.applicationAccessService = applicationAccessService;
         this.studyService = studyService;
         this.dataHealthService = dataHealthService;
