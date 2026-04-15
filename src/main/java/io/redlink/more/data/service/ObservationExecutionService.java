@@ -1,6 +1,5 @@
 package io.redlink.more.data.service;
 
-import io.redlink.more.data.api.app.v1.model.StudyDTO;
 import io.redlink.more.data.exception.ForbiddenException;
 import io.redlink.more.data.exception.NotFoundException;
 import io.redlink.more.data.model.Observation;
@@ -34,7 +33,7 @@ public class ObservationExecutionService {
 
     public String executeObservation(String observationId, Instant scheduleStart, Instant scheduleEnd, RoutingInfo routingInfo) {
         if (observationId.isBlank() || !StringUtils.isNumeric(observationId)) {
-            throw new IllegalArgumentException("Provided observation Id must be an integer!");
+            throw new NotFoundException("Observation not found!");
         }
         Optional<Pair<Study, List<ParticipantObservationSeed>>> studyResult = studyService.getStudy(routingInfo);
         if (studyResult.isEmpty()) {
@@ -45,7 +44,7 @@ public class ObservationExecutionService {
         List<ParticipantObservationSeed> seeds = studyResult.get().getRight();
 
         String state = study.studyState();
-        if (!StudyDTO.StudyStateEnum.ACTIVE.getValue().equalsIgnoreCase(state) && !StudyDTO.StudyStateEnum.PREVIEW.getValue().equalsIgnoreCase(state)) {
+        if (!"active".equalsIgnoreCase(state) && !"preview".equalsIgnoreCase(state)) {
             throw new ForbiddenException("Study is not active or in preview");
         }
 

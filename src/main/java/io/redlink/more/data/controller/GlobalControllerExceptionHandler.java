@@ -58,8 +58,8 @@ public class GlobalControllerExceptionHandler {
 
     @ExceptionHandler(RegistrationNotPossibleException.class)
     public ResponseEntity<ErrorDTO> handleRegistrationError(RegistrationNotPossibleException rnpe) {
+        LOG.warn("Registration not possible: [{}] {}", rnpe.getErrorCode(), rnpe.getMessage());
         return ResponseEntity.status(HttpStatus.CONFLICT)
-                .header("X-Info", "[%S] %s".formatted(rnpe.getErrorCode(), rnpe.getMessage()))
                 .body(ErrorTransformer.toDTO(rnpe));
     }
 
@@ -67,7 +67,6 @@ public class GlobalControllerExceptionHandler {
     public ResponseEntity<ErrorDTO> handleError(RuntimeException ex) {
         LOG.error("Unexpected runtime error: {}", ex.getMessage(), ex);
         return ResponseEntity.internalServerError()
-                .header("X-Info", ex.getMessage())
                 .body(ErrorTransformer.toDTO(ex));
     }
 

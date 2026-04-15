@@ -2,6 +2,11 @@ package io.redlink.more.data.controller;
 
 import io.redlink.more.data.api.execution.v1.webservices.ExecutionApi;
 import io.redlink.more.data.configuration.AuthenticationFacade;
+import io.redlink.more.data.exception.BadRequestException;
+import io.redlink.more.data.exception.ForbiddenException;
+import io.redlink.more.data.exception.NotAuthorizedException;
+import io.redlink.more.data.exception.NotFoundException;
+import io.redlink.more.data.exception.RegistrationNotPossibleException;
 import io.redlink.more.data.model.ActiveObservation;
 import io.redlink.more.data.model.GatewayUserDetails;
 import io.redlink.more.data.model.NonMissingData;
@@ -51,34 +56,49 @@ public class ObservationExecutionController implements ExecutionApi {
 
     @Override
     public ResponseEntity<Void> execObservation(String observationId, String scheduleStart, String scheduleEnd, String redirect) {
-        Instant start = DateTimeUtils.parseInstant(scheduleStart);
-        Instant end = DateTimeUtils.parseInstant(scheduleEnd);
-        final RoutingInfo routingInfo = getRoutingInfo();
+        try {
+            Instant start = DateTimeUtils.parseInstant(scheduleStart);
+            Instant end = DateTimeUtils.parseInstant(scheduleEnd);
+            final RoutingInfo routingInfo = getRoutingInfo();
 
-        if (redirect != null && !redirect.isBlank()) {
-            SessionUtils.setAttribute("redirect", redirect);
-        }
+            ActiveObservation activeObservation = new ActiveObservation(observationId, start, end);
+            if (redirect != null && !redirect.isBlank()) {
+                SessionUtils.addRedirect(activeObservation, redirect);
+            }
 
-        ActiveObservation activeObservation = new ActiveObservation(observationId, start, end);
-        if (!SessionUtils.getActiveObservations().contains(activeObservation)) {
-            ArrayList<ActiveObservation> mutableList = new ArrayList<>(SessionUtils.getActiveObservations());
-            mutableList.add(activeObservation);
-            SessionUtils.setActiveObservations(mutableList);
-        }
+            if (!SessionUtils.getActiveObservations().contains(activeObservation)) {
+                ArrayList<ActiveObservation> mutableList = new ArrayList<>(SessionUtils.getActiveObservations());
+                mutableList.add(activeObservation);
+                SessionUtils.setActiveObservations(mutableList);
+            }
 
-        if (SessionUtils.getNonMissingData().contains(NonMissingData.fromActiveObservation(activeObservation))) {
-            Optional<String> sessionRedirect = SessionUtils.getAttribute("redirect");
-            String target = sessionRedirect.orElseGet(() ->
+            if (SessionUtils.getNonMissingData().contains(NonMissingData.fromActiveObservation(activeObservation))) {
+                Optional<String> sessionRedirect = SessionUtils.getRedirect(activeObservation);
+                String target = sessionRedirect.orElseGet(() ->
+                        ServletUriComponentsBuilder.fromCurrentContextPath()
+                                .path("/api/v1/execution/callback/end.htm")
+                                .toUriString()
+                );
+                URI redirectUrl = UriComponentsBuilder.fromUriString(target)
+                        .replaceQueryParam("status", 200)
+                        .build().toUri();
+                return ResponseEntity.status(HttpStatus.FOUND).location(redirectUrl).build();
+            }
+
+            String url = observationExecutionService.executeObservation(observationId, start, end, routingInfo);
+            LOG.info("Opening url `{}` for routinginfo {} and observation schedule {}", url, routingInfo, activeObservation);
+            return ResponseEntity.status(HttpStatus.FOUND).location(URI.create(url)).build();
+        } catch (Exception e) {
+            LOG.error("Error executing observation {}: {}", observationId, e.getMessage(), e);
+            String target = (redirect != null && !redirect.isBlank()) ? redirect :
                     ServletUriComponentsBuilder.fromCurrentContextPath()
-                            .path("/api/v1/execution/callback/end.htm")
-                            .toUriString()
-            );
-            return ResponseEntity.status(HttpStatus.FOUND).location(URI.create(target)).build();
+                    .path("/api/v1/execution/callback/end.htm")
+                    .toUriString();
+            URI redirectUrl = UriComponentsBuilder.fromUriString(target)
+                    .queryParam("status", mapToStatus(e))
+                    .build().toUri();
+            return ResponseEntity.status(HttpStatus.FOUND).location(redirectUrl).build();
         }
-
-        String url = observationExecutionService.executeObservation(observationId, start, end, routingInfo);
-        LOG.info("Opening url `{}` for routinginfo {} and observation schedule {}", url, routingInfo, activeObservation);
-        return ResponseEntity.status(HttpStatus.FOUND).location(URI.create(url)).build();
     }
 
 
@@ -104,40 +124,52 @@ public class ObservationExecutionController implements ExecutionApi {
         });
 
         URI redirectUrl = builder.build().toUri();
+        Integer status = 200;
+        RoutingInfo routingInfo = null;
 
-        if (SessionUtils.getSession().isPresent()) {
-            List<ActiveObservation> activeObservations = SessionUtils.getActiveObservations();
-            if (activeObservations != null && !activeObservations.isEmpty()) {
-                ActiveObservation last = activeObservations.get(activeObservations.size() - 1);
+        try {
+            routingInfo = getRoutingInfo();
+            if (SessionUtils.getSession().isPresent()) {
+                List<ActiveObservation> activeObservations = SessionUtils.getActiveObservations();
+                if (activeObservations != null && !activeObservations.isEmpty()) {
+                    ActiveObservation last = activeObservations.get(activeObservations.size() - 1);
 
-                RoutingInfo routingInfo = getRoutingInfo();
-                if (routingInfo != null) {
-                    boolean processSuccess = observationExecutionService.processCallback(last.observationId(), last.scheduleStart(), last.scheduleEnd(), routingInfo, params);
-
-                    if (processSuccess) {
-                        NonMissingData nonMissingData = NonMissingData.fromActiveObservation(last);
-                        if (!SessionUtils.getNonMissingData().contains(nonMissingData)) {
-                            ArrayList<NonMissingData> mutableNonMissingDataList = new ArrayList<>(SessionUtils.getNonMissingData());
-                            mutableNonMissingDataList.add(nonMissingData);
-                            SessionUtils.setNonMissingData(mutableNonMissingDataList);
-                        }
+                    // Determine redirect as early as possible
+                    Optional<String> sessionRedirect = SessionUtils.getRedirect(last);
+                    if (sessionRedirect.isPresent() && !sessionRedirect.get().isBlank()) {
+                        redirectUrl = URI.create(sessionRedirect.get());
                     }
-                    ArrayList<ActiveObservation> mutableActiveObservationList = new ArrayList<>(activeObservations);
-                    mutableActiveObservationList.remove(last);
-                    SessionUtils.setActiveObservations(mutableActiveObservationList);
+
+                    if (routingInfo != null) {
+                        boolean processSuccess = observationExecutionService.processCallback(last.observationId(), last.scheduleStart(), last.scheduleEnd(), routingInfo, params);
+
+                        if (processSuccess) {
+                            NonMissingData nonMissingData = NonMissingData.fromActiveObservation(last);
+                            if (!SessionUtils.getNonMissingData().contains(nonMissingData)) {
+                                ArrayList<NonMissingData> mutableNonMissingDataList = new ArrayList<>(SessionUtils.getNonMissingData());
+                                mutableNonMissingDataList.add(nonMissingData);
+                                SessionUtils.setNonMissingData(mutableNonMissingDataList);
+                            }
+                        } else {
+                            status = HttpStatus.INTERNAL_SERVER_ERROR.value();
+                        }
+                        ArrayList<ActiveObservation> mutableActiveObservationList = new ArrayList<>(activeObservations);
+                        mutableActiveObservationList.remove(last);
+                        SessionUtils.setActiveObservations(mutableActiveObservationList);
+                    }
+                    SessionUtils.removeRedirect(last);
                 }
             }
-
-            Optional<String> redirect = SessionUtils.getAttribute("redirect");
-            if (redirect.isPresent() && !redirect.get().isBlank()) {
-                redirectUrl = URI.create(redirect.get());
-            }
-        } else {
-            // Check if session is accessible via JWT/Authentication if no session present
-            getRoutingInfo();
+        } catch (Exception e) {
+            LOG.error("Error processing callback: {}", e.getMessage(), e);
+            status = mapToStatus(e);
         }
 
-        LOG.info("Redirecting participant {} to url `{}`", getRoutingInfo(), redirectUrl);
+        redirectUrl = UriComponentsBuilder.fromUri(redirectUrl)
+                .replaceQueryParam("status", status)
+                .build().toUri();
+
+        LOG.info("Redirecting participant {} to url `{}`", routingInfo, redirectUrl);
         return ResponseEntity.status(HttpStatus.FOUND).location(redirectUrl).build();
     }
 
@@ -162,5 +194,20 @@ public class ObservationExecutionController implements ExecutionApi {
                     .orElseThrow(() -> new AccessDeniedException("Routing info not found"));
         }
         throw new AccessDeniedException("Unexpected principal type");
+    }
+
+    private int mapToStatus(Exception e) {
+        if (e instanceof ForbiddenException || e instanceof AccessDeniedException || e instanceof IllegalArgumentException) {
+            return HttpStatus.FORBIDDEN.value();
+        } else if (e instanceof NotFoundException) {
+            return HttpStatus.NOT_FOUND.value();
+        } else if (e instanceof NotAuthorizedException) {
+            return HttpStatus.UNAUTHORIZED.value();
+        } else if (e instanceof BadRequestException) {
+            return HttpStatus.BAD_REQUEST.value();
+        } else if (e instanceof RegistrationNotPossibleException) {
+            return HttpStatus.CONFLICT.value();
+        }
+        return HttpStatus.INTERNAL_SERVER_ERROR.value();
     }
 }
