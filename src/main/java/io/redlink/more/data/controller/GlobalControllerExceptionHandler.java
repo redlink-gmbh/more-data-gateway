@@ -50,12 +50,6 @@ public class GlobalControllerExceptionHandler {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
     }
 
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<Void> handleIllegalArgument(IllegalArgumentException e) {
-        LOG.warn("Illegal Argument: {}", e.getMessage());
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-    }
-
     @ExceptionHandler(RegistrationNotPossibleException.class)
     public ResponseEntity<ErrorDTO> handleRegistrationError(RegistrationNotPossibleException rnpe) {
         LOG.warn("Registration not possible: [{}] {}", rnpe.getErrorCode(), rnpe.getMessage());
