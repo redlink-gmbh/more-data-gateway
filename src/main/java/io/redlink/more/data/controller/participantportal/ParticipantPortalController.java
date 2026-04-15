@@ -4,10 +4,12 @@ import io.redlink.more.data.api.participant.v1.model.StudyConsentDTO;
 import io.redlink.more.data.api.participant.v1.model.StudyDTO;
 import io.redlink.more.data.api.participant.v1.webservices.AuthorizationApi;
 import io.redlink.more.data.api.participant.v1.webservices.ConfigurationApi;
+import io.redlink.more.data.configuration.SchedulerProperties;
 import io.redlink.more.data.controller.transformer.ParticipantPortalTransformer;
 import io.redlink.more.data.exception.NotAuthorizedException;
 import io.redlink.more.data.model.DataHealth;
 import io.redlink.more.data.model.NonMissingData;
+import io.redlink.more.data.model.ObservationDataState;
 import io.redlink.more.data.model.ParticipantConsent;
 import io.redlink.more.data.model.RoutingInfo;
 import io.redlink.more.data.model.StudyParticipantUserDetails;
@@ -38,8 +40,8 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.time.Instant;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -58,7 +60,7 @@ public class ParticipantPortalController implements AuthorizationApi, Configurat
     ParticipantPortalController(
             ApplicationAccessService applicationAccessService,
             StudyService studyService,
-            DataHealthService dataHealthService) {
+            DataHealthService dataHealthService, SchedulerProperties schedulerProperties) {
         this.applicationAccessService = applicationAccessService;
         this.studyService = studyService;
         this.dataHealthService = dataHealthService;
@@ -150,7 +152,7 @@ public class ParticipantPortalController implements AuthorizationApi, Configurat
         var studyData = studyService.getStudy(routingInfo);
         return studyData
                 .map(studyListPair ->
-                        ResponseEntity.ok(ParticipantPortalTransformer.toDTO(studyListPair.getLeft(), studyListPair.getRight(), Collections.emptyList())))
+                        ResponseEntity.ok(ParticipantPortalTransformer.toDTO(studyListPair.getLeft(), studyListPair.getRight())))
                 .orElseGet(() ->
                         ResponseEntity.status(HttpStatus.NOT_FOUND).build());
     }
@@ -162,31 +164,40 @@ public class ParticipantPortalController implements AuthorizationApi, Configurat
 
         var studyData = studyService.getStudy(routingInfo)
                 .filter(sd -> sd.getLeft().active() || "paused".equals(sd.getLeft().studyState()));
-        if(studyData.isEmpty()) {
+        if (studyData.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
         var studyDTO = ParticipantPortalTransformer.toDTO(studyData.get().getLeft(), studyData.get().getRight());
 
+        List<NonMissingData> nonMissingData = SessionUtils.getNonMissingData();
         //add the dataHealth information to the studyDTO (Not done in Transformer as this need calls to the dataHealthService)
-        studyDTO.getObservations().forEach(observation ->
-                observation.getSchedule().forEach(observationSchedule -> {
-                        DataHealth dataHealth;
-                        if(observationSchedule.getStart().isBefore(Instant.now())) {
-                            dataHealth = dataHealthService.checkDataHealth(
-                                    routingInfo.studyId(),
-                                    routingInfo.participantId(),
-                                    Integer.parseInt(observation.getObservationId()), //ObservationId in the API is a String :(
-                                    observationSchedule.getStart());
-                        } else {
-                            dataHealth = null; //no need to check for existing data if the observation has not yet started
-                        }
-                        observationSchedule.setDataHealth(ParticipantPortalTransformer.toDataHealStateDto(dataHealth));
-                }));
+        studyDTO.getObservations().forEach(observation -> {
+            var observationNonMissingData = nonMissingData.stream().filter(d -> Objects.equals(d.observationId(), observation.getObservationId())).toList();
+            observation.getSchedule().forEach(observationSchedule -> {
+                DataHealth dataHealth;
+                if (!observationNonMissingData.isEmpty()
+                        && observationSchedule.getStart() != null
+                        && observationSchedule.getEnd() != null
+                        && observationNonMissingData.stream().anyMatch(nonMissingData1 ->
+                        !observationSchedule.getStart().isBefore(nonMissingData1.scheduleStart())
+                                && !observationSchedule.getEnd().isAfter(nonMissingData1.scheduleEnd()))) {
+                    dataHealth = new DataHealth(true, ObservationDataState.COMPLETE);
+                } else if (observationSchedule.getStart() != null
+                        && observationSchedule.getStart().isBefore(Instant.now())) {
+                    dataHealth = dataHealthService.checkDataHealth(
+                            routingInfo.studyId(),
+                            routingInfo.participantId(),
+                            Integer.parseInt(observation.getObservationId()), //ObservationId in the API is a String :(
+                            observationSchedule.getStart());
+                } else {
+                    dataHealth = null; //no need to check for existing data if the observation has not yet started
+                }
+                observationSchedule.setDataHealth(ParticipantPortalTransformer.toDataHealStateDto(dataHealth));
+            });
+        });
 
         return ResponseEntity.ok(studyDTO);
     }
-
-
 
 
     private Optional<RoutingInfo> validateRoutingInfo() {

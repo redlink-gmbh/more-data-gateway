@@ -2,6 +2,7 @@ package io.redlink.more.data.controller.participantportal;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.redlink.more.data.api.participant.v1.model.StudyConsentDTO;
+import io.redlink.more.data.configuration.SchedulerProperties;
 import io.redlink.more.data.configuration.SecurityConfig;
 import io.redlink.more.data.controller.GlobalControllerExceptionHandler;
 import io.redlink.more.data.model.Contact;
@@ -11,13 +12,12 @@ import io.redlink.more.data.model.ObservationDataState;
 import io.redlink.more.data.model.RoutingInfo;
 import io.redlink.more.data.model.SimpleParticipant;
 import io.redlink.more.data.model.Study;
+import io.redlink.more.data.model.StudyParticipantUserDetails;
 import io.redlink.more.data.model.scheduler.Duration;
 import io.redlink.more.data.model.scheduler.Event;
 import io.redlink.more.data.model.scheduler.RelativeDate;
 import io.redlink.more.data.model.scheduler.RelativeEvent;
 import io.redlink.more.data.model.scheduler.RelativeRecurrenceRule;
-import io.redlink.more.data.model.scheduler.ScheduleEvent;
-import io.redlink.more.data.model.StudyParticipantUserDetails;
 import io.redlink.more.data.service.ApplicationAccessService;
 import io.redlink.more.data.service.DataHealthService;
 import io.redlink.more.data.service.GatewayUserDetailService;
@@ -46,8 +46,6 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
-import java.time.temporal.TemporalUnit;
-import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
@@ -58,7 +56,6 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -100,6 +97,9 @@ class ParticipantPortalControllerTest {
 
     @MockitoBean
     private DataHealthService dataHealthService;
+
+    @MockitoBean
+    private SchedulerProperties schedulerProperties;
 
     @Test
     void testParticipantLoginSetsSession() throws Exception {
@@ -352,8 +352,8 @@ class ParticipantPortalControllerTest {
                         .setRrrule(new RelativeRecurrenceRule()
                                 .setFrequency(new Duration().setValue(1).setUnit(Duration.Unit.DAY))
                                 .setEndAfter(new Duration().setValue(8).setUnit(Duration.Unit.DAY))),
-                now.minus(1,ChronoUnit.DAYS),
-                now.minus(1,ChronoUnit.DAYS),
+                now.minus(1, ChronoUnit.DAYS),
+                now.minus(1, ChronoUnit.DAYS),
                 false, false, false, Set.of());
         Study study = new Study(studyId, "Title", true, "Info", "Finish", "active", "Consent",
                 new Contact("Inst", "Person", "email", "phone"),
