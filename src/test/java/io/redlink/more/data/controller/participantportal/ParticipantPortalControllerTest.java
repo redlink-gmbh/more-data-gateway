@@ -2,7 +2,9 @@ package io.redlink.more.data.controller.participantportal;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.redlink.more.data.api.participant.v1.model.StudyConsentDTO;
+import io.redlink.more.data.configuration.SchedulerProperties;
 import io.redlink.more.data.configuration.SecurityConfig;
+import io.redlink.more.data.controller.GlobalControllerExceptionHandler;
 import io.redlink.more.data.model.Contact;
 import io.redlink.more.data.model.DataHealth;
 import io.redlink.more.data.model.Observation;
@@ -10,19 +12,18 @@ import io.redlink.more.data.model.ObservationDataState;
 import io.redlink.more.data.model.RoutingInfo;
 import io.redlink.more.data.model.SimpleParticipant;
 import io.redlink.more.data.model.Study;
+import io.redlink.more.data.model.StudyParticipantUserDetails;
 import io.redlink.more.data.model.scheduler.Duration;
 import io.redlink.more.data.model.scheduler.Event;
 import io.redlink.more.data.model.scheduler.RelativeDate;
 import io.redlink.more.data.model.scheduler.RelativeEvent;
 import io.redlink.more.data.model.scheduler.RelativeRecurrenceRule;
-import io.redlink.more.data.model.scheduler.ScheduleEvent;
 import io.redlink.more.data.service.ApplicationAccessService;
 import io.redlink.more.data.service.DataHealthService;
 import io.redlink.more.data.service.GatewayUserDetailService;
 import io.redlink.more.data.service.LoginTokenService;
 import io.redlink.more.data.service.RegistrationService;
 import io.redlink.more.data.service.StudyService;
-import io.redlink.more.data.util.StudyParticipantUserDetails;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -45,8 +46,6 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
-import java.time.temporal.TemporalUnit;
-import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
@@ -57,7 +56,6 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -68,7 +66,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(ParticipantPortalController.class)
+@WebMvcTest({ParticipantPortalController.class, GlobalControllerExceptionHandler.class})
 @Import(SecurityConfig.class)
 @AutoConfigureMockMvc
 class ParticipantPortalControllerTest {
@@ -99,6 +97,9 @@ class ParticipantPortalControllerTest {
 
     @MockitoBean
     private DataHealthService dataHealthService;
+
+    @MockitoBean
+    private SchedulerProperties schedulerProperties;
 
     @Test
     void testParticipantLoginSetsSession() throws Exception {
@@ -223,7 +224,7 @@ class ParticipantPortalControllerTest {
         StudyParticipantUserDetails userDetails = new StudyParticipantUserDetails(studyId, participantId, null);
 
         when(applicationAccessService.hasConsent(routingInfo)).thenReturn(true);
-        when(studyService.getRoutingInfo(studyId,participantId)).thenReturn(Optional.of(routingInfo));
+        when(studyService.getRoutingInfo(studyId, participantId)).thenReturn(Optional.of(routingInfo));
         when(studyService.getStudyState(studyId)).thenReturn(Optional.of("active"));
 
         mockMvc.perform(post("/participant-portal/api/v1/consent")
@@ -351,8 +352,8 @@ class ParticipantPortalControllerTest {
                         .setRrrule(new RelativeRecurrenceRule()
                                 .setFrequency(new Duration().setValue(1).setUnit(Duration.Unit.DAY))
                                 .setEndAfter(new Duration().setValue(8).setUnit(Duration.Unit.DAY))),
-                now.minus(1,ChronoUnit.DAYS),
-                now.minus(1,ChronoUnit.DAYS),
+                now.minus(1, ChronoUnit.DAYS),
+                now.minus(1, ChronoUnit.DAYS),
                 false, false, false, Set.of());
         Study study = new Study(studyId, "Title", true, "Info", "Finish", "active", "Consent",
                 new Contact("Inst", "Person", "email", "phone"),

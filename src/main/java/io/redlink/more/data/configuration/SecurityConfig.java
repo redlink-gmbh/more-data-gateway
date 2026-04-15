@@ -60,6 +60,8 @@ public class SecurityConfig {
                             .permitAll();
                     req.requestMatchers("/api/v1/login/**")
                             .permitAll();
+                    req.requestMatchers("/api/v1/execution/callback", "/api/v1/execution/callback/end.htm")
+                            .permitAll();
                     req.requestMatchers("/participant-portal/api/v1/login/**")
                             .permitAll();
                     //External Data Gateway

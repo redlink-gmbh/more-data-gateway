@@ -1,4 +1,4 @@
-package io.redlink.more.data.util;
+package io.redlink.more.data.model;
 
 import io.redlink.more.data.exception.NotAuthorizedException;
 import org.springframework.security.core.GrantedAuthority;

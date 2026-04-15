@@ -383,6 +383,19 @@
                         </configuration>
                     </execution>
                     <execution>
+                        <id>observation-execution-api</id>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                        <configuration>
+                            <inputSpec>${project.basedir}/src/main/resources/openapi/ObservationExecutionAPI.yaml</inputSpec>
+                            <output>${project.build.directory}/generated-sources/observation-execution</output>
+                            <apiPackage>io.redlink.more.data.api.execution.v1.webservices</apiPackage>
+                            <modelPackage>io.redlink.more.data.api.execution.v1.model</modelPackage>
+                            <modelNameSuffix>DTO</modelNameSuffix>
+                        </configuration>
+                    </execution>
+                    <execution>
                         <id>garmin-api</id>
                         <goals>
                             <goal>generate</goal>
@@ -457,6 +470,32 @@
                                 @com.fasterxml.jackson.annotation.JsonIgnoreProperties(ignoreUnknown = true)
                               </additionalModelTypeAnnotations>
 
+                            </configOptions>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>limesurvey-api</id>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                        <configuration>
+                            <inputSpec>${project.basedir}/src/main/resources/openapi/LimeSurveyRemoteControlAPI.yaml</inputSpec>
+                            <output>${project.build.directory}/generated-sources/limesurvey</output>
+                            <generatorName>java</generatorName>
+                            <library>resttemplate</library>
+                            <packageName>io.redlink.more.data.limesurvey</packageName>
+                            <apiPackage>io.redlink.more.data.limesurvey.client</apiPackage>
+                            <modelPackage>io.redlink.more.data.limesurvey.model</modelPackage>
+                            <generateSupportingFiles>true</generateSupportingFiles>
+                            <addCompileSourceRoot>true</addCompileSourceRoot>
+                            <configOptions>
+                                <dateLibrary>java8</dateLibrary>
+                                <useJakartaEe>true</useJakartaEe>
+                                <serializationLibrary>jackson</serializationLibrary>
+                                <removeOperationIdPrefix>true</removeOperationIdPrefix>
+                                <modelMutable>false</modelMutable>
+                                <useBeanValidation>false</useBeanValidation>
+                                <openApiNullable>false</openApiNullable>
                             </configOptions>
                         </configuration>
                     </execution>

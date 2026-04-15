@@ -7,13 +7,16 @@ import io.redlink.more.data.api.participant.v1.webservices.ConfigurationApi;
 import io.redlink.more.data.controller.transformer.ParticipantPortalTransformer;
 import io.redlink.more.data.exception.NotAuthorizedException;
 import io.redlink.more.data.model.DataHealth;
+import io.redlink.more.data.model.NonMissingData;
+import io.redlink.more.data.model.ObservationDataState;
 import io.redlink.more.data.model.ParticipantConsent;
 import io.redlink.more.data.model.RoutingInfo;
+import io.redlink.more.data.model.StudyParticipantUserDetails;
 import io.redlink.more.data.service.ApplicationAccessService;
 import io.redlink.more.data.service.DataHealthService;
 import io.redlink.more.data.service.StudyService;
 import io.redlink.more.data.util.ParticipantUtils;
-import io.redlink.more.data.util.StudyParticipantUserDetails;
+import io.redlink.more.data.util.SessionUtils;
 import io.redlink.more.data.util.StringUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
@@ -28,7 +31,6 @@ import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.context.request.RequestAttributes;
@@ -37,6 +39,8 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.time.Instant;
 import java.util.Collection;
+import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -159,41 +163,50 @@ public class ParticipantPortalController implements AuthorizationApi, Configurat
 
         var studyData = studyService.getStudy(routingInfo)
                 .filter(sd -> sd.getLeft().active() || "paused".equals(sd.getLeft().studyState()));
-        if(studyData.isEmpty()) {
+        if (studyData.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
         var studyDTO = ParticipantPortalTransformer.toDTO(studyData.get().getLeft(), studyData.get().getRight());
 
+        List<NonMissingData> nonMissingData = SessionUtils.getNonMissingData();
         //add the dataHealth information to the studyDTO (Not done in Transformer as this need calls to the dataHealthService)
-        studyDTO.getObservations().forEach(observation ->
-                observation.getSchedule().forEach(observationSchedule -> {
-                        DataHealth dataHealth;
-                        if(observationSchedule.getStart().isBefore(Instant.now())) {
-                            dataHealth = dataHealthService.checkDataHealth(
-                                    routingInfo.studyId(),
-                                    routingInfo.participantId(),
-                                    Integer.parseInt(observation.getObservationId()), //ObservationId in the API is a String :(
-                                    observationSchedule.getStart());
-                            LOG.debug(
-                                    "check dataHealth[study:{}, participant:{}, observation:{}, start:{}] -> {}",
-                                    routingInfo.studyId(),
-                                    routingInfo.participantId(),
-                                    observation.getObservationId(),
-                                    observationSchedule.getStart(),
-                                    dataHealth);
-                        } else {
-                            dataHealth = null; //no need to check for existing data if the observation has not yet started
-                        }
-                        observationSchedule.setDataHealth(ParticipantPortalTransformer.toDataHealStateDto(dataHealth));
-                }));
+        studyDTO.getObservations().forEach(observation -> {
+            var observationNonMissingData = nonMissingData.stream().filter(d -> Objects.equals(d.observationId(), observation.getObservationId())).toList();
+            observation.getSchedule().forEach(observationSchedule -> {
+                DataHealth dataHealth;
+                if (!observationNonMissingData.isEmpty()
+                        && observationSchedule.getStart() != null
+                        && observationSchedule.getEnd() != null
+                        && observationNonMissingData.stream().anyMatch(nonMissingData1 ->
+                        !observationSchedule.getStart().isBefore(nonMissingData1.scheduleStart())
+                                && !observationSchedule.getEnd().isAfter(nonMissingData1.scheduleEnd()))) {
+                    dataHealth = new DataHealth(true, ObservationDataState.COMPLETE);
+                } else if (observationSchedule.getStart() != null
+                        && observationSchedule.getStart().isBefore(Instant.now())) {
+                    dataHealth = dataHealthService.checkDataHealth(
+                            routingInfo.studyId(),
+                            routingInfo.participantId(),
+                            Integer.parseInt(observation.getObservationId()), //ObservationId in the API is a String :(
+                            observationSchedule.getStart());
+                    LOG.debug(
+                            "check dataHealth[study:{}, participant:{}, observation:{}, start:{}] -> {}",
+                            routingInfo.studyId(),
+                            routingInfo.participantId(),
+                            observation.getObservationId(),
+                            observationSchedule.getStart(),
+                            dataHealth);
+                } else {
+                    dataHealth = null; //no need to check for existing data if the observation has not yet started
+                }
+                observationSchedule.setDataHealth(ParticipantPortalTransformer.toDataHealStateDto(dataHealth));
+            });
+        });
 
         return ResponseEntity.ok(studyDTO);
     }
 
 
-
-
-    private Optional<RoutingInfo> validateRoutingInfo(){
+    private Optional<RoutingInfo> validateRoutingInfo() {
         var studyParticipant = StudyParticipantUserDetails.getCurrent().getStudyParticipantReference();
         return studyService.getRoutingInfo(studyParticipant.studyId(), studyParticipant.participantId())
                 .filter(routingInfo -> validateStudyState(routingInfo.studyId()));
@@ -204,12 +217,4 @@ public class ParticipantPortalController implements AuthorizationApi, Configurat
                 .filter(ALLOWED_STUDY_STATES::contains)
                 .isPresent();
     }
-
-    @ExceptionHandler(IllegalStateException.class)
-    public ResponseEntity<Void> handleIllegalState(IllegalStateException ex) {
-        LOG.error("Illegal state: {}", ex.getMessage());
-        return ResponseEntity.internalServerError().build();
-    }
-
-
 }

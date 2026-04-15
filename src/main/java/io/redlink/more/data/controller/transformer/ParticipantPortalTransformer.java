@@ -118,9 +118,9 @@ public final class ParticipantPortalTransformer {
 
     public static DataHealthStateDTO toDataHealStateDto(DataHealth dataHealth) {
         DataHealthStateDTO dataHealhState;
-        if(dataHealth == null) {
+        if (dataHealth == null) {
             dataHealhState = null;
-        } else if(!dataHealth.valid()) {
+        } else if (!dataHealth.valid()) {
             dataHealhState = DataHealthStateDTO.INVALID;
         } else {
             switch (dataHealth.state()) {
