@@ -12,6 +12,10 @@ spring:
     password: ${POSTGRES_PASSWORD:more}
     name: ${POSTGRES_DBNAME:more}
 
+  jackson:
+    # optional properties that are not set should not be included
+    default-property-inclusion: non_null
+
   session:
     store-type: redis
     redis:
