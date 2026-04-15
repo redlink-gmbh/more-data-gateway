@@ -174,6 +174,13 @@ public class ParticipantPortalController implements AuthorizationApi, Configurat
                                     routingInfo.participantId(),
                                     Integer.parseInt(observation.getObservationId()), //ObservationId in the API is a String :(
                                     observationSchedule.getStart());
+                            LOG.debug(
+                                    "check dataHealth[study:{}, participant:{}, observation:{}, start:{}] -> {}",
+                                    routingInfo.studyId(),
+                                    routingInfo.participantId(),
+                                    observation.getObservationId(),
+                                    observationSchedule.getStart(),
+                                    dataHealth);
                         } else {
                             dataHealth = null; //no need to check for existing data if the observation has not yet started
                         }

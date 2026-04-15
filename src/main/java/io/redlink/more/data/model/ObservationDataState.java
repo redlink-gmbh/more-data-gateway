@@ -20,6 +20,14 @@ public enum ObservationDataState {
         return value;
     }
 
+    @Override
+    public String toString() {
+        return "ObservationDataState{" +
+                "name='" + name() + "', " +
+                "value='" + value + '\'' +
+                '}';
+    }
+
     private static final Map<String, ObservationDataState> LOOKUP;
 
     static {
