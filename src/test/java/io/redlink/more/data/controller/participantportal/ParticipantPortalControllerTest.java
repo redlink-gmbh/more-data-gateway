@@ -406,8 +406,8 @@ class ParticipantPortalControllerTest {
                 .andExpect(jsonPath("$.observations[0].hidden").value(false))
                 .andExpect(jsonPath("$.observations[0].noSchedule").value(false))
                 .andExpect(jsonPath("$.observations[0].reminder").value(false))
-                .andExpect(jsonPath("$.observations[0].version").isEmpty())           // null in JSON
-                .andExpect(jsonPath("$.observations[0].configuration").isEmpty())
+                .andExpect(jsonPath("$.observations[0].version").doesNotExist())
+                .andExpect(jsonPath("$.observations[0].configuration").doesNotExist())
 
                 // Schedule for observation 1 (single absolute event)
                 .andExpect(jsonPath("$.observations[0].schedule[0].start").value(absStart.toString()))
@@ -423,7 +423,8 @@ class ParticipantPortalControllerTest {
                 .andExpect(jsonPath("$.observations[1].hidden").value(false))
                 .andExpect(jsonPath("$.observations[1].noSchedule").value(false))
                 .andExpect(jsonPath("$.observations[1].reminder").value(false))
-                .andExpect(jsonPath("$.observations[1].configuration").isEmpty())
+                .andExpect(jsonPath("$.observations[1].version").isNumber())
+                .andExpect(jsonPath("$.observations[1].configuration").doesNotExist())
 
                 // Schedule entries for observation 2
                 .andExpect(jsonPath("$.observations[1].schedule.length()").value(8))
@@ -431,7 +432,7 @@ class ParticipantPortalControllerTest {
                 // First schedule entry (should be completed according to the mocked dataHealth)
                 .andExpect(jsonPath("$.observations[1].schedule[0].start").value(absStart.minus(1, ChronoUnit.DAYS).toString()))
                 .andExpect(jsonPath("$.observations[1].schedule[0].end").value(absEnd.minus(1, ChronoUnit.DAYS).toString()))
-                .andExpect(jsonPath("$.observations[1].schedule[0].dataHealth").isEmpty())  // from your mock
+                .andExpect(jsonPath("$.observations[1].schedule[0].dataHealth").doesNotExist())
 
                 // The rest of the recurring entries (dataHealth is null or "invalid" as in the example JSON)
                 .andExpect(jsonPath("$.observations[1].schedule[1].start").value(absStart.toString()))
@@ -439,22 +440,22 @@ class ParticipantPortalControllerTest {
                 .andExpect(jsonPath("$.observations[1].schedule[1].dataHealth").value("invalid"))
                 .andExpect(jsonPath("$.observations[1].schedule[2].start").value(absStart.plus(1, ChronoUnit.DAYS).toString()))
                 .andExpect(jsonPath("$.observations[1].schedule[2].end").value(absEnd.plus(1, ChronoUnit.DAYS).toString()))
-                .andExpect(jsonPath("$.observations[1].schedule[2].dataHealth").isEmpty())
+                .andExpect(jsonPath("$.observations[1].schedule[2].dataHealth").doesNotExist())
                 .andExpect(jsonPath("$.observations[1].schedule[3].start").value(absStart.plus(2, ChronoUnit.DAYS).toString()))
                 .andExpect(jsonPath("$.observations[1].schedule[3].end").value(absEnd.plus(2, ChronoUnit.DAYS).toString()))
-                .andExpect(jsonPath("$.observations[1].schedule[3].dataHealth").isEmpty())
+                .andExpect(jsonPath("$.observations[1].schedule[3].dataHealth").doesNotExist())
                 .andExpect(jsonPath("$.observations[1].schedule[4].start").value(absStart.plus(3, ChronoUnit.DAYS).toString()))
                 .andExpect(jsonPath("$.observations[1].schedule[4].end").value(absEnd.plus(3, ChronoUnit.DAYS).toString()))
-                .andExpect(jsonPath("$.observations[1].schedule[4].dataHealth").isEmpty())
+                .andExpect(jsonPath("$.observations[1].schedule[4].dataHealth").doesNotExist())
                 .andExpect(jsonPath("$.observations[1].schedule[5].start").value(absStart.plus(4, ChronoUnit.DAYS).toString()))
                 .andExpect(jsonPath("$.observations[1].schedule[5].end").value(absEnd.plus(4, ChronoUnit.DAYS).toString()))
-                .andExpect(jsonPath("$.observations[1].schedule[5].dataHealth").isEmpty())
+                .andExpect(jsonPath("$.observations[1].schedule[5].dataHealth").doesNotExist())
                 .andExpect(jsonPath("$.observations[1].schedule[6].start").value(absStart.plus(5, ChronoUnit.DAYS).toString()))
                 .andExpect(jsonPath("$.observations[1].schedule[6].end").value(absEnd.plus(5, ChronoUnit.DAYS).toString()))
-                .andExpect(jsonPath("$.observations[1].schedule[6].dataHealth").isEmpty())
+                .andExpect(jsonPath("$.observations[1].schedule[6].dataHealth").doesNotExist())
                 .andExpect(jsonPath("$.observations[1].schedule[7].start").value(absStart.plus(6, ChronoUnit.DAYS).toString()))
                 .andExpect(jsonPath("$.observations[1].schedule[7].end").value(absEnd.plus(6, ChronoUnit.DAYS).toString()))
-                .andExpect(jsonPath("$.observations[1].schedule[7].dataHealth").isEmpty());
+                .andExpect(jsonPath("$.observations[1].schedule[7].dataHealth").doesNotExist());
     }
 
     @Test
