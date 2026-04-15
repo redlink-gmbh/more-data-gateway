@@ -106,6 +106,9 @@ components:
               end:
                 type: string
                 format: date-time
+              dataHealth:
+                $ref: '#/components/schemas/DataHealthState'
+
         required:
           type: boolean
           default: true
@@ -135,6 +138,22 @@ components:
         but that's not guaranteed.
       type: integer
       format: int64
+
+    DataHealthState:
+      type: string
+      description: >
+        Data Health states:
+          * `completed` - The expected data for the observation schedule are completely availanble
+          * `incomplete` - Data for the observation schedule are available and valid, but more data is expected
+          * `missing` - No data for the observation schedule is available
+          * `invalid` - Data is available, but the data is not valid (e.g. multiple answers for a survey; 
+             wrong data format; missing required information)
+      enum:
+        - completed
+        - incomplete
+        - missing
+        - invalid
+      default: missing
 
     StudyConsent:
       type: object

@@ -1,25 +1,31 @@
 package io.redlink.more.data.controller.transformer;
 
 import io.redlink.more.data.api.participant.v1.model.ContactInfoDTO;
+import io.redlink.more.data.api.participant.v1.model.DataHealthStateDTO;
 import io.redlink.more.data.api.participant.v1.model.ObservationDTO;
 import io.redlink.more.data.api.participant.v1.model.ObservationScheduleDTO;
 import io.redlink.more.data.api.participant.v1.model.SimpleParticipantDTO;
 import io.redlink.more.data.api.participant.v1.model.StudyDTO;
 import io.redlink.more.data.model.Contact;
-import io.redlink.more.data.model.NonMissingData;
+import io.redlink.more.data.model.DataHealth;
 import io.redlink.more.data.model.Observation;
 import io.redlink.more.data.model.ParticipantObservationSeed;
 import io.redlink.more.data.model.SimpleParticipant;
 import io.redlink.more.data.model.Study;
 import io.redlink.more.data.util.SchedulerUtils;
 import org.apache.commons.lang3.Range;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
 public final class ParticipantPortalTransformer {
-    public static StudyDTO toDTO(Study study, List<ParticipantObservationSeed> seeds, List<NonMissingData> nonMissingData) {
+
+    private static final Logger LOG = LoggerFactory.getLogger(ParticipantPortalTransformer.class);
+
+    public static StudyDTO toDTO(Study study, List<ParticipantObservationSeed> seeds) {
         return new StudyDTO()
                 .active(study.active())
                 .studyTitle(study.title())
@@ -116,5 +122,28 @@ public final class ParticipantPortalTransformer {
         return new ObservationScheduleDTO()
                 .start(schedule.getMinimum())
                 .end(schedule.getMaximum());
+    }
+
+    public static DataHealthStateDTO toDataHealStateDto(DataHealth dataHealth) {
+        DataHealthStateDTO dataHealhState;
+        if(dataHealth == null) {
+            dataHealhState = null;
+        } else if(!dataHealth.valid()) {
+            dataHealhState = DataHealthStateDTO.INVALID;
+        } else {
+            switch (dataHealth.state()) {
+                case PARTIAL, INCOMPLETE -> dataHealhState = DataHealthStateDTO.INCOMPLETE;
+                case COMPLETE -> dataHealhState = DataHealthStateDTO.COMPLETED;
+                default -> {
+                    try {
+                        dataHealhState = DataHealthStateDTO.fromValue(dataHealth.state().getValue());
+                    } catch (IllegalArgumentException e) {
+                        LOG.error("Unexpected data health state {}", dataHealth.state(), e);
+                        dataHealhState = null;
+                    }
+                }
+            }
+        }
+        return dataHealhState;
     }
 }
