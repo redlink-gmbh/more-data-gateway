@@ -89,7 +89,7 @@ public class ObservationExecutionController implements ExecutionApi {
             String url = observationExecutionService.executeObservation(observationId, start, end, routingInfo);
             LOG.info("Opening url `{}` for routinginfo {} and observation schedule {}", url, routingInfo, activeObservation);
             return ResponseEntity.status(HttpStatus.FOUND).location(URI.create(url)).build();
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             LOG.error("Error executing observation {}: {}", observationId, e.getMessage(), e);
             String target = (redirect != null && !redirect.isBlank()) ? redirect :
                     ServletUriComponentsBuilder.fromCurrentContextPath()
@@ -125,7 +125,7 @@ public class ObservationExecutionController implements ExecutionApi {
         });
 
         URI redirectUrl = builder.build().toUri();
-        int status = 200;
+        int status = HttpStatus.OK.value();
 
         try {
             List<ActiveObservation> activeObservations = SessionUtils.getActiveObservations();
@@ -175,7 +175,7 @@ public class ObservationExecutionController implements ExecutionApi {
                 }
             } else {
                 LOG.error("Observation not found for observationId {}!", observationId);
-                status = 404;
+                status = HttpStatus.NOT_FOUND.value();
             }
         } catch (RuntimeException e) {
             LOG.error("Error processing callback: {}", e.getMessage(), e);

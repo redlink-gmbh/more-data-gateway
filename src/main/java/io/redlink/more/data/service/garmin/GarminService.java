@@ -208,7 +208,7 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
                 try {
                     sendDeregistration();
                     LOG.info("Successfully sent deregistration to Garmin for studyId={}, participantId={}", studyId, participantId);
-                } catch (Exception e) {
+                } catch (RuntimeException e) {
                     LOG.error("Failed to send deregistration to Garmin for studyId={}, participantId={}, but continuing with local cleanup", studyId, participantId, e);
                 }
             } else {
@@ -319,7 +319,7 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
             List<String> permissions = response.getPermissions();
             LOG.debug("Received Garmin permissions count={}", permissions != null ? permissions.size() : 0);
             return permissions;
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             LOG.error("Could not get Garmin user permissions via UserControllerApi", e);
             return Collections.emptyList();
         }
@@ -367,7 +367,7 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
                     LOG.debug("Deregistering non-active participant: studyId={}, participantId={}", participantKeyValue.studyId(), participantKeyValue.participantId());
                     deregisterParticipant(participantKeyValue.studyId(), participantKeyValue.participantId());
                     LOG.info("Successfully deregistered non-active participant: studyId={}, participantId={}", participantKeyValue.studyId(), participantKeyValue.participantId());
-                } catch (Exception e) {
+                } catch (RuntimeException e) {
                     LOG.error("Failed to deregister non-active participant: studyId={}, participantId={}: {}", participantKeyValue.studyId(), participantKeyValue.participantId(), e.toString());
                 }
             });

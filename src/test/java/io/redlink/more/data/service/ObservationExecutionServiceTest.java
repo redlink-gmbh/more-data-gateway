@@ -173,7 +173,7 @@ class ObservationExecutionServiceTest {
 
         when(studyService.getStudy(routingInfo)).thenReturn(Optional.of(Pair.of(study, Collections.emptyList())));
 
-        observationExecutionService.processCallback(observationId, now, now, routingInfo, parameters);
+        observationExecutionService.processCallback(observationId, now, now, Optional.of(routingInfo), parameters);
 
         verify(observationComponent).processCallback(observationId, parameters, routingInfo, observation, now, now);
     }
@@ -186,7 +186,7 @@ class ObservationExecutionServiceTest {
 
         when(observationComponent.processCallback(eq(observationId), eq(parameters), isNull(), isNull(), any(), any())).thenReturn(true);
 
-        boolean result = observationExecutionService.processCallback(observationId, now, now, null, parameters);
+        boolean result = observationExecutionService.processCallback(observationId, now, now, Optional.empty(), parameters);
 
         assertTrue(result);
         verify(observationComponent).processCallback(eq(observationId), eq(parameters), isNull(), isNull(), any(), any());

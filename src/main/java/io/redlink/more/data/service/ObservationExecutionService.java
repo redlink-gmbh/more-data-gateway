@@ -87,7 +87,7 @@ public class ObservationExecutionService {
     }
 
     public boolean processCallback(String observationId, Instant scheduleStart, Instant scheduleEnd, Optional<RoutingInfo> routingInfo, Map<String, String> parameters) {
-        if (routingInfo.isEmpty()) {
+        if (routingInfo == null || routingInfo.isEmpty()) {
             for (ObservationComponent component : observationComponents.values()) {
                 if (component.processCallback(observationId, parameters, null, null, scheduleStart, scheduleEnd)) {
                     return true;
