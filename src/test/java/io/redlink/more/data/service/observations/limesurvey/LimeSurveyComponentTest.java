@@ -28,11 +28,14 @@ class LimeSurveyComponentTest {
     @Mock
     private ElasticService elasticService;
 
+    @Mock
+    private io.redlink.more.data.service.StudyService studyService;
+
     private LimeSurveyComponent limeSurveyComponent;
 
     @BeforeEach
     void setUp() {
-        limeSurveyComponent = new LimeSurveyComponent(limeSurveyRequestService, elasticService);
+        limeSurveyComponent = new LimeSurveyComponent(limeSurveyRequestService, elasticService, studyService);
     }
 
     @Test
@@ -61,8 +64,7 @@ class LimeSurveyComponentTest {
         Map<String, String> parameters = Map.of(
                 "token", "token123",
                 "saveId", "50",
-                "surveyId", "100",
-                "limeSurveyId", "token123" // The code uses LIME_SURVEY_ID_KEY which is "limeSurveyId" for the token in storeAnswer
+                "surveyId", "100"
         );
         RoutingInfo routingInfo = new RoutingInfo(1L, 1, OptionalInt.empty(), Set.of(), true, true);
         Observation observation = new Observation(1, 1, "Title", "lime-survey-observation", "Info", Map.of(), null, Instant.now(), Instant.now(), false, false, false, Set.of());
@@ -70,7 +72,28 @@ class LimeSurveyComponentTest {
         when(limeSurveyRequestService.getAnswer("token123", 100, 50))
                 .thenReturn(Optional.of(new java.util.HashMap<>(Map.of("some_key", "some_value"))));
 
-        boolean result = limeSurveyComponent.processCallback(parameters, routingInfo, observation, Instant.now(), Instant.now());
+        boolean result = limeSurveyComponent.processCallback("1", parameters, routingInfo, observation, Instant.now(), Instant.now());
+
+        assertTrue(result);
+        verify(elasticService).storeDataPoints(anyList(), eq(routingInfo));
+    }
+
+    @Test
+    void testProcessCallbackFallbackSuccess() throws Exception {
+        Map<String, String> parameters = Map.of(
+                "saveId", "50",
+                "surveyId", "100",
+                "studyid", "1",
+                "observationid", "1",
+                "token", "token123"
+        );
+        RoutingInfo routingInfo = new RoutingInfo(1L, 1, OptionalInt.empty(), Set.of(), true, true);
+
+        when(studyService.getRoutingInfoByToken(1L, 1, "token123")).thenReturn(Optional.of(routingInfo));
+        when(limeSurveyRequestService.getAnswer("token123", 100, 50))
+                .thenReturn(Optional.of(new java.util.HashMap<>(Map.of("some_key", "some_value"))));
+
+        boolean result = limeSurveyComponent.processCallback("1", parameters, null, null, Instant.now(), Instant.now());
 
         assertTrue(result);
         verify(elasticService).storeDataPoints(anyList(), eq(routingInfo));
@@ -82,6 +105,6 @@ class LimeSurveyComponentTest {
         RoutingInfo routingInfo = new RoutingInfo(1L, 1, OptionalInt.empty(), Set.of(), true, true);
         Observation observation = new Observation(1, 1, "Title", "lime-survey-observation", "Info", Map.of(), null, Instant.now(), Instant.now(), false, false, false, Set.of());
 
-        assertThrows(IllegalArgumentException.class, () -> limeSurveyComponent.processCallback(parameters, routingInfo, observation, Instant.now(), Instant.now()));
+        assertThrows(IllegalArgumentException.class, () -> limeSurveyComponent.processCallback("1", parameters, routingInfo, observation, Instant.now(), Instant.now()));
     }
 }

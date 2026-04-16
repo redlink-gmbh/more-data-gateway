@@ -256,7 +256,10 @@ class ObservationExecutionControllerTest {
         when(authenticationFacade.getAuthentication()).thenReturn(authentication);
         when(authentication.getPrincipal()).thenReturn(userDetails);
         lenient().when(request.getSession(false)).thenReturn(session);
-        lenient().when(request.getParameterMap()).thenReturn(new HashMap<>(Map.of("savedId", new String[]{"123"})));
+        lenient().when(request.getParameterMap()).thenReturn(new HashMap<>(Map.of(
+                "savedId", new String[]{"123"},
+                "observationid", new String[]{"1"}
+        )));
         lenient().when(request.getRequestURI()).thenReturn("/api/v1/execution/callback");
         lenient().when(request.getRequestURL()).thenReturn(new StringBuffer("http://localhost:8080/api/v1/execution/callback"));
         lenient().when(request.getContextPath()).thenReturn("");
@@ -265,6 +268,7 @@ class ObservationExecutionControllerTest {
         lenient().when(session.getAttribute("activeObservations")).thenReturn(new ArrayList<>());
         lenient().when(session.getAttribute("redirectMap")).thenReturn(new HashMap<>());
         lenient().when(request.getAttribute(org.springframework.web.servlet.HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE)).thenReturn(new HashMap<>());
+        lenient().when(observationExecutionService.processCallback(eq("1"), any(), any(), eq(routingInfo), any())).thenReturn(true);
 
         ResponseEntity<String> response = observationExecutionController.callback();
 
@@ -281,5 +285,35 @@ class ObservationExecutionControllerTest {
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertTrue(response.getBody().contains("<html>"));
+    }
+
+    @Test
+    void testCallbackFallbackSuccess() {
+        RoutingInfo routingInfo = new RoutingInfo(1L, 1, OptionalInt.empty(), Set.of(), true, true);
+
+        // No authentication
+        lenient().when(authenticationFacade.getAuthentication()).thenReturn(null);
+
+        // Parameters provided
+        Map<String, String[]> paramMap = new HashMap<>();
+        paramMap.put("studyid", new String[]{"1"});
+        paramMap.put("observationid", new String[]{"101"});
+        paramMap.put("token", new String[]{"token123"});
+        lenient().when(request.getParameterMap()).thenReturn(paramMap);
+
+        lenient().when(request.getRequestURI()).thenReturn("/api/v1/execution/callback");
+        lenient().when(request.getRequestURL()).thenReturn(new StringBuffer("http://localhost:8080/api/v1/execution/callback"));
+        lenient().when(request.getContextPath()).thenReturn("");
+        lenient().when(request.getAttribute(org.springframework.web.servlet.HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE)).thenReturn(new HashMap<>());
+
+        // ObservationExecutionService.processCallback called with null routingInfo, as it's now handled by the component
+        lenient().when(observationExecutionService.processCallback(eq("101"), isNull(), isNull(), isNull(), any())).thenReturn(true);
+
+        ResponseEntity<String> response = observationExecutionController.callback();
+
+        assertEquals(HttpStatus.FOUND, response.getStatusCode());
+        String location = response.getHeaders().getLocation().toString();
+        assertTrue(location.contains("status=200"));
+        verify(observationExecutionService).processCallback(eq("101"), isNull(), isNull(), isNull(), any());
     }
 }

@@ -128,37 +128,60 @@ public class ObservationExecutionController implements ExecutionApi {
         RoutingInfo routingInfo = null;
 
         try {
-            routingInfo = getRoutingInfo();
-            if (SessionUtils.getSession().isPresent()) {
-                List<ActiveObservation> activeObservations = SessionUtils.getActiveObservations();
-                if (activeObservations != null && !activeObservations.isEmpty()) {
-                    ActiveObservation last = activeObservations.get(activeObservations.size() - 1);
+            try {
+                routingInfo = getRoutingInfo();
+            } catch (Exception e) {
+                LOG.debug("No routing info from authentication: {}", e.getMessage());
+            }
 
-                    // Determine redirect as early as possible
-                    Optional<String> sessionRedirect = SessionUtils.getRedirect(last);
-                    if (sessionRedirect.isPresent() && !sessionRedirect.get().isBlank()) {
-                        redirectUrl = URI.create(sessionRedirect.get());
-                    }
+            List<ActiveObservation> activeObservations = SessionUtils.getActiveObservations();
+            ActiveObservation last = null;
+            String observationId = params.get("observationId");
+            if (observationId == null) {
+                observationId = params.get("observationid");
+            }
+            if (observationId == null) {
+                observationId = params.get("observation-id");
+            }
+            Instant scheduleStart = null;
+            Instant scheduleEnd = null;
 
-                    if (routingInfo != null) {
-                        boolean processSuccess = observationExecutionService.processCallback(last.observationId(), last.scheduleStart(), last.scheduleEnd(), routingInfo, params);
+            if (activeObservations != null && !activeObservations.isEmpty()) {
+                last = activeObservations.get(activeObservations.size() - 1);
+                observationId = last.observationId();
+                scheduleStart = last.scheduleStart();
+                scheduleEnd = last.scheduleEnd();
 
-                        if (processSuccess) {
-                            NonMissingData nonMissingData = NonMissingData.fromActiveObservation(last);
-                            if (!SessionUtils.getNonMissingData().contains(nonMissingData)) {
-                                ArrayList<NonMissingData> mutableNonMissingDataList = new ArrayList<>(SessionUtils.getNonMissingData());
-                                mutableNonMissingDataList.add(nonMissingData);
-                                SessionUtils.setNonMissingData(mutableNonMissingDataList);
-                            }
-                        } else {
-                            status = HttpStatus.INTERNAL_SERVER_ERROR.value();
+                Optional<String> sessionRedirect = SessionUtils.getRedirect(last);
+                if (sessionRedirect.isPresent() && !sessionRedirect.get().isBlank()) {
+                    redirectUrl = URI.create(sessionRedirect.get());
+                }
+            }
+
+            if (observationId != null) {
+                boolean processSuccess = observationExecutionService.processCallback(observationId, scheduleStart, scheduleEnd, routingInfo, params);
+
+                if (processSuccess) {
+                    if (last != null) {
+                        NonMissingData nonMissingData = NonMissingData.fromActiveObservation(last);
+                        if (!SessionUtils.getNonMissingData().contains(nonMissingData)) {
+                            ArrayList<NonMissingData> mutableNonMissingDataList = new ArrayList<>(SessionUtils.getNonMissingData());
+                            mutableNonMissingDataList.add(nonMissingData);
+                            SessionUtils.setNonMissingData(mutableNonMissingDataList);
                         }
-                        ArrayList<ActiveObservation> mutableActiveObservationList = new ArrayList<>(activeObservations);
-                        mutableActiveObservationList.remove(last);
-                        SessionUtils.setActiveObservations(mutableActiveObservationList);
                     }
+                } else {
+                    status = HttpStatus.INTERNAL_SERVER_ERROR.value();
+                }
+                if (last != null) {
+                    ArrayList<ActiveObservation> mutableActiveObservationList = new ArrayList<>(activeObservations);
+                    mutableActiveObservationList.remove(last);
+                    SessionUtils.setActiveObservations(mutableActiveObservationList);
                     SessionUtils.removeRedirect(last);
                 }
+            } else {
+                LOG.error("Observation not found for observationId {}!", observationId);
+                status = 404;
             }
         } catch (Exception e) {
             LOG.error("Error processing callback: {}", e.getMessage(), e);
