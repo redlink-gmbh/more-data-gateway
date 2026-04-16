@@ -111,6 +111,18 @@ public class StudyRepository {
             """;
     private static final String SQL_ROUTING_INFO_BY_REG_TOKEN_WITH_LOCK =
             SQL_ROUTING_INFO_BY_REG_TOKEN + " FOR UPDATE OF rt";
+    private static final String SQL_ROUTING_INFO_BY_OBSERVATION_TOKEN = """
+            SELECT pt.study_id as study_id, pt.participant_id as participant_id, study_group_id,
+                s.status IN ('active', 'preview') as study_active,
+                pt.status = 'active' as participant_active,
+                (SELECT ARRAY_AGG(pog.observation_group_id)
+                          FROM participant_observation_groups pog
+                          WHERE pog.study_id = pt.study_id AND pog.participant_id = pt.participant_id) AS observation_group_ids
+            FROM participants pt
+                INNER JOIN studies s on (s.study_id = pt.study_id)
+                INNER JOIN participant_observation_properties pop ON (pt.study_id = pop.study_id AND pt.participant_id = pop.participant_id)
+            WHERE pop.study_id = ? AND pop.observation_id = ? AND pop.properties#>>'{token}' = ?
+            """;
     private static final String GET_ROUTING_INFO = """
             SELECT pt.study_id as study_id, pt.participant_id as participant_id, study_group_id,
                 s.status IN ('active', 'preview') as study_active,
@@ -338,6 +350,18 @@ public class StudyRepository {
     public Optional<RoutingInfo> getRoutingInfo(Long studyId, Integer participantId) {
         try (var stream = jdbcTemplate.queryForStream(GET_ROUTING_INFO, getRoutingInfoMapper(), studyId, participantId)) {
             return stream.findFirst();
+        }
+    }
+
+    public Optional<RoutingInfo> getRoutingInfoByToken(long studyId, int observationId, String token) {
+        try {
+            return Optional.ofNullable(jdbcTemplate.queryForObject(
+                    SQL_ROUTING_INFO_BY_OBSERVATION_TOKEN,
+                    getRoutingInfoMapper(),
+                    studyId, observationId, token
+            ));
+        } catch (EmptyResultDataAccessException e) {
+            return Optional.empty();
         }
     }
 

@@ -12,5 +12,5 @@ public interface ObservationComponent {
 
     Optional<String> produceUrl(Observation observation, RoutingInfo routingInfo, Instant scheduleStart, Instant scheduleEnd);
 
-    boolean processCallback(Map<String, String> parameters, RoutingInfo routingInfo, Observation observation, Instant scheduleStart, Instant scheduleEnd);
+    boolean processCallback(String observationId, Map<String, String> parameters, RoutingInfo routingInfo, Observation observation, Instant scheduleStart, Instant scheduleEnd);
 }

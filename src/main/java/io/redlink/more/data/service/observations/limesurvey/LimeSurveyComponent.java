@@ -34,10 +34,12 @@ public class LimeSurveyComponent implements ObservationComponent {
 
     private final LimeSurveyRequestService limeSurveyRequestService;
     private final ElasticService elasticService;
+    private final io.redlink.more.data.service.StudyService studyService;
 
-    public LimeSurveyComponent(LimeSurveyRequestService limeSurveyRequestService, ElasticService elasticService) {
+    public LimeSurveyComponent(LimeSurveyRequestService limeSurveyRequestService, ElasticService elasticService, io.redlink.more.data.service.StudyService studyService) {
         this.limeSurveyRequestService = limeSurveyRequestService;
         this.elasticService = elasticService;
+        this.studyService = studyService;
     }
 
     @Override
@@ -51,7 +53,19 @@ public class LimeSurveyComponent implements ObservationComponent {
     }
 
     @Override
-    public boolean processCallback(Map<String, String> parameters, RoutingInfo routingInfo, Observation observation, Instant scheduleStart, Instant scheduleEnd) {
+    public boolean processCallback(String observationId, Map<String, String> parameters, RoutingInfo routingInfo, Observation observation, Instant scheduleStart, Instant scheduleEnd) {
+        if (routingInfo == null) {
+            String studyIdParam = getParameter(parameters, "studyid", "studyId");
+            String observationIdParam = getParameter(parameters, "observationid", "observationId");
+            String tokenParam = getParameter(parameters, "token");
+            if (studyIdParam != null && observationIdParam != null && tokenParam != null) {
+                routingInfo = studyService.getRoutingInfoByToken(Long.parseLong(studyIdParam), Integer.parseInt(observationIdParam), tokenParam).orElse(null);
+            }
+        }
+        if (routingInfo == null) {
+            return false;
+        }
+
         String token = getParameter(parameters, LIME_SURVEY_TOKEN_KEY, LIME_SURVEY_ID_KEY);
         String savedId = getParameter(parameters, LIME_SAVE_ID, LIME_SAVE_ID_ALT, LIME_SAVE_ID_SHORT);
         String surveyIdParam = getParameter(parameters, LIME_RESPONSE_SURVEY_ID);
@@ -62,7 +76,8 @@ public class LimeSurveyComponent implements ObservationComponent {
         }
         Integer saveId = Integer.parseInt(savedId);
         Integer surveyId = Integer.parseInt(surveyIdParam);
-        return storeAnswer(surveyId, saveId, token, routingInfo, Integer.toString(observation.observationId()));
+        String currentObservationId = observation != null ? Integer.toString(observation.observationId()) : observationId;
+        return storeAnswer(surveyId, saveId, token, routingInfo, currentObservationId);
     }
 
     private String getParameter(Map<String, String> parameters, String... keys) {

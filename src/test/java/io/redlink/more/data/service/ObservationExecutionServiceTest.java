@@ -23,9 +23,8 @@ import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -174,8 +173,22 @@ class ObservationExecutionServiceTest {
 
         when(studyService.getStudy(routingInfo)).thenReturn(Optional.of(Pair.of(study, Collections.emptyList())));
 
-        observationExecutionService.processCallback(observationId, now, now, routingInfo, parameters);
+        observationExecutionService.processCallback(observationId, now, now, Optional.of(routingInfo), parameters);
 
-        verify(observationComponent).processCallback(parameters, routingInfo, observation, now, now);
+        verify(observationComponent).processCallback(observationId, parameters, routingInfo, observation, now, now);
+    }
+
+    @Test
+    void testProcessCallbackFallback() {
+        String observationId = "1";
+        Instant now = Instant.now().truncatedTo(ChronoUnit.SECONDS);
+        Map<String, String> parameters = Map.of("key", "value");
+
+        when(observationComponent.processCallback(eq(observationId), eq(parameters), isNull(), isNull(), any(), any())).thenReturn(true);
+
+        boolean result = observationExecutionService.processCallback(observationId, now, now, Optional.empty(), parameters);
+
+        assertTrue(result);
+        verify(observationComponent).processCallback(eq(observationId), eq(parameters), isNull(), isNull(), any(), any());
     }
 }

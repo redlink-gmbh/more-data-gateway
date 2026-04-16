@@ -22,12 +22,17 @@ public class StudyService {
 
     /**
      * Provides the full {@link RoutingInfo} for the parsed study participant reference
-     * @param studyId the study id of the participant
+     *
+     * @param studyId       the study id of the participant
      * @param participantId the id of the participant within the study
      * @return the {@link RoutingInfo} if the referenced study participant existed
      */
     public Optional<RoutingInfo> getRoutingInfo(long studyId, int participantId) {
         return studyRepository.getRoutingInfo(studyId, participantId);
+    }
+
+    public Optional<RoutingInfo> getRoutingInfoByToken(long studyId, int observationId, String token) {
+        return studyRepository.getRoutingInfoByToken(studyId, observationId, token);
     }
 
     public Optional<String> getStudyState(long studyId) {

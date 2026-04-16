@@ -59,7 +59,8 @@ public class ObservationExecutionController implements ExecutionApi {
         try {
             Instant start = DateTimeUtils.parseInstant(scheduleStart);
             Instant end = DateTimeUtils.parseInstant(scheduleEnd);
-            final RoutingInfo routingInfo = getRoutingInfo();
+            final RoutingInfo routingInfo = getRoutingInfo()
+                    .orElseThrow(() -> new AccessDeniedException("No credentials found!"));
 
             ActiveObservation activeObservation = new ActiveObservation(observationId, start, end);
             if (redirect != null && !redirect.isBlank()) {
@@ -88,7 +89,7 @@ public class ObservationExecutionController implements ExecutionApi {
             String url = observationExecutionService.executeObservation(observationId, start, end, routingInfo);
             LOG.info("Opening url `{}` for routinginfo {} and observation schedule {}", url, routingInfo, activeObservation);
             return ResponseEntity.status(HttpStatus.FOUND).location(URI.create(url)).build();
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             LOG.error("Error executing observation {}: {}", observationId, e.getMessage(), e);
             String target = (redirect != null && !redirect.isBlank()) ? redirect :
                     ServletUriComponentsBuilder.fromCurrentContextPath()
@@ -124,43 +125,59 @@ public class ObservationExecutionController implements ExecutionApi {
         });
 
         URI redirectUrl = builder.build().toUri();
-        Integer status = 200;
-        RoutingInfo routingInfo = null;
+        int status = HttpStatus.OK.value();
 
         try {
-            routingInfo = getRoutingInfo();
-            if (SessionUtils.getSession().isPresent()) {
-                List<ActiveObservation> activeObservations = SessionUtils.getActiveObservations();
-                if (activeObservations != null && !activeObservations.isEmpty()) {
-                    ActiveObservation last = activeObservations.get(activeObservations.size() - 1);
+            List<ActiveObservation> activeObservations = SessionUtils.getActiveObservations();
+            ActiveObservation last = null;
+            String observationId = params.get("observationId");
+            if (observationId == null) {
+                observationId = params.get("observationid");
+            }
+            if (observationId == null) {
+                observationId = params.get("observation-id");
+            }
+            Instant scheduleStart = null;
+            Instant scheduleEnd = null;
 
-                    // Determine redirect as early as possible
-                    Optional<String> sessionRedirect = SessionUtils.getRedirect(last);
-                    if (sessionRedirect.isPresent() && !sessionRedirect.get().isBlank()) {
-                        redirectUrl = URI.create(sessionRedirect.get());
-                    }
+            if (activeObservations != null && !activeObservations.isEmpty()) {
+                last = activeObservations.get(activeObservations.size() - 1);
+                observationId = last.observationId();
+                scheduleStart = last.scheduleStart();
+                scheduleEnd = last.scheduleEnd();
 
-                    if (routingInfo != null) {
-                        boolean processSuccess = observationExecutionService.processCallback(last.observationId(), last.scheduleStart(), last.scheduleEnd(), routingInfo, params);
-
-                        if (processSuccess) {
-                            NonMissingData nonMissingData = NonMissingData.fromActiveObservation(last);
-                            if (!SessionUtils.getNonMissingData().contains(nonMissingData)) {
-                                ArrayList<NonMissingData> mutableNonMissingDataList = new ArrayList<>(SessionUtils.getNonMissingData());
-                                mutableNonMissingDataList.add(nonMissingData);
-                                SessionUtils.setNonMissingData(mutableNonMissingDataList);
-                            }
-                        } else {
-                            status = HttpStatus.INTERNAL_SERVER_ERROR.value();
-                        }
-                        ArrayList<ActiveObservation> mutableActiveObservationList = new ArrayList<>(activeObservations);
-                        mutableActiveObservationList.remove(last);
-                        SessionUtils.setActiveObservations(mutableActiveObservationList);
-                    }
-                    SessionUtils.removeRedirect(last);
+                Optional<String> sessionRedirect = SessionUtils.getRedirect(last);
+                if (sessionRedirect.isPresent() && !sessionRedirect.get().isBlank()) {
+                    redirectUrl = URI.create(sessionRedirect.get());
                 }
             }
-        } catch (Exception e) {
+
+            if (observationId != null) {
+                boolean processSuccess = observationExecutionService.processCallback(observationId, scheduleStart, scheduleEnd, getRoutingInfo(), params);
+
+                if (processSuccess) {
+                    if (last != null) {
+                        NonMissingData nonMissingData = NonMissingData.fromActiveObservation(last);
+                        if (!SessionUtils.getNonMissingData().contains(nonMissingData)) {
+                            ArrayList<NonMissingData> mutableNonMissingDataList = new ArrayList<>(SessionUtils.getNonMissingData());
+                            mutableNonMissingDataList.add(nonMissingData);
+                            SessionUtils.setNonMissingData(mutableNonMissingDataList);
+                        }
+                    }
+                } else {
+                    status = HttpStatus.INTERNAL_SERVER_ERROR.value();
+                }
+                if (last != null) {
+                    ArrayList<ActiveObservation> mutableActiveObservationList = new ArrayList<>(activeObservations);
+                    mutableActiveObservationList.remove(last);
+                    SessionUtils.setActiveObservations(mutableActiveObservationList);
+                    SessionUtils.removeRedirect(last);
+                }
+            } else {
+                LOG.error("Observation not found for observationId {}!", observationId);
+                status = HttpStatus.NOT_FOUND.value();
+            }
+        } catch (RuntimeException e) {
             LOG.error("Error processing callback: {}", e.getMessage(), e);
             status = mapToStatus(e);
         }
@@ -169,7 +186,7 @@ public class ObservationExecutionController implements ExecutionApi {
                 .replaceQueryParam("status", status)
                 .build().toUri();
 
-        LOG.info("Redirecting participant {} to url `{}`", routingInfo, redirectUrl);
+        LOG.info("Redirecting participant {} to url `{}`", getRoutingInfo().orElse(null), redirectUrl);
         return ResponseEntity.status(HttpStatus.FOUND).location(redirectUrl).build();
     }
 
@@ -180,20 +197,20 @@ public class ObservationExecutionController implements ExecutionApi {
     }
 
 
-    private RoutingInfo getRoutingInfo() {
+    private Optional<RoutingInfo> getRoutingInfo() {
         Authentication authentication = authenticationFacade.getAuthentication();
         if (authentication == null) {
-            throw new AccessDeniedException("Authentication required");
+            LOG.warn("No authentication found!");
+            return Optional.empty();
         }
         Object principal = authentication.getPrincipal();
         if (principal instanceof GatewayUserDetails userDetails) {
-            return userDetails.getRoutingInfo();
+            return Optional.ofNullable(userDetails.getRoutingInfo());
         } else if (principal instanceof StudyParticipantUserDetails participantDetails) {
             var ref = participantDetails.getStudyParticipantReference();
-            return studyService.getRoutingInfo(ref.studyId(), (int) ref.participantId())
-                    .orElseThrow(() -> new AccessDeniedException("Routing info not found"));
+            return studyService.getRoutingInfo(ref.studyId(), ref.participantId());
         }
-        throw new AccessDeniedException("Unexpected principal type");
+        return Optional.empty();
     }
 
     private int mapToStatus(Exception e) {
