@@ -354,8 +354,14 @@ public class StudyRepository {
     }
 
     public Optional<RoutingInfo> getRoutingInfoByToken(long studyId, int observationId, String token) {
-        try (var stream = jdbcTemplate.queryForStream(SQL_ROUTING_INFO_BY_OBSERVATION_TOKEN, getRoutingInfoMapper(), studyId, observationId, token)) {
-            return stream.findFirst();
+        try {
+            return Optional.ofNullable(jdbcTemplate.queryForObject(
+                    SQL_ROUTING_INFO_BY_OBSERVATION_TOKEN,
+                    getRoutingInfoMapper(),
+                    studyId, observationId, token
+            ));
+        } catch (EmptyResultDataAccessException e) {
+            return Optional.empty();
         }
     }
 

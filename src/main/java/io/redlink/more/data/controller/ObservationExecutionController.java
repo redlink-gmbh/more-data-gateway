@@ -59,7 +59,8 @@ public class ObservationExecutionController implements ExecutionApi {
         try {
             Instant start = DateTimeUtils.parseInstant(scheduleStart);
             Instant end = DateTimeUtils.parseInstant(scheduleEnd);
-            final RoutingInfo routingInfo = getRoutingInfo();
+            final RoutingInfo routingInfo = getRoutingInfo()
+                    .orElseThrow(() -> new AccessDeniedException("No credentials found!"));
 
             ActiveObservation activeObservation = new ActiveObservation(observationId, start, end);
             if (redirect != null && !redirect.isBlank()) {
@@ -124,16 +125,9 @@ public class ObservationExecutionController implements ExecutionApi {
         });
 
         URI redirectUrl = builder.build().toUri();
-        Integer status = 200;
-        RoutingInfo routingInfo = null;
+        int status = 200;
 
         try {
-            try {
-                routingInfo = getRoutingInfo();
-            } catch (Exception e) {
-                LOG.debug("No routing info from authentication: {}", e.getMessage());
-            }
-
             List<ActiveObservation> activeObservations = SessionUtils.getActiveObservations();
             ActiveObservation last = null;
             String observationId = params.get("observationId");
@@ -159,7 +153,7 @@ public class ObservationExecutionController implements ExecutionApi {
             }
 
             if (observationId != null) {
-                boolean processSuccess = observationExecutionService.processCallback(observationId, scheduleStart, scheduleEnd, routingInfo, params);
+                boolean processSuccess = observationExecutionService.processCallback(observationId, scheduleStart, scheduleEnd, getRoutingInfo(), params);
 
                 if (processSuccess) {
                     if (last != null) {
@@ -183,7 +177,7 @@ public class ObservationExecutionController implements ExecutionApi {
                 LOG.error("Observation not found for observationId {}!", observationId);
                 status = 404;
             }
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             LOG.error("Error processing callback: {}", e.getMessage(), e);
             status = mapToStatus(e);
         }
@@ -192,7 +186,7 @@ public class ObservationExecutionController implements ExecutionApi {
                 .replaceQueryParam("status", status)
                 .build().toUri();
 
-        LOG.info("Redirecting participant {} to url `{}`", routingInfo, redirectUrl);
+        LOG.info("Redirecting participant {} to url `{}`", getRoutingInfo().orElse(null), redirectUrl);
         return ResponseEntity.status(HttpStatus.FOUND).location(redirectUrl).build();
     }
 
@@ -203,20 +197,20 @@ public class ObservationExecutionController implements ExecutionApi {
     }
 
 
-    private RoutingInfo getRoutingInfo() {
+    private Optional<RoutingInfo> getRoutingInfo() {
         Authentication authentication = authenticationFacade.getAuthentication();
         if (authentication == null) {
-            throw new AccessDeniedException("Authentication required");
+            LOG.warn("No authentication found!");
+            return Optional.empty();
         }
         Object principal = authentication.getPrincipal();
         if (principal instanceof GatewayUserDetails userDetails) {
-            return userDetails.getRoutingInfo();
+            return Optional.ofNullable(userDetails.getRoutingInfo());
         } else if (principal instanceof StudyParticipantUserDetails participantDetails) {
             var ref = participantDetails.getStudyParticipantReference();
-            return studyService.getRoutingInfo(ref.studyId(), (int) ref.participantId())
-                    .orElseThrow(() -> new AccessDeniedException("Routing info not found"));
+            return studyService.getRoutingInfo(ref.studyId(), ref.participantId());
         }
-        throw new AccessDeniedException("Unexpected principal type");
+        return Optional.empty();
     }
 
     private int mapToStatus(Exception e) {
