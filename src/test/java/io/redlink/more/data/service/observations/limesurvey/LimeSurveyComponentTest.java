@@ -72,9 +72,10 @@ class LimeSurveyComponentTest {
         when(limeSurveyRequestService.getAnswer("token123", 100, 50))
                 .thenReturn(Optional.of(new java.util.HashMap<>(Map.of("some_key", "some_value"))));
 
-        boolean result = limeSurveyComponent.processCallback("1", parameters, routingInfo, observation, Instant.now(), Instant.now());
+        Optional<RoutingInfo> result = limeSurveyComponent.processCallback("1", parameters, routingInfo, observation, Instant.now(), Instant.now());
 
-        assertTrue(result);
+        assertTrue(result.isPresent());
+        assertEquals(routingInfo, result.get());
         verify(elasticService).storeDataPoints(anyList(), eq(routingInfo));
     }
 
@@ -93,9 +94,10 @@ class LimeSurveyComponentTest {
         when(limeSurveyRequestService.getAnswer("token123", 100, 50))
                 .thenReturn(Optional.of(new java.util.HashMap<>(Map.of("some_key", "some_value"))));
 
-        boolean result = limeSurveyComponent.processCallback("1", parameters, null, null, Instant.now(), Instant.now());
+        Optional<RoutingInfo> result = limeSurveyComponent.processCallback("1", parameters, null, null, Instant.now(), Instant.now());
 
-        assertTrue(result);
+        assertTrue(result.isPresent());
+        assertEquals(routingInfo, result.get());
         verify(elasticService).storeDataPoints(anyList(), eq(routingInfo));
     }
 

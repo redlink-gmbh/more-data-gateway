@@ -53,7 +53,7 @@ public class LimeSurveyComponent implements ObservationComponent {
     }
 
     @Override
-    public boolean processCallback(String observationId, Map<String, String> parameters, RoutingInfo routingInfo, Observation observation, Instant scheduleStart, Instant scheduleEnd) {
+    public Optional<RoutingInfo> processCallback(String observationId, Map<String, String> parameters, RoutingInfo routingInfo, Observation observation, Instant scheduleStart, Instant scheduleEnd) {
         if (routingInfo == null) {
             String studyIdParam = getParameter(parameters, "studyid", "studyId");
             String observationIdParam = getParameter(parameters, "observationid", "observationId");
@@ -63,7 +63,7 @@ public class LimeSurveyComponent implements ObservationComponent {
             }
         }
         if (routingInfo == null) {
-            return false;
+            return Optional.empty();
         }
 
         String token = getParameter(parameters, LIME_SURVEY_TOKEN_KEY, LIME_SURVEY_ID_KEY);
@@ -77,7 +77,10 @@ public class LimeSurveyComponent implements ObservationComponent {
         Integer saveId = Integer.parseInt(savedId);
         Integer surveyId = Integer.parseInt(surveyIdParam);
         String currentObservationId = observation != null ? Integer.toString(observation.observationId()) : observationId;
-        return storeAnswer(surveyId, saveId, token, routingInfo, currentObservationId);
+        if (storeAnswer(surveyId, saveId, token, routingInfo, currentObservationId)) {
+            return Optional.of(routingInfo);
+        }
+        return Optional.empty();
     }
 
     private String getParameter(Map<String, String> parameters, String... keys) {
