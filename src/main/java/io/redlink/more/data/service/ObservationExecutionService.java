@@ -86,19 +86,20 @@ public class ObservationExecutionService {
                 .orElseThrow(() -> new NotFoundException("Could not produce URL for observation " + observationId));
     }
 
-    public boolean processCallback(String observationId, Instant scheduleStart, Instant scheduleEnd, Optional<RoutingInfo> routingInfo, Map<String, String> parameters) {
+    public Optional<RoutingInfo> processCallback(String observationId, Instant scheduleStart, Instant scheduleEnd, Optional<RoutingInfo> routingInfo, Map<String, String> parameters) {
         if (routingInfo == null || routingInfo.isEmpty()) {
             for (ObservationComponent component : observationComponents.values()) {
-                if (component.processCallback(observationId, parameters, null, null, scheduleStart, scheduleEnd)) {
-                    return true;
+                Optional<RoutingInfo> result = component.processCallback(observationId, parameters, null, null, scheduleStart, scheduleEnd);
+                if (result.isPresent()) {
+                    return result;
                 }
             }
-            return false;
+            return Optional.empty();
         }
 
         Optional<Pair<Study, List<ParticipantObservationSeed>>> studyResult = studyService.getStudy(routingInfo.get());
         if (studyResult.isEmpty()) {
-            return false;
+            return Optional.empty();
         }
         Study study = studyResult.get().getLeft();
 
@@ -113,6 +114,6 @@ public class ObservationExecutionService {
                 return component.processCallback(observationId, parameters, routingInfo.get(), observation, scheduleStart, scheduleEnd);
             }
         }
-        return false;
+        return Optional.empty();
     }
 }

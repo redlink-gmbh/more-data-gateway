@@ -238,7 +238,7 @@ class ObservationExecutionControllerTest {
         org.springframework.mock.web.MockHttpSession mockSession = new org.springframework.mock.web.MockHttpSession();
         mockSession.setAttribute("activeObservations", new ArrayList<>(java.util.List.of(activeObservation)));
 
-        when(observationExecutionService.processCallback(any(), any(), any(), any(), any())).thenReturn(false);
+        when(observationExecutionService.processCallback(any(), any(), any(), any(), any())).thenReturn(Optional.empty());
 
         org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder requestBuilder = org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/execution/callback")
                 .session(mockSession);
@@ -269,7 +269,7 @@ class ObservationExecutionControllerTest {
         lenient().when(session.getAttribute("activeObservations")).thenReturn(new ArrayList<>());
         lenient().when(session.getAttribute("redirectMap")).thenReturn(new HashMap<>());
         lenient().when(request.getAttribute(org.springframework.web.servlet.HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE)).thenReturn(new HashMap<>());
-        lenient().when(observationExecutionService.processCallback(eq("1"), any(), any(), eq(Optional.of(routingInfo)), any())).thenReturn(true);
+        lenient().when(observationExecutionService.processCallback(eq("1"), any(), any(), eq(Optional.of(routingInfo)), any())).thenReturn(Optional.of(routingInfo));
 
         ResponseEntity<String> response = observationExecutionController.callback();
 
@@ -308,7 +308,7 @@ class ObservationExecutionControllerTest {
         lenient().when(request.getAttribute(org.springframework.web.servlet.HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE)).thenReturn(new HashMap<>());
 
         // ObservationExecutionService.processCallback called with null routingInfo, as it's now handled by the component
-        lenient().when(observationExecutionService.processCallback(eq("101"), isNull(), isNull(), eq(Optional.empty()), any())).thenReturn(true);
+        lenient().when(observationExecutionService.processCallback(eq("101"), isNull(), isNull(), eq(Optional.empty()), any())).thenReturn(Optional.of(routingInfo));
 
         ResponseEntity<String> response = observationExecutionController.callback();
 

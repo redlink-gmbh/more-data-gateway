@@ -9,6 +9,9 @@
 package io.redlink.more.data.model;
 
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.OptionalInt;
 import java.util.Set;
 
@@ -41,5 +44,15 @@ public record RoutingInfo(
 
     public boolean acceptData() {
         return studyActive && participantActive;
+    }
+
+    public String participantHash() {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest((studyId + ":" + participantId).getBytes(StandardCharsets.UTF_8));
+            return org.apache.commons.codec.binary.Hex.encodeHexString(hash);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("Could not create routing info hash", e);
+        }
     }
 }

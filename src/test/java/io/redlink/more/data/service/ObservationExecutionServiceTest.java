@@ -172,6 +172,7 @@ class ObservationExecutionServiceTest {
         Study study = new Study(1L, "Title", true, "Info", "Finish", "active", "Consent", null, null, null, null, List.of(observation), now, now, null);
 
         when(studyService.getStudy(routingInfo)).thenReturn(Optional.of(Pair.of(study, Collections.emptyList())));
+        when(observationComponent.processCallback(any(), any(), any(), any(), any(), any())).thenReturn(Optional.of(routingInfo));
 
         observationExecutionService.processCallback(observationId, now, now, Optional.of(routingInfo), parameters);
 
@@ -183,12 +184,14 @@ class ObservationExecutionServiceTest {
         String observationId = "1";
         Instant now = Instant.now().truncatedTo(ChronoUnit.SECONDS);
         Map<String, String> parameters = Map.of("key", "value");
+        RoutingInfo routingInfo = new RoutingInfo(1L, 1, OptionalInt.empty(), Set.of(), true, true);
 
-        when(observationComponent.processCallback(eq(observationId), eq(parameters), isNull(), isNull(), any(), any())).thenReturn(true);
+        when(observationComponent.processCallback(eq(observationId), eq(parameters), isNull(), isNull(), any(), any())).thenReturn(Optional.of(routingInfo));
 
-        boolean result = observationExecutionService.processCallback(observationId, now, now, Optional.empty(), parameters);
+        Optional<RoutingInfo> result = observationExecutionService.processCallback(observationId, now, now, Optional.empty(), parameters);
 
-        assertTrue(result);
+        assertTrue(result.isPresent());
+        assertEquals(routingInfo, result.get());
         verify(observationComponent).processCallback(eq(observationId), eq(parameters), isNull(), isNull(), any(), any());
     }
 }

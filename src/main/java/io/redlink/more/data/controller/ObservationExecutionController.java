@@ -35,10 +35,13 @@ import org.springframework.web.util.UriComponentsBuilder;
 import java.net.URI;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 @RestController
 @RequestMapping(value = "/api/v1/execution", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -47,6 +50,8 @@ public class ObservationExecutionController implements ExecutionApi {
     private final AuthenticationFacade authenticationFacade;
     private final StudyService studyService;
     private final ObservationExecutionService observationExecutionService;
+    private final Map<String, Map<ActiveObservation, String>> externalRedirects = new ConcurrentHashMap<>();
+    private final Map<String, List<ActiveObservation>> externalActiveObservations = new ConcurrentHashMap<>();
 
     public ObservationExecutionController(AuthenticationFacade authenticationFacade, StudyService studyService, ObservationExecutionService observationExecutionService) {
         this.authenticationFacade = authenticationFacade;
@@ -65,12 +70,17 @@ public class ObservationExecutionController implements ExecutionApi {
             ActiveObservation activeObservation = new ActiveObservation(observationId, start, end);
             if (redirect != null && !redirect.isBlank()) {
                 SessionUtils.addRedirect(activeObservation, redirect);
+                this.externalRedirects.computeIfAbsent(routingInfo.participantHash(), k -> Collections.synchronizedMap(new LinkedHashMap<>()))
+                        .put(activeObservation, redirect);
             }
 
             if (!SessionUtils.getActiveObservations().contains(activeObservation)) {
                 ArrayList<ActiveObservation> mutableList = new ArrayList<>(SessionUtils.getActiveObservations());
                 mutableList.add(activeObservation);
                 SessionUtils.setActiveObservations(mutableList);
+
+                this.externalActiveObservations.computeIfAbsent(routingInfo.participantHash(), k -> Collections.synchronizedList(new ArrayList<>()))
+                        .add(activeObservation);
             }
 
             if (SessionUtils.getNonMissingData().contains(NonMissingData.fromActiveObservation(activeObservation))) {
@@ -153,25 +163,57 @@ public class ObservationExecutionController implements ExecutionApi {
             }
 
             if (observationId != null) {
-                boolean processSuccess = observationExecutionService.processCallback(observationId, scheduleStart, scheduleEnd, getRoutingInfo(), params);
+                Optional<RoutingInfo> routingInfo = observationExecutionService.processCallback(observationId, scheduleStart, scheduleEnd, getRoutingInfo(), params);
 
-                if (processSuccess) {
+                if (routingInfo.isPresent()) {
+                    RoutingInfo ri = routingInfo.get();
+                    if (last == null) {
+                        List<ActiveObservation> externalAO = externalActiveObservations.getOrDefault(ri, Collections.emptyList());
+                        for (int i = externalAO.size() - 1; i >= 0; i--) {
+                            ActiveObservation ao = externalAO.get(i);
+                            if (ao.observationId().equals(observationId)) {
+                                last = ao;
+                                break;
+                            }
+                        }
+                    }
+
                     if (last != null) {
+                        String externalRedirect = externalRedirects.getOrDefault(ri, Collections.emptyMap()).get(last);
+                        if (externalRedirect != null && !externalRedirect.isBlank()) {
+                            redirectUrl = URI.create(externalRedirect);
+                        }
+
                         NonMissingData nonMissingData = NonMissingData.fromActiveObservation(last);
                         if (!SessionUtils.getNonMissingData().contains(nonMissingData)) {
                             ArrayList<NonMissingData> mutableNonMissingDataList = new ArrayList<>(SessionUtils.getNonMissingData());
                             mutableNonMissingDataList.add(nonMissingData);
                             SessionUtils.setNonMissingData(mutableNonMissingDataList);
                         }
+
+                        ArrayList<ActiveObservation> mutableActiveObservationList = new ArrayList<>(activeObservations);
+                        mutableActiveObservationList.remove(last);
+                        SessionUtils.setActiveObservations(mutableActiveObservationList);
+                        SessionUtils.removeRedirect(last);
+
+                        // Cleanup external maps
+                        Map<ActiveObservation, String> riRedirects = externalRedirects.get(ri.participantHash());
+                        if (riRedirects != null) {
+                            riRedirects.remove(last);
+                            if (riRedirects.isEmpty()) {
+                                externalRedirects.remove(ri.participantHash());
+                            }
+                        }
+                        List<ActiveObservation> riAO = externalActiveObservations.get(ri.participantHash());
+                        if (riAO != null) {
+                            riAO.remove(last);
+                            if (riAO.isEmpty()) {
+                                externalActiveObservations.remove(ri.participantHash());
+                            }
+                        }
                     }
                 } else {
                     status = HttpStatus.INTERNAL_SERVER_ERROR.value();
-                }
-                if (last != null) {
-                    ArrayList<ActiveObservation> mutableActiveObservationList = new ArrayList<>(activeObservations);
-                    mutableActiveObservationList.remove(last);
-                    SessionUtils.setActiveObservations(mutableActiveObservationList);
-                    SessionUtils.removeRedirect(last);
                 }
             } else {
                 LOG.error("Observation not found for observationId {}!", observationId);
