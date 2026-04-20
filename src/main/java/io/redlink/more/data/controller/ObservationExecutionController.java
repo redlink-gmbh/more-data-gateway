@@ -50,8 +50,8 @@ public class ObservationExecutionController implements ExecutionApi {
     private final AuthenticationFacade authenticationFacade;
     private final StudyService studyService;
     private final ObservationExecutionService observationExecutionService;
-    private final Map<RoutingInfo, Map<ActiveObservation, String>> externalRedirects = new ConcurrentHashMap<>();
-    private final Map<RoutingInfo, List<ActiveObservation>> externalActiveObservations = new ConcurrentHashMap<>();
+    private final Map<String, Map<ActiveObservation, String>> externalRedirects = new ConcurrentHashMap<>();
+    private final Map<String, List<ActiveObservation>> externalActiveObservations = new ConcurrentHashMap<>();
 
     public ObservationExecutionController(AuthenticationFacade authenticationFacade, StudyService studyService, ObservationExecutionService observationExecutionService) {
         this.authenticationFacade = authenticationFacade;
@@ -70,7 +70,7 @@ public class ObservationExecutionController implements ExecutionApi {
             ActiveObservation activeObservation = new ActiveObservation(observationId, start, end);
             if (redirect != null && !redirect.isBlank()) {
                 SessionUtils.addRedirect(activeObservation, redirect);
-                this.externalRedirects.computeIfAbsent(routingInfo, k -> Collections.synchronizedMap(new LinkedHashMap<>()))
+                this.externalRedirects.computeIfAbsent(routingInfo.participantHash(), k -> Collections.synchronizedMap(new LinkedHashMap<>()))
                         .put(activeObservation, redirect);
             }
 
@@ -79,7 +79,7 @@ public class ObservationExecutionController implements ExecutionApi {
                 mutableList.add(activeObservation);
                 SessionUtils.setActiveObservations(mutableList);
 
-                this.externalActiveObservations.computeIfAbsent(routingInfo, k -> Collections.synchronizedList(new ArrayList<>()))
+                this.externalActiveObservations.computeIfAbsent(routingInfo.participantHash(), k -> Collections.synchronizedList(new ArrayList<>()))
                         .add(activeObservation);
             }
 
@@ -197,18 +197,18 @@ public class ObservationExecutionController implements ExecutionApi {
                         SessionUtils.removeRedirect(last);
 
                         // Cleanup external maps
-                        Map<ActiveObservation, String> riRedirects = externalRedirects.get(ri);
+                        Map<ActiveObservation, String> riRedirects = externalRedirects.get(ri.participantHash());
                         if (riRedirects != null) {
                             riRedirects.remove(last);
                             if (riRedirects.isEmpty()) {
-                                externalRedirects.remove(ri);
+                                externalRedirects.remove(ri.participantHash());
                             }
                         }
-                        List<ActiveObservation> riAO = externalActiveObservations.get(ri);
+                        List<ActiveObservation> riAO = externalActiveObservations.get(ri.participantHash());
                         if (riAO != null) {
                             riAO.remove(last);
                             if (riAO.isEmpty()) {
-                                externalActiveObservations.remove(ri);
+                                externalActiveObservations.remove(ri.participantHash());
                             }
                         }
                     }
