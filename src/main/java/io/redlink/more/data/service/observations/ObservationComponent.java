@@ -2,6 +2,7 @@ package io.redlink.more.data.service.observations;
 
 import io.redlink.more.data.model.Observation;
 import io.redlink.more.data.model.RoutingInfo;
+import org.apache.commons.lang3.tuple.Pair;
 
 import java.time.Instant;
 import java.util.Map;
@@ -12,5 +13,5 @@ public interface ObservationComponent {
 
     Optional<String> produceUrl(Observation observation, RoutingInfo routingInfo, Instant scheduleStart, Instant scheduleEnd);
 
-    Optional<RoutingInfo> processCallback(String observationId, Map<String, String> parameters, RoutingInfo routingInfo, Observation observation, Instant scheduleStart, Instant scheduleEnd);
+    Optional<Pair<RoutingInfo, Integer>> processCallback(Map<String, String> parameters, RoutingInfo routingInfo, Observation observation);
 }

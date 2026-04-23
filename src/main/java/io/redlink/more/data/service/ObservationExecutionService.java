@@ -2,17 +2,26 @@ package io.redlink.more.data.service;
 
 import io.redlink.more.data.exception.ForbiddenException;
 import io.redlink.more.data.exception.NotFoundException;
+import io.redlink.more.data.model.ActiveObservation;
+import io.redlink.more.data.model.CompletedData;
 import io.redlink.more.data.model.Observation;
 import io.redlink.more.data.model.ParticipantObservationSeed;
 import io.redlink.more.data.model.RoutingInfo;
 import io.redlink.more.data.model.Study;
 import io.redlink.more.data.service.observations.ObservationComponent;
+import io.redlink.more.data.store.observationCallback.ObservationCallbackStore;
 import io.redlink.more.data.util.SchedulerUtils;
 import org.apache.commons.lang3.Range;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.util.UriComponentsBuilder;
 
+import java.net.URI;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.List;
@@ -22,19 +31,41 @@ import java.util.stream.Collectors;
 
 @Service
 public class ObservationExecutionService {
+    private static final Logger LOG = LoggerFactory.getLogger(ObservationExecutionService.class);
+
     private final StudyService studyService;
+    private final ObservationCallbackStore callbackStore;
     private final Map<String, ObservationComponent> observationComponents;
 
-    public ObservationExecutionService(StudyService studyService, List<ObservationComponent> observationComponents) {
+    public ObservationExecutionService(
+            StudyService studyService,
+            @Qualifier("inMemory") ObservationCallbackStore callbackStore,
+            List<ObservationComponent> observationComponents) {
         this.studyService = studyService;
+        this.callbackStore = callbackStore;
         this.observationComponents = observationComponents.stream()
                 .collect(Collectors.toMap(ObservationComponent::getObservationType, c -> c));
     }
 
-    public String executeObservation(String observationId, Instant scheduleStart, Instant scheduleEnd, RoutingInfo routingInfo) {
+    public Optional<URI> executeObservation(String observationId, Instant scheduleStart, Instant scheduleEnd, RoutingInfo routingInfo, String redirect) {
         if (observationId.isBlank() || !StringUtils.isNumeric(observationId)) {
             throw new NotFoundException("Observation not found!");
         }
+        ActiveObservation activeObservation = new ActiveObservation(observationId, scheduleStart, scheduleEnd);
+        if (callbackStore.isCompleted(routingInfo, activeObservation)) {
+            LOG.debug("Observation {} already done, redirecting...", CompletedData.fromActiveObservation(activeObservation));
+            if (redirect != null) {
+                return Optional.of(UriComponentsBuilder.fromUriString(redirect)
+                        .replaceQueryParam("status", HttpStatus.CONFLICT.value())
+                        .build().toUri());
+            }
+            return Optional.empty();
+        }
+
+        if (redirect != null && !redirect.isBlank()) {
+            callbackStore.saveRedirect(routingInfo, activeObservation, redirect);
+        }
+
         Optional<Pair<Study, List<ParticipantObservationSeed>>> studyResult = studyService.getStudy(routingInfo);
         if (studyResult.isEmpty()) {
             throw new NotFoundException("Study not found for " + routingInfo);
@@ -82,38 +113,50 @@ public class ObservationExecutionService {
             throw new ForbiddenException("Provided schedule is not valid for observation " + observationId);
         }
 
-        return component.produceUrl(observation, routingInfo, scheduleStart, scheduleEnd)
-                .orElseThrow(() -> new NotFoundException("Could not produce URL for observation " + observationId));
+        var uri = URI.create(component.produceUrl(observation, routingInfo, scheduleStart, scheduleEnd)
+                .orElseThrow(() -> new NotFoundException("Could not produce URL for observation " + observationId)));
+        LOG.info("Opening url `{}` for routinginfo {} and observation schedule {}", uri, routingInfo, activeObservation);
+        return Optional.of(uri);
     }
 
-    public Optional<RoutingInfo> processCallback(String observationId, Instant scheduleStart, Instant scheduleEnd, Optional<RoutingInfo> routingInfo, Map<String, String> parameters) {
-        if (routingInfo == null || routingInfo.isEmpty()) {
+    public Optional<URI> processCallback(String observationId, Optional<RoutingInfo> routingInfo, Map<String, String> parameters) {
+        Optional<Pair<RoutingInfo, Integer>> cbResult = Optional.empty();
+        if (routingInfo.isEmpty() || observationId == null) {
             for (ObservationComponent component : observationComponents.values()) {
-                Optional<RoutingInfo> result = component.processCallback(observationId, parameters, null, null, scheduleStart, scheduleEnd);
+                var result = component.processCallback(parameters, null, null);
                 if (result.isPresent()) {
-                    return result;
+                    cbResult = result;
+                    break;
                 }
             }
-            return Optional.empty();
-        }
+        } else {
+            Optional<Pair<Study, List<ParticipantObservationSeed>>> studyResult = studyService.getStudy(routingInfo.get());
+            if (studyResult.isEmpty()) {
+                return Optional.empty();
+            }
+            Study study = studyResult.get().getLeft();
 
-        Optional<Pair<Study, List<ParticipantObservationSeed>>> studyResult = studyService.getStudy(routingInfo.get());
-        if (studyResult.isEmpty()) {
-            return Optional.empty();
-        }
-        Study study = studyResult.get().getLeft();
+            Optional<Observation> studyObservation = study.observations().stream()
+                    .filter(o -> String.valueOf(o.observationId()).equals(observationId))
+                    .findFirst();
 
-        Optional<Observation> studyObservation = study.observations().stream()
-                .filter(o -> String.valueOf(o.observationId()).equals(observationId))
-                .findFirst();
-
-        if (studyObservation.isPresent()) {
-            Observation observation = studyObservation.get();
-            ObservationComponent component = observationComponents.get(observation.type());
-            if (component != null) {
-                return component.processCallback(observationId, parameters, routingInfo.get(), observation, scheduleStart, scheduleEnd);
+            if (studyObservation.isPresent()) {
+                Observation observation = studyObservation.get();
+                ObservationComponent component = observationComponents.get(observation.type());
+                if (component != null) {
+                    cbResult = component.processCallback(parameters, routingInfo.get(), observation);
+                }
             }
         }
+
+        if (cbResult.isPresent()) {
+            return callbackStore.pullRedirect(cbResult.get().getLeft(), cbResult.get().getRight());
+        }
+
         return Optional.empty();
+    }
+
+    public List<CompletedData> getCompletedData(RoutingInfo routingInfo) {
+        return callbackStore.getCompletedData(routingInfo);
     }
 }

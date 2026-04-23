@@ -29,12 +29,6 @@ spring:
 
 server:
   forward-headers-strategy: framework
-  servlet:
-    session:
-      cookie:
-        same-site: lax
-        secure: true
-        http-only: true
 
 more:
   gateway:

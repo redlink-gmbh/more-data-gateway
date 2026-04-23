@@ -6,17 +6,17 @@ import io.redlink.more.data.api.participant.v1.webservices.AuthorizationApi;
 import io.redlink.more.data.api.participant.v1.webservices.ConfigurationApi;
 import io.redlink.more.data.controller.transformer.ParticipantPortalTransformer;
 import io.redlink.more.data.exception.NotAuthorizedException;
+import io.redlink.more.data.model.CompletedData;
 import io.redlink.more.data.model.DataHealth;
-import io.redlink.more.data.model.NonMissingData;
 import io.redlink.more.data.model.ObservationDataState;
 import io.redlink.more.data.model.ParticipantConsent;
 import io.redlink.more.data.model.RoutingInfo;
 import io.redlink.more.data.model.StudyParticipantUserDetails;
 import io.redlink.more.data.service.ApplicationAccessService;
 import io.redlink.more.data.service.DataHealthService;
+import io.redlink.more.data.service.ObservationExecutionService;
 import io.redlink.more.data.service.StudyService;
 import io.redlink.more.data.util.ParticipantUtils;
-import io.redlink.more.data.util.SessionUtils;
 import io.redlink.more.data.util.StringUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
@@ -55,14 +55,17 @@ public class ParticipantPortalController implements AuthorizationApi, Configurat
     private final ApplicationAccessService applicationAccessService;
     private final StudyService studyService;
     private final DataHealthService dataHealthService;
+    private final ObservationExecutionService observationExecutionService;
 
     ParticipantPortalController(
             ApplicationAccessService applicationAccessService,
             StudyService studyService,
-            DataHealthService dataHealthService) {
+            DataHealthService dataHealthService,
+            ObservationExecutionService observationExecutionService) {
         this.applicationAccessService = applicationAccessService;
         this.studyService = studyService;
         this.dataHealthService = dataHealthService;
+        this.observationExecutionService = observationExecutionService;
     }
 
     @Override
@@ -168,10 +171,10 @@ public class ParticipantPortalController implements AuthorizationApi, Configurat
         }
         var studyDTO = ParticipantPortalTransformer.toDTO(studyData.get().getLeft(), studyData.get().getRight());
 
-        List<NonMissingData> nonMissingData = SessionUtils.getNonMissingData();
+        List<CompletedData> completedData = observationExecutionService.getCompletedData(routingInfo);
         //add the dataHealth information to the studyDTO (Not done in Transformer as this need calls to the dataHealthService)
         studyDTO.getObservations().forEach(observation -> {
-            var observationNonMissingData = nonMissingData.stream().filter(d -> Objects.equals(d.observationId(), observation.getObservationId())).toList();
+            var observationNonMissingData = completedData.stream().filter(d -> Objects.equals(d.observationId(), observation.getObservationId())).toList();
             observation.getSchedule().forEach(observationSchedule -> {
                 DataHealth dataHealth;
                 if (!observationNonMissingData.isEmpty()

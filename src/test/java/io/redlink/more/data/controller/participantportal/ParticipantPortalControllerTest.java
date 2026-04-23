@@ -22,6 +22,7 @@ import io.redlink.more.data.service.ApplicationAccessService;
 import io.redlink.more.data.service.DataHealthService;
 import io.redlink.more.data.service.GatewayUserDetailService;
 import io.redlink.more.data.service.LoginTokenService;
+import io.redlink.more.data.service.ObservationExecutionService;
 import io.redlink.more.data.service.RegistrationService;
 import io.redlink.more.data.service.StudyService;
 import org.apache.commons.lang3.tuple.Pair;
@@ -97,6 +98,9 @@ class ParticipantPortalControllerTest {
 
     @MockitoBean
     private DataHealthService dataHealthService;
+
+    @MockitoBean
+    private ObservationExecutionService observationExecutionService;
 
     @MockitoBean
     private SchedulerProperties schedulerProperties;
