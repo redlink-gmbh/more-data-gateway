@@ -6,6 +6,7 @@ import io.redlink.more.data.model.RoutingInfo;
 import io.redlink.more.data.service.ElasticService;
 import io.redlink.more.data.service.observations.ObservationComponent;
 import io.redlink.more.data.util.DateTimeUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -53,13 +54,21 @@ public class LimeSurveyComponent implements ObservationComponent {
     }
 
     @Override
-    public Optional<RoutingInfo> processCallback(String observationId, Map<String, String> parameters, RoutingInfo routingInfo, Observation observation, Instant scheduleStart, Instant scheduleEnd) {
+    public Optional<Pair<RoutingInfo, Integer>> processCallback(Map<String, String> parameters, RoutingInfo routingInfo, Observation observation) {
+        Optional<Integer> observationId = observation != null
+                ? Optional.of(observation.observationId())
+                : Optional
+                  .ofNullable(getParameter(parameters, "observationId", "observation-id", "observationid"))
+                  .map(Integer::parseInt);
+        if (observationId.isEmpty()) {
+            return Optional.empty();
+        }
         if (routingInfo == null) {
             String studyIdParam = getParameter(parameters, "studyid", "studyId");
-            String observationIdParam = getParameter(parameters, "observationid", "observationId");
             String tokenParam = getParameter(parameters, "token");
-            if (studyIdParam != null && observationIdParam != null && tokenParam != null) {
-                routingInfo = studyService.getRoutingInfoByToken(Long.parseLong(studyIdParam), Integer.parseInt(observationIdParam), tokenParam).orElse(null);
+            if (studyIdParam != null && tokenParam != null) {
+                routingInfo = studyService.getRoutingInfoByToken(Long.parseLong(studyIdParam), observationId.get(), tokenParam)
+                        .orElse(null);
             }
         }
         if (routingInfo == null) {
@@ -76,9 +85,9 @@ public class LimeSurveyComponent implements ObservationComponent {
         }
         Integer saveId = Integer.parseInt(savedId);
         Integer surveyId = Integer.parseInt(surveyIdParam);
-        String currentObservationId = observation != null ? Integer.toString(observation.observationId()) : observationId;
+        String currentObservationId = Integer.toString(observation != null ? observation.observationId() : observationId.get());
         if (storeAnswer(surveyId, saveId, token, routingInfo, currentObservationId)) {
-            return Optional.of(routingInfo);
+            return Optional.of(Pair.of(routingInfo, observationId.get()));
         }
         return Optional.empty();
     }

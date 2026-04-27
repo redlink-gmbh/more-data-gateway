@@ -3,6 +3,7 @@ package io.redlink.more.data.service.observations.limesurvey;
 import io.redlink.more.data.model.Observation;
 import io.redlink.more.data.model.RoutingInfo;
 import io.redlink.more.data.service.ElasticService;
+import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -72,10 +73,9 @@ class LimeSurveyComponentTest {
         when(limeSurveyRequestService.getAnswer("token123", 100, 50))
                 .thenReturn(Optional.of(new java.util.HashMap<>(Map.of("some_key", "some_value"))));
 
-        Optional<RoutingInfo> result = limeSurveyComponent.processCallback("1", parameters, routingInfo, observation, Instant.now(), Instant.now());
-
+        Optional<Pair<RoutingInfo, Integer>> result = limeSurveyComponent.processCallback(parameters, routingInfo, observation);
         assertTrue(result.isPresent());
-        assertEquals(routingInfo, result.get());
+        assertEquals(routingInfo, result.get().getLeft());
         verify(elasticService).storeDataPoints(anyList(), eq(routingInfo));
     }
 
@@ -94,10 +94,9 @@ class LimeSurveyComponentTest {
         when(limeSurveyRequestService.getAnswer("token123", 100, 50))
                 .thenReturn(Optional.of(new java.util.HashMap<>(Map.of("some_key", "some_value"))));
 
-        Optional<RoutingInfo> result = limeSurveyComponent.processCallback("1", parameters, null, null, Instant.now(), Instant.now());
-
+        Optional<Pair<RoutingInfo, Integer>> result = limeSurveyComponent.processCallback(parameters, null, null);
         assertTrue(result.isPresent());
-        assertEquals(routingInfo, result.get());
+        assertEquals(routingInfo, result.get().getLeft());
         verify(elasticService).storeDataPoints(anyList(), eq(routingInfo));
     }
 
@@ -107,6 +106,6 @@ class LimeSurveyComponentTest {
         RoutingInfo routingInfo = new RoutingInfo(1L, 1, OptionalInt.empty(), Set.of(), true, true);
         Observation observation = new Observation(1, 1, "Title", "lime-survey-observation", "Info", Map.of(), null, Instant.now(), Instant.now(), false, false, false, Set.of());
 
-        assertThrows(IllegalArgumentException.class, () -> limeSurveyComponent.processCallback("1", parameters, routingInfo, observation, Instant.now(), Instant.now()));
+        assertThrows(IllegalArgumentException.class, () -> limeSurveyComponent.processCallback(parameters, routingInfo, observation));
     }
 }

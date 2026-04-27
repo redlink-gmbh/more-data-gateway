@@ -1,12 +1,13 @@
 package io.redlink.more.data.controller;
 
 import io.redlink.more.data.configuration.AuthenticationFacade;
+import io.redlink.more.data.model.ActiveObservation;
+import io.redlink.more.data.model.CompletedData;
 import io.redlink.more.data.model.GatewayUserDetails;
 import io.redlink.more.data.model.RoutingInfo;
 import io.redlink.more.data.service.ObservationExecutionService;
 import io.redlink.more.data.service.StudyService;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpSession;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,8 +22,8 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
+import java.net.URI;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -47,9 +48,6 @@ class ObservationExecutionControllerTest {
 
     @Mock
     private HttpServletRequest request;
-
-    @Mock
-    private HttpSession session;
 
     private ObservationExecutionController observationExecutionController;
 
@@ -82,11 +80,7 @@ class ObservationExecutionControllerTest {
 
         when(authenticationFacade.getAuthentication()).thenReturn(authentication);
         when(authentication.getPrincipal()).thenReturn(userDetails);
-        when(request.getSession(false)).thenReturn(session);
-        when(session.getAttribute("redirectMap")).thenReturn(new HashMap<>());
-        when(session.getAttribute("activeObservations")).thenReturn(new ArrayList<>());
-        when(session.getAttribute("nonMissing")).thenReturn(new ArrayList<>());
-        when(observationExecutionService.executeObservation(observationId, start, end, routingInfo)).thenReturn("http://limesurvey.com");
+        when(observationExecutionService.executeObservation(observationId, start, end, routingInfo, redirect)).thenReturn(Optional.of(URI.create("http://limesurvey.com")));
 
         ResponseEntity<Void> response = observationExecutionController.execObservation(observationId, start.toString(), end.toString(), redirect);
 
@@ -102,17 +96,14 @@ class ObservationExecutionControllerTest {
         RoutingInfo routingInfo = new RoutingInfo(1L, 1, OptionalInt.empty(), Set.of(), true, true);
         GatewayUserDetails userDetails = new GatewayUserDetails("user", "pass", Set.of(), routingInfo);
         Authentication authentication = mock(Authentication.class);
-        io.redlink.more.data.model.ActiveObservation activeObservation = new io.redlink.more.data.model.ActiveObservation(observationId, start, end);
-        io.redlink.more.data.model.NonMissingData nonMissingData = io.redlink.more.data.model.NonMissingData.fromActiveObservation(activeObservation);
+        ActiveObservation activeObservation = new ActiveObservation(observationId, start, end);
+        CompletedData completedData = CompletedData.fromActiveObservation(activeObservation);
 
         when(authenticationFacade.getAuthentication()).thenReturn(authentication);
         when(authentication.getPrincipal()).thenReturn(userDetails);
-        when(request.getSession(false)).thenReturn(session);
-        when(session.getAttribute("activeObservations")).thenReturn(new ArrayList<>());
-        when(session.getAttribute("nonMissing")).thenReturn(new ArrayList<>(java.util.List.of(nonMissingData)));
-        Map<io.redlink.more.data.model.ActiveObservation, String> redirectMap = new HashMap<>();
-        redirectMap.put(activeObservation, "http://redirect.com");
-        when(session.getAttribute("redirectMap")).thenReturn(redirectMap);
+
+        when(observationExecutionService.executeObservation(eq(observationId), any(), any(), eq(routingInfo), any()))
+                .thenReturn(Optional.of(URI.create("http://redirect.com?status=200")));
 
         ResponseEntity<Void> response = observationExecutionController.execObservation(observationId, start.toString(), end.toString(), null);
 
@@ -128,22 +119,21 @@ class ObservationExecutionControllerTest {
         RoutingInfo routingInfo = new RoutingInfo(1L, 1, OptionalInt.empty(), Set.of(), true, true);
         GatewayUserDetails userDetails = new GatewayUserDetails("user", "pass", Set.of(), routingInfo);
         Authentication authentication = mock(Authentication.class);
-        io.redlink.more.data.model.ActiveObservation activeObservation = new io.redlink.more.data.model.ActiveObservation(observationId, start, end);
-        io.redlink.more.data.model.NonMissingData nonMissingData = io.redlink.more.data.model.NonMissingData.fromActiveObservation(activeObservation);
+        ActiveObservation activeObservation = new ActiveObservation(observationId, start, end);
+        CompletedData completedData = CompletedData.fromActiveObservation(activeObservation);
 
         when(authenticationFacade.getAuthentication()).thenReturn(authentication);
         when(authentication.getPrincipal()).thenReturn(userDetails);
-        when(request.getSession(false)).thenReturn(session);
-        when(session.getAttribute("activeObservations")).thenReturn(new ArrayList<>());
-        when(session.getAttribute("nonMissing")).thenReturn(new ArrayList<>(java.util.List.of(nonMissingData)));
-        when(session.getAttribute("redirectMap")).thenReturn(null);
+
+        when(observationExecutionService.executeObservation(eq(observationId), any(), any(), eq(routingInfo), any()))
+                .thenReturn(Optional.empty());
         when(request.getContextPath()).thenReturn("");
 
         ResponseEntity<Void> response = observationExecutionController.execObservation(observationId, start.toString(), end.toString(), null);
 
         assertEquals(HttpStatus.FOUND, response.getStatusCode());
         String location = response.getHeaders().getLocation().toString();
-        assertTrue(location.endsWith("/api/v1/execution/callback/end.htm?status=200"));
+        assertTrue(location.endsWith("/api/v1/execution/callback/end.htm?status=409"));
     }
 
     @Test
@@ -156,7 +146,7 @@ class ObservationExecutionControllerTest {
 
         when(authenticationFacade.getAuthentication()).thenReturn(authentication);
         when(authentication.getPrincipal()).thenReturn(userDetails);
-        when(observationExecutionService.executeObservation(eq(observationId), any(), any(), eq(routingInfo))).thenReturn("http://limesurvey.com");
+        when(observationExecutionService.executeObservation(eq(observationId), any(), any(), eq(routingInfo), any())).thenReturn(Optional.of(URI.create("http://limesurvey.com")));
 
         org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder requestBuilder = org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/execution/observation/{observation-id}/", observationId)
                 .param("schedule-start", dateOnly)
@@ -191,7 +181,7 @@ class ObservationExecutionControllerTest {
 
         when(authenticationFacade.getAuthentication()).thenReturn(authentication);
         when(authentication.getPrincipal()).thenReturn(userDetails);
-        when(observationExecutionService.executeObservation(eq(observationId), any(), any(), eq(routingInfo))).thenThrow(new io.redlink.more.data.exception.ForbiddenException("Forbidden test"));
+        when(observationExecutionService.executeObservation(eq(observationId), any(), any(), eq(routingInfo), any())).thenThrow(new io.redlink.more.data.exception.ForbiddenException("Forbidden test"));
 
         org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder requestBuilder = org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/execution/observation/{observation-id}/", observationId)
                 .param("schedule-start", start.toString())
@@ -207,18 +197,14 @@ class ObservationExecutionControllerTest {
         RoutingInfo routingInfo = new RoutingInfo(1L, 1, OptionalInt.empty(), Set.of(), true, true);
         GatewayUserDetails userDetails = new GatewayUserDetails("user", "pass", Set.of(), routingInfo);
         Authentication authentication = mock(Authentication.class);
-        io.redlink.more.data.model.ActiveObservation activeObservation = new io.redlink.more.data.model.ActiveObservation("1", Instant.now(), Instant.now().plusSeconds(3600));
+        ActiveObservation activeObservation = new ActiveObservation("1", Instant.now(), Instant.now().plusSeconds(3600));
 
         when(authenticationFacade.getAuthentication()).thenReturn(authentication);
         when(authentication.getPrincipal()).thenReturn(userDetails);
 
-        org.springframework.mock.web.MockHttpSession mockSession = new org.springframework.mock.web.MockHttpSession();
-        mockSession.setAttribute("activeObservations", new ArrayList<>(java.util.List.of(activeObservation)));
+        when(observationExecutionService.processCallback(any(), any(), any())).thenThrow(new IllegalArgumentException("Missing params"));
 
-        when(observationExecutionService.processCallback(any(), any(), any(), any(), any())).thenThrow(new IllegalArgumentException("Missing params"));
-
-        org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder requestBuilder = org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/execution/callback")
-                .session(mockSession);
+        org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder requestBuilder = org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/execution/callback");
 
         mockMvc.perform(requestBuilder)
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().is3xxRedirection())
@@ -230,22 +216,19 @@ class ObservationExecutionControllerTest {
         RoutingInfo routingInfo = new RoutingInfo(1L, 1, OptionalInt.empty(), Set.of(), true, true);
         GatewayUserDetails userDetails = new GatewayUserDetails("user", "pass", Set.of(), routingInfo);
         Authentication authentication = mock(Authentication.class);
-        io.redlink.more.data.model.ActiveObservation activeObservation = new io.redlink.more.data.model.ActiveObservation("1", Instant.now(), Instant.now().plusSeconds(3600));
+        ActiveObservation activeObservation = new ActiveObservation("1", Instant.now(), Instant.now().plusSeconds(3600));
 
         when(authenticationFacade.getAuthentication()).thenReturn(authentication);
         when(authentication.getPrincipal()).thenReturn(userDetails);
 
-        org.springframework.mock.web.MockHttpSession mockSession = new org.springframework.mock.web.MockHttpSession();
-        mockSession.setAttribute("activeObservations", new ArrayList<>(java.util.List.of(activeObservation)));
-
-        when(observationExecutionService.processCallback(any(), any(), any(), any(), any())).thenReturn(Optional.empty());
+        when(observationExecutionService.processCallback(any(), any(), any())).thenReturn(Optional.empty());
 
         org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder requestBuilder = org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/execution/callback")
-                .session(mockSession);
+                .requestAttr(org.springframework.web.servlet.HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE, new HashMap<>());
 
         mockMvc.perform(requestBuilder)
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().is3xxRedirection())
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrlPattern("**/end.htm?status=500"));
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrlPattern("**/end.htm?status=200"));
     }
 
     @Test
@@ -256,7 +239,6 @@ class ObservationExecutionControllerTest {
 
         when(authenticationFacade.getAuthentication()).thenReturn(authentication);
         when(authentication.getPrincipal()).thenReturn(userDetails);
-        lenient().when(request.getSession(false)).thenReturn(session);
         lenient().when(request.getParameterMap()).thenReturn(new HashMap<>(Map.of(
                 "savedId", new String[]{"123"},
                 "observationid", new String[]{"1"}
@@ -265,11 +247,8 @@ class ObservationExecutionControllerTest {
         lenient().when(request.getRequestURL()).thenReturn(new StringBuffer("http://localhost:8080/api/v1/execution/callback"));
         lenient().when(request.getContextPath()).thenReturn("");
 
-        // Mock session attributes
-        lenient().when(session.getAttribute("activeObservations")).thenReturn(new ArrayList<>());
-        lenient().when(session.getAttribute("redirectMap")).thenReturn(new HashMap<>());
         lenient().when(request.getAttribute(org.springframework.web.servlet.HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE)).thenReturn(new HashMap<>());
-        lenient().when(observationExecutionService.processCallback(eq("1"), any(), any(), eq(Optional.of(routingInfo)), any())).thenReturn(Optional.of(routingInfo));
+        lenient().when(observationExecutionService.processCallback(eq("1"), any(), any())).thenReturn(Optional.of(URI.create("http://redirect.com/end.htm")));
 
         ResponseEntity<String> response = observationExecutionController.callback();
 
@@ -308,13 +287,13 @@ class ObservationExecutionControllerTest {
         lenient().when(request.getAttribute(org.springframework.web.servlet.HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE)).thenReturn(new HashMap<>());
 
         // ObservationExecutionService.processCallback called with null routingInfo, as it's now handled by the component
-        lenient().when(observationExecutionService.processCallback(eq("101"), isNull(), isNull(), eq(Optional.empty()), any())).thenReturn(Optional.of(routingInfo));
+        lenient().when(observationExecutionService.processCallback(eq("101"), eq(Optional.empty()), any())).thenReturn(Optional.of(URI.create("http://redirect.com")));
 
         ResponseEntity<String> response = observationExecutionController.callback();
 
         assertEquals(HttpStatus.FOUND, response.getStatusCode());
         String location = response.getHeaders().getLocation().toString();
         assertTrue(location.contains("status=200"));
-        verify(observationExecutionService).processCallback(eq("101"), isNull(), isNull(), eq(Optional.empty()), any());
+        verify(observationExecutionService).processCallback(eq("101"), eq(Optional.empty()), any());
     }
 }

@@ -13,7 +13,6 @@ import io.redlink.more.data.controller.transformer.StudyTransformer;
 import io.redlink.more.data.exception.RegistrationNotPossibleException;
 import io.redlink.more.data.model.ApiCredentials;
 import io.redlink.more.data.model.GatewayUserDetails;
-import io.redlink.more.data.model.NonMissingData;
 import io.redlink.more.data.model.ParticipantConsent;
 import io.redlink.more.data.model.ParticipantObservationSeed;
 import io.redlink.more.data.properties.MoreProperties;
@@ -21,7 +20,6 @@ import io.redlink.more.data.service.GatewayUserDetailService;
 import io.redlink.more.data.service.RegistrationService;
 import io.redlink.more.data.service.StudyService;
 import io.redlink.more.data.util.ParticipantUtils;
-import io.redlink.more.data.util.SessionUtils;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -63,9 +61,8 @@ public class RegistrationApiV1Controller implements RegistrationApi {
             return ResponseEntity.notFound().build();
         }
         List<ParticipantObservationSeed> seeds = study.get().active() ? studyService.getParticipantObservationSeeds(study.get().studyId(), study.get().participant().id()) : Collections.emptyList();
-        List<NonMissingData> nonMissingData = SessionUtils.getNonMissingData();
 
-        var studyDto = StudyTransformer.toDTO(study.get(), seeds, nonMissingData);
+        var studyDto = StudyTransformer.toDTO(study.get(), seeds, Collections.emptyList());
         return ResponseEntity.ok()
                 // For better debugging: return the token for chaining
                 .header("More-Registration-Token", moreRegistrationToken)

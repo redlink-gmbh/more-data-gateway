@@ -7,6 +7,7 @@ import io.redlink.more.data.model.RoutingInfo;
 import io.redlink.more.data.model.Study;
 import io.redlink.more.data.model.scheduler.Event;
 import io.redlink.more.data.service.observations.ObservationComponent;
+import io.redlink.more.data.store.observationCallback.ObservationCallbackStore;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -14,6 +15,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.net.URI;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Collections;
@@ -37,12 +39,15 @@ class ObservationExecutionServiceTest {
     @Mock
     private ObservationComponent observationComponent;
 
+    @Mock
+    ObservationCallbackStore callbackStore;
+
     private ObservationExecutionService observationExecutionService;
 
     @BeforeEach
     void setUp() {
         when(observationComponent.getObservationType()).thenReturn("test-type");
-        observationExecutionService = new ObservationExecutionService(studyService, List.of(observationComponent));
+        observationExecutionService = new ObservationExecutionService(studyService, callbackStore, List.of(observationComponent));
     }
 
     @Test
@@ -63,7 +68,7 @@ class ObservationExecutionServiceTest {
         when(studyService.getStudy(routingInfo)).thenReturn(Optional.of(Pair.of(study, Collections.emptyList())));
         when(observationComponent.produceUrl(any(), any(), any(), any())).thenReturn(Optional.of("http://test.com"));
 
-        String url = observationExecutionService.executeObservation(observationId, start, end, routingInfo);
+        String url = observationExecutionService.executeObservation(observationId, start, end, routingInfo, null).map(URI::toString).orElse(null);
 
         assertEquals("http://test.com", url);
     }
@@ -86,7 +91,7 @@ class ObservationExecutionServiceTest {
         when(studyService.getStudy(routingInfo)).thenReturn(Optional.of(Pair.of(study, Collections.emptyList())));
         when(observationComponent.produceUrl(any(), any(), any(), any())).thenReturn(Optional.of("http://test.com"));
 
-        String url = observationExecutionService.executeObservation(observationId, start, end, routingInfo);
+        String url = observationExecutionService.executeObservation(observationId, start, end, routingInfo, null).map(URI::toString).orElse(null);
 
         assertEquals("http://test.com", url);
     }
@@ -101,7 +106,7 @@ class ObservationExecutionServiceTest {
 
         when(studyService.getStudy(routingInfo)).thenReturn(Optional.of(Pair.of(study, Collections.emptyList())));
 
-        assertThrows(ForbiddenException.class, () -> observationExecutionService.executeObservation(observationId, now, now, routingInfo));
+        assertThrows(ForbiddenException.class, () -> observationExecutionService.executeObservation(observationId, now, now, routingInfo, null));
     }
 
     @Test
@@ -111,7 +116,7 @@ class ObservationExecutionServiceTest {
 
         when(studyService.getStudy(routingInfo)).thenReturn(Optional.empty());
 
-        assertThrows(NotFoundException.class, () -> observationExecutionService.executeObservation(observationId, Instant.now(), Instant.now(), routingInfo));
+        assertThrows(NotFoundException.class, () -> observationExecutionService.executeObservation(observationId, Instant.now(), Instant.now(), routingInfo, null));
     }
 
     @Test
@@ -132,7 +137,7 @@ class ObservationExecutionServiceTest {
         when(studyService.getStudy(routingInfo)).thenReturn(Optional.of(Pair.of(study, Collections.emptyList())));
 
         // Wrong schedule
-        assertThrows(ForbiddenException.class, () -> observationExecutionService.executeObservation(observationId, start.minusSeconds(1), end, routingInfo));
+        assertThrows(ForbiddenException.class, () -> observationExecutionService.executeObservation(observationId, start.minusSeconds(1), end, routingInfo, null));
     }
 
     @Test
@@ -156,7 +161,7 @@ class ObservationExecutionServiceTest {
         when(studyService.getStudy(routingInfo)).thenReturn(Optional.of(Pair.of(study, Collections.emptyList())));
         when(observationComponent.produceUrl(any(), any(), any(), any())).thenReturn(Optional.of("http://test.com"));
 
-        String url = observationExecutionService.executeObservation(observationId, scheduleStart, scheduleEnd, routingInfo);
+        String url = observationExecutionService.executeObservation(observationId, scheduleStart, scheduleEnd, routingInfo, null).map(URI::toString).orElse(null);
 
         assertEquals("http://test.com", url);
     }
@@ -172,11 +177,11 @@ class ObservationExecutionServiceTest {
         Study study = new Study(1L, "Title", true, "Info", "Finish", "active", "Consent", null, null, null, null, List.of(observation), now, now, null);
 
         when(studyService.getStudy(routingInfo)).thenReturn(Optional.of(Pair.of(study, Collections.emptyList())));
-        when(observationComponent.processCallback(any(), any(), any(), any(), any(), any())).thenReturn(Optional.of(routingInfo));
+        when(observationComponent.processCallback(any(), any(), any())).thenReturn(Optional.of(Pair.of(routingInfo, 1)));
 
-        observationExecutionService.processCallback(observationId, now, now, Optional.of(routingInfo), parameters);
+        observationExecutionService.processCallback(observationId, Optional.of(routingInfo), parameters);
 
-        verify(observationComponent).processCallback(observationId, parameters, routingInfo, observation, now, now);
+        verify(observationComponent).processCallback(any(), eq(routingInfo), eq(observation));
     }
 
     @Test
@@ -186,12 +191,11 @@ class ObservationExecutionServiceTest {
         Map<String, String> parameters = Map.of("key", "value");
         RoutingInfo routingInfo = new RoutingInfo(1L, 1, OptionalInt.empty(), Set.of(), true, true);
 
-        when(observationComponent.processCallback(eq(observationId), eq(parameters), isNull(), isNull(), any(), any())).thenReturn(Optional.of(routingInfo));
+        when(observationComponent.processCallback(eq(parameters), isNull(), isNull())).thenReturn(Optional.of(Pair.of(routingInfo, 1)));
 
-        Optional<RoutingInfo> result = observationExecutionService.processCallback(observationId, now, now, Optional.empty(), parameters);
+        Optional<URI> result = observationExecutionService.processCallback(observationId, Optional.empty(), parameters);
 
-        assertTrue(result.isPresent());
-        assertEquals(routingInfo, result.get());
-        verify(observationComponent).processCallback(eq(observationId), eq(parameters), isNull(), isNull(), any(), any());
+        assertFalse(result.isPresent());
+        verify(observationComponent).processCallback(eq(parameters), isNull(), isNull());
     }
 }

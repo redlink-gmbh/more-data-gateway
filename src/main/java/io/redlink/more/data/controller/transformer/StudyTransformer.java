@@ -8,8 +8,8 @@ import io.redlink.more.data.api.app.v1.model.ObservationDTO;
 import io.redlink.more.data.api.app.v1.model.ObservationScheduleDTO;
 import io.redlink.more.data.api.app.v1.model.SimpleParticipantDTO;
 import io.redlink.more.data.api.app.v1.model.StudyDTO;
+import io.redlink.more.data.model.CompletedData;
 import io.redlink.more.data.model.Contact;
-import io.redlink.more.data.model.NonMissingData;
 import io.redlink.more.data.model.Observation;
 import io.redlink.more.data.model.ParticipantObservationSeed;
 import io.redlink.more.data.model.ParticipantWithObservationProperties;
@@ -27,7 +27,7 @@ public final class StudyTransformer {
     private StudyTransformer() {
     }
 
-    public static StudyDTO toDTO(Study study, List<ParticipantObservationSeed> seeds, List<NonMissingData> nonMissingData) {
+    public static StudyDTO toDTO(Study study, List<ParticipantObservationSeed> seeds, List<CompletedData> completedData) {
         return new StudyDTO()
                 .active(study.active())
                 .studyTitle(study.title())
@@ -39,7 +39,7 @@ public final class StudyTransformer {
                 .contact(toDTO(study.contact()))
                 .start(study.startDate())
                 .end(study.endDate())
-                .observations(toDTO(seeds, study.observations(), study.participant().start(), study.participant().end(), nonMissingData))
+                .observations(toDTO(seeds, study.observations(), study.participant().start(), study.participant().end(), completedData))
                 .version(BaseTransformers.toVersionTag(study.modified()))
                 ;
     }
@@ -70,17 +70,17 @@ public final class StudyTransformer {
                 ;
     }
 
-    public static List<ObservationDTO> toDTO(List<ParticipantObservationSeed> participantObservationSeeds, List<Observation> observations, Instant start, Instant end, List<NonMissingData> nonMissingData) {
+    public static List<ObservationDTO> toDTO(List<ParticipantObservationSeed> participantObservationSeeds, List<Observation> observations, Instant start, Instant end, List<CompletedData> completedData) {
         return observations.stream().map(o -> {
             var seed = participantObservationSeeds.stream()
                     .filter(s -> s.observationId() == o.observationId())
                     .findFirst()
                     .orElse(null);
-            return StudyTransformer.toDTO(seed, o, start, end, nonMissingData.stream().filter(d -> d.observationId().equals(String.valueOf(o.observationId()))).toList());
+            return StudyTransformer.toDTO(seed, o, start, end, completedData.stream().filter(d -> d.observationId().equals(String.valueOf(o.observationId()))).toList());
         }).toList();
     }
 
-    public static ObservationDTO toDTO(ParticipantObservationSeed participantObservationSeed, Observation observation, Instant start, Instant end, List<NonMissingData> nonMissingData) {
+    public static ObservationDTO toDTO(ParticipantObservationSeed participantObservationSeed, Observation observation, Instant start, Instant end, List<CompletedData> completedData) {
         ObservationDTO dto = new ObservationDTO()
                 .observationId(String.valueOf(observation.observationId()))
                 .observationType(observation.type())
@@ -100,7 +100,7 @@ public final class StudyTransformer {
                             end)
                     .stream()
                     .map(StudyTransformer::toObservationScheduleDTO)
-                    .filter(schedule -> nonMissingData.stream().noneMatch(d -> {
+                    .filter(schedule -> completedData.stream().noneMatch(d -> {
                         Instant scheduleStart = schedule.getStart() != null ? schedule.getStart() : start;
                         Instant scheduleEnd = schedule.getEnd() != null ? schedule.getEnd() : end;
 
