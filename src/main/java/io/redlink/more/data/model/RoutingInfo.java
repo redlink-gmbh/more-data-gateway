@@ -8,8 +8,6 @@
  */
 package io.redlink.more.data.model;
 
-import io.redlink.more.data.util.StringUtils;
-
 import java.io.Serializable;
 import java.util.OptionalInt;
 import java.util.Set;
@@ -45,7 +43,7 @@ public record RoutingInfo(
         return studyActive && participantActive;
     }
 
-    public String participantHash() {
-        return StringUtils.hash(studyId + ":" + participantId);
+    public String participantRef() {
+        return studyId + ":" + participantId;
     }
 }

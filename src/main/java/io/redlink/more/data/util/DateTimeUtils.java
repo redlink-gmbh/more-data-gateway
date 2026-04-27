@@ -74,7 +74,7 @@ public class DateTimeUtils {
             return Instant.parse(source);
         } catch (DateTimeParseException e) {
             try {
-                return LocalDate.parse(source).atStartOfDay(ZoneOffset.UTC).toInstant();
+                return LocalDate.parse(source).atStartOfDay(ZoneId.systemDefault()).toInstant();
             } catch (DateTimeParseException e2) {
                 try {
                     // Handle format: "yyyy-MM-dd HH:mm:ss"
