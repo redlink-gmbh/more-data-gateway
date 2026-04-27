@@ -16,7 +16,10 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Component
-@ConditionalOnMissingBean(ObservationCallbackStore.class)
+@ConditionalOnMissingBean(
+        value = ObservationCallbackStore.class,
+        ignored = InMemoryObservationCallbackStore.class
+)
 public class InMemoryObservationCallbackStore implements ObservationCallbackStore {
     private final Map<String, Map<ActiveObservation, String>> externalRedirects = new ConcurrentHashMap<>();
     private final Map<String, List<CompletedData>> completedDataMap = new ConcurrentHashMap<>();
