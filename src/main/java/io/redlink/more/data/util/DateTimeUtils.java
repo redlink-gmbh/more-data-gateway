@@ -70,16 +70,39 @@ public class DateTimeUtils {
         if (source == null || source.isBlank()) {
             return null;
         }
+
+        ZoneOffset systemOffset = ZoneId.systemDefault()
+                .getRules()
+                .getOffset(LocalDateTime.now());
+
+        return parseInstantWithOffset(source, systemOffset);
+    }
+
+    /**
+     * Parses an Instant from a string representation, considering a specific timezone offset.
+     *
+     * @param source     The string representation of the Instant.
+     * @param zoneOffset The timezone offset.
+     * @return The parsed Instant or null if the source is null or blank.
+     */
+    public static Instant parseInstantWithOffset(String source, ZoneOffset zoneOffset) {
+        if (source == null || source.isBlank()) {
+            return null;
+        }
+
         try {
             return Instant.parse(source);
         } catch (DateTimeParseException e) {
             try {
-                return LocalDate.parse(source).atStartOfDay(ZoneId.systemDefault()).toInstant();
+                return LocalDate.parse(source)
+                        .atStartOfDay()
+                        .atOffset(zoneOffset)
+                        .toInstant();
             } catch (DateTimeParseException e2) {
                 try {
                     // Handle format: "yyyy-MM-dd HH:mm:ss"
                     return LocalDateTime.parse(source, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
-                            .atZone(ZoneId.systemDefault())
+                            .atOffset(zoneOffset)
                             .toInstant();
                 } catch (DateTimeParseException e3) {
                     throw new IllegalArgumentException("Invalid date format: " + source, e);

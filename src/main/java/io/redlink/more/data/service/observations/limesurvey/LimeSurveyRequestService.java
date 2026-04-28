@@ -22,7 +22,9 @@ import org.springframework.web.client.RestClientException;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -35,6 +37,7 @@ import java.util.Optional;
 public class LimeSurveyRequestService {
     private static final String LIME_NULL_DATE = "1980-01-01 00:00:00";
     private static final DateTimeFormatter LIME_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final DateTimeFormatter OFFSET_DATE_TIME_FORMATTER = DateTimeFormatter.ISO_OFFSET_DATE_TIME;
 
     private final ObjectMapper mapper = new ObjectMapper();
     private static final Logger LOGGER = LoggerFactory.getLogger(LimeSurveyRequestService.class);
@@ -53,6 +56,10 @@ public class LimeSurveyRequestService {
                 .params(List.of(params))
                 .id(1)
                 .jsonrpc(LimeSurveyRequest.JsonrpcEnum._2_0);
+    }
+
+    public Optional<String> getBaseUrl() {
+        return Optional.ofNullable(properties.getBaseUrl());
     }
 
     public String getLanguage(String surveyId, String sessionKey) {
@@ -198,7 +205,7 @@ public class LimeSurveyRequestService {
                 answer.remove("token");
                 answer.values().removeIf(obj -> Objects.isNull(obj) || obj.equals(token));
 
-                fixNullDate(answer);
+                normalizeDateFields(answer);
 
                 Object responseId = answer.get("Response ID");
                 Object id = answer.get("id");
@@ -224,13 +231,48 @@ public class LimeSurveyRequestService {
         }
     }
 
-    private void fixNullDate(Map<String, Object> answer) {
+    private void normalizeDateFields(Map<String, Object> answer) {
         answer.replaceAll((key, value) -> {
-            if (LIME_NULL_DATE.equals(value)) {
-                return LocalDateTime.now().format(LIME_DATE_FORMATTER);
+            if (value == null || !isDateField(key)) {
+                return value;
+            }
+
+            String dateValue = String.valueOf(value);
+            if (LIME_NULL_DATE.equals(dateValue)) {
+                return LocalDateTime.now(ZoneOffset.UTC)
+                        .atOffset(ZoneOffset.UTC)
+                        .format(OFFSET_DATE_TIME_FORMATTER);
+            }
+
+            var normalized = normalizeDateTimeString(dateValue);
+            if (normalized.isPresent()) {
+                return normalized.get();
             }
             return value;
         });
+    }
+
+    private boolean isDateField(String key) {
+        if (key == null) {
+            return false;
+        }
+        String normalizedKey = key.toLowerCase();
+        return normalizedKey.contains("date") || normalizedKey.contains("datestamp") || normalizedKey.contains("timestamp");
+    }
+
+    private Optional<String> normalizeDateTimeString(String value) {
+        if (value == null || value.isBlank()) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(
+                    LocalDateTime.parse(value, LIME_DATE_FORMATTER)
+                            .atOffset(ZoneOffset.UTC)
+                            .format(OFFSET_DATE_TIME_FORMATTER)
+            );
+        } catch (DateTimeParseException e) {
+            return Optional.empty();
+        }
     }
 
 }
