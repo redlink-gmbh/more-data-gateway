@@ -4,7 +4,9 @@ import org.apache.commons.lang3.Range;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.Set;
+import java.util.TimeZone;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -58,5 +60,140 @@ class DateTimeUtilsTest {
         Set<Range<Instant>> merged2 = DateTimeUtils.mergeRanges(Set.of(r4, r5));
         assertEquals(1, merged2.size());
         assertTrue(merged2.contains(r4));
+    }
+
+    @Test
+    void testParseInstantWithOffsetDefaultsToUtcZeroOffset() {
+        assertEquals(Instant.parse("2023-01-01T10:00:00Z"), DateTimeUtils.parseInstantWithZeroOffset("2023-01-01T10:00:00Z"));
+        assertEquals(Instant.parse("2023-01-01T00:00:00Z"), DateTimeUtils.parseInstantWithZeroOffset("2023-01-01"));
+        assertEquals(Instant.parse("2023-01-01T10:00:00Z"), DateTimeUtils.parseInstantWithZeroOffset("2023-01-01 10:00:00"));
+    }
+
+    @Test
+    void testParseInstantWithOffsetWithPositiveZeroOffset() {
+        int offset = 2 * 60 * 60;
+
+        assertEquals(Instant.parse("2022-12-31T22:00:00Z"), DateTimeUtils.parseInstantWithOffset("2023-01-01", offset));
+        assertEquals(Instant.parse("2023-01-01T08:00:00Z"), DateTimeUtils.parseInstantWithOffset("2023-01-01 10:00:00", offset));
+    }
+
+    @Test
+    void testParseInstantWithOffsetWithNegativeZeroOffset() {
+        int offset = -5 * 60 * 60;
+
+        assertEquals(Instant.parse("2023-01-01T05:00:00Z"), DateTimeUtils.parseInstantWithOffset("2023-01-01", offset));
+        assertEquals(Instant.parse("2023-01-01T15:00:00Z"), DateTimeUtils.parseInstantWithOffset("2023-01-01 10:00:00", offset));
+    }
+
+    @Test
+    void testParseInstantKeepsExplicitInstantWithOffsetIndependentOfOffset() {
+        assertEquals(
+                Instant.parse("2023-01-01T10:00:00Z"),
+                DateTimeUtils.parseInstantWithOffset("2023-01-01T10:00:00Z", 2 * 60 * 60)
+        );
+    }
+
+    @Test
+    void testParseInstantWithZoneOffsetPositiveOffset() {
+        ZoneOffset offset = ZoneOffset.ofHours(2);
+
+        assertEquals(Instant.parse("2022-12-31T22:00:00Z"), DateTimeUtils.parseInstant("2023-01-01", offset));
+        assertEquals(Instant.parse("2023-01-01T08:00:00Z"), DateTimeUtils.parseInstant("2023-01-01 10:00:00", offset));
+    }
+
+    @Test
+    void testParseInstantWithZoneOffsetNegativeOffset() {
+        ZoneOffset offset = ZoneOffset.ofHours(-5);
+
+        assertEquals(Instant.parse("2023-01-01T05:00:00Z"), DateTimeUtils.parseInstant("2023-01-01", offset));
+        assertEquals(Instant.parse("2023-01-01T15:00:00Z"), DateTimeUtils.parseInstant("2023-01-01 10:00:00", offset));
+    }
+
+    @Test
+    void testParseInstantWithZoneOffsetKeepsExplicitInstantIndependentOfOffset() {
+        assertEquals(
+                Instant.parse("2023-01-01T10:00:00Z"),
+                DateTimeUtils.parseInstant("2023-01-01T10:00:00Z", ZoneOffset.ofHours(2))
+        );
+    }
+
+    @Test
+    void testParseInstantWithZoneOffsetNullOrBlankReturnsNull() {
+        assertNull(DateTimeUtils.parseInstant(null, ZoneOffset.ofHours(2)));
+        assertNull(DateTimeUtils.parseInstant("", ZoneOffset.ofHours(2)));
+        assertNull(DateTimeUtils.parseInstant("   ", ZoneOffset.ofHours(2)));
+    }
+
+    @Test
+    void testParseInstantWithZoneOffsetInvalidInputThrowsException() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> DateTimeUtils.parseInstant("not-a-date", ZoneOffset.ofHours(2))
+        );
+    }
+
+    @Test
+    void testParseInstantWithZeroOffsetNullOrBlankReturnsNull() {
+        assertNull(DateTimeUtils.parseInstantWithZeroOffset(null));
+        assertNull(DateTimeUtils.parseInstantWithZeroOffset(""));
+        assertNull(DateTimeUtils.parseInstantWithZeroOffset("   "));
+        assertNull(DateTimeUtils.parseInstantWithOffset(null, 2 * 60 * 60));
+        assertNull(DateTimeUtils.parseInstantWithOffset("", 2 * 60 * 60));
+        assertNull(DateTimeUtils.parseInstantWithOffset("   ", 2 * 60 * 60));
+    }
+
+    @Test
+    void testParseInstantWithZeroOffsetInvalidInputThrowsException() {
+        assertThrows(IllegalArgumentException.class, () -> DateTimeUtils.parseInstantWithZeroOffset("not-a-date"));
+        assertThrows(IllegalArgumentException.class, () -> DateTimeUtils.parseInstantWithOffset("not-a-date", 2 * 60 * 60));
+    }
+
+    @Test
+    void testParseInstantWithOffsetWithSystemTimezoneOffsetUsesSystemZeroOffset() {
+        TimeZone originalTimeZone = TimeZone.getDefault();
+        try {
+            TimeZone.setDefault(TimeZone.getTimeZone("GMT+02:00"));
+
+            assertEquals(
+                    Instant.parse("2022-12-31T22:00:00Z"),
+                    DateTimeUtils.parseInstant("2023-01-01")
+            );
+            assertEquals(
+                    Instant.parse("2023-01-01T08:00:00Z"),
+                    DateTimeUtils.parseInstant("2023-01-01 10:00:00")
+            );
+        } finally {
+            TimeZone.setDefault(originalTimeZone);
+        }
+    }
+
+    @Test
+    void testParseInstantWithSystemTimezoneOffsetKeepsExplicitInstantWithOffsetIndependentOfSystemOffset() {
+        TimeZone originalTimeZone = TimeZone.getDefault();
+        try {
+            TimeZone.setDefault(TimeZone.getTimeZone("GMT+02:00"));
+
+            assertEquals(
+                    Instant.parse("2023-01-01T10:00:00Z"),
+                    DateTimeUtils.parseInstant("2023-01-01T10:00:00Z")
+            );
+        } finally {
+            TimeZone.setDefault(originalTimeZone);
+        }
+    }
+
+    @Test
+    void testParseInstantWithOffsetWithSystemTimezoneZeroOffsetNullOrBlankReturnsNull() {
+        assertNull(DateTimeUtils.parseInstant(null));
+        assertNull(DateTimeUtils.parseInstant(""));
+        assertNull(DateTimeUtils.parseInstant("   "));
+    }
+
+    @Test
+    void testParseInstantWithOffsetWithSystemTimezoneZeroOffsetInvalidInputThrowsException() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> DateTimeUtils.parseInstant("not-a-date")
+        );
     }
 }

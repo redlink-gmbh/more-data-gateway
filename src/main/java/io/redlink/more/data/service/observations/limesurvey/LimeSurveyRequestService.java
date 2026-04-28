@@ -55,6 +55,10 @@ public class LimeSurveyRequestService {
                 .jsonrpc(LimeSurveyRequest.JsonrpcEnum._2_0);
     }
 
+    public Optional<String> getBaseUrl() {
+        return Optional.ofNullable(properties.getBaseUrl());
+    }
+
     public String getLanguage(String surveyId, String sessionKey) {
         LimeSurveyObjectResponse response = limeSurveyRcApi.callMethod(
                 createRequest(LimeSurveyMethod.GET_LANGUAGE_PROPERTIES, sessionKey, surveyId, List.of("surveyls_language"))

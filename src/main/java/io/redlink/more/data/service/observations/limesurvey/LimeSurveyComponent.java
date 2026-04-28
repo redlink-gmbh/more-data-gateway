@@ -4,6 +4,7 @@ import io.redlink.more.data.model.DataPoint;
 import io.redlink.more.data.model.Observation;
 import io.redlink.more.data.model.RoutingInfo;
 import io.redlink.more.data.service.ElasticService;
+import io.redlink.more.data.service.StudyService;
 import io.redlink.more.data.service.observations.ObservationComponent;
 import io.redlink.more.data.util.DateTimeUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -35,9 +36,9 @@ public class LimeSurveyComponent implements ObservationComponent {
 
     private final LimeSurveyRequestService limeSurveyRequestService;
     private final ElasticService elasticService;
-    private final io.redlink.more.data.service.StudyService studyService;
+    private final StudyService studyService;
 
-    public LimeSurveyComponent(LimeSurveyRequestService limeSurveyRequestService, ElasticService elasticService, io.redlink.more.data.service.StudyService studyService) {
+    public LimeSurveyComponent(LimeSurveyRequestService limeSurveyRequestService, ElasticService elasticService, StudyService studyService) {
         this.limeSurveyRequestService = limeSurveyRequestService;
         this.elasticService = elasticService;
         this.studyService = studyService;
@@ -85,9 +86,9 @@ public class LimeSurveyComponent implements ObservationComponent {
         }
         Integer saveId = Integer.parseInt(savedId);
         Integer surveyId = Integer.parseInt(surveyIdParam);
-        String currentObservationId = Integer.toString(observation != null ? observation.observationId() : observationId.get());
-        if (storeAnswer(surveyId, saveId, token, routingInfo, currentObservationId)) {
-            return Optional.of(Pair.of(routingInfo, observationId.get()));
+        int currentObservationId = observation != null ? observation.observationId() : observationId.get();
+        if (storeAnswer(surveyId, saveId, token, routingInfo, Integer.toString(currentObservationId))) {
+            return Optional.of(Pair.of(routingInfo, currentObservationId));
         }
         return Optional.empty();
     }
@@ -116,7 +117,8 @@ public class LimeSurveyComponent implements ObservationComponent {
 
         String surveyId = asString(properties.get(LIME_SURVEY_ID_KEY));
         String surveyToken = asString(properties.get(LIME_SURVEY_TOKEN_KEY));
-        String surveyUrl = asString(properties.get(LIME_SURVEY_URL_KEY));
+        String surveyUrl = limeSurveyRequestService.getBaseUrl()
+                .orElse(asString(properties.get(LIME_SURVEY_URL_KEY)));
 
         return formatLimeSurveyDeepLink(surveyId, surveyToken, surveyUrl);
     }
@@ -161,7 +163,7 @@ public class LimeSurveyComponent implements ObservationComponent {
             Instant dateSubmitted = Optional
                     .ofNullable(submitDateObj)
                     .map(Object::toString)
-                    .map(DateTimeUtils::parseInstant)
+                    .map(DateTimeUtils::parseInstantWithZeroOffset)
                     .orElse(Instant.now());
             DataPoint dataPoint = new DataPoint(
                     UUID.randomUUID().toString(),
