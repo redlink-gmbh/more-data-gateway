@@ -18,6 +18,7 @@ import java.net.URISyntaxException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -163,7 +164,7 @@ public class LimeSurveyComponent implements ObservationComponent {
             Instant dateSubmitted = Optional
                     .ofNullable(submitDateObj)
                     .map(Object::toString)
-                    .map(DateTimeUtils::parseInstantWithZeroOffset)
+                    .map(obj -> DateTimeUtils.parseInstantWithOffset(obj, ZoneOffset.UTC))
                     .orElse(Instant.now());
             DataPoint dataPoint = new DataPoint(
                     UUID.randomUUID().toString(),

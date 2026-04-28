@@ -66,11 +66,6 @@ public class DateTimeUtils {
         return new HashSet<>(merged);
     }
 
-    public static Instant parseInstantWithZeroOffset(String source) {
-        return parseInstantWithOffset(source, 0);
-    }
-
-
     public static Instant parseInstant(String source) {
         if (source == null || source.isBlank()) {
             return null;
@@ -80,29 +75,21 @@ public class DateTimeUtils {
                 .getRules()
                 .getOffset(LocalDateTime.now());
 
-        return parseInstantWithOffset(source, systemOffset.getTotalSeconds());
-    }
-
-    public static Instant parseInstant(String source, ZoneOffset offset) {
-        if (source == null || source.isBlank()) {
-            return null;
-        }
-        return parseInstantWithOffset(source, offset.getTotalSeconds());
+        return parseInstantWithOffset(source, systemOffset);
     }
 
     /**
      * Parses an Instant from a string representation, considering a specific timezone offset.
      *
-     * @param source The string representation of the Instant.
-     * @param offset The timezone offset in seconds.
+     * @param source     The string representation of the Instant.
+     * @param zoneOffset The timezone offset.
      * @return The parsed Instant or null if the source is null or blank.
      */
-    public static Instant parseInstantWithOffset(String source, int offset) {
+    public static Instant parseInstantWithOffset(String source, ZoneOffset zoneOffset) {
         if (source == null || source.isBlank()) {
             return null;
         }
 
-        ZoneOffset zoneOffset = ZoneOffset.ofTotalSeconds(offset);
         try {
             return Instant.parse(source);
         } catch (DateTimeParseException e) {

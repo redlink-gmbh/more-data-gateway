@@ -63,93 +63,7 @@ class DateTimeUtilsTest {
     }
 
     @Test
-    void testParseInstantWithOffsetDefaultsToUtcZeroOffset() {
-        assertEquals(Instant.parse("2023-01-01T10:00:00Z"), DateTimeUtils.parseInstantWithZeroOffset("2023-01-01T10:00:00Z"));
-        assertEquals(Instant.parse("2023-01-01T00:00:00Z"), DateTimeUtils.parseInstantWithZeroOffset("2023-01-01"));
-        assertEquals(Instant.parse("2023-01-01T10:00:00Z"), DateTimeUtils.parseInstantWithZeroOffset("2023-01-01 10:00:00"));
-    }
-
-    @Test
-    void testParseInstantWithOffsetWithPositiveZeroOffset() {
-        int offset = 2 * 60 * 60;
-
-        assertEquals(Instant.parse("2022-12-31T22:00:00Z"), DateTimeUtils.parseInstantWithOffset("2023-01-01", offset));
-        assertEquals(Instant.parse("2023-01-01T08:00:00Z"), DateTimeUtils.parseInstantWithOffset("2023-01-01 10:00:00", offset));
-    }
-
-    @Test
-    void testParseInstantWithOffsetWithNegativeZeroOffset() {
-        int offset = -5 * 60 * 60;
-
-        assertEquals(Instant.parse("2023-01-01T05:00:00Z"), DateTimeUtils.parseInstantWithOffset("2023-01-01", offset));
-        assertEquals(Instant.parse("2023-01-01T15:00:00Z"), DateTimeUtils.parseInstantWithOffset("2023-01-01 10:00:00", offset));
-    }
-
-    @Test
-    void testParseInstantKeepsExplicitInstantWithOffsetIndependentOfOffset() {
-        assertEquals(
-                Instant.parse("2023-01-01T10:00:00Z"),
-                DateTimeUtils.parseInstantWithOffset("2023-01-01T10:00:00Z", 2 * 60 * 60)
-        );
-    }
-
-    @Test
-    void testParseInstantWithZoneOffsetPositiveOffset() {
-        ZoneOffset offset = ZoneOffset.ofHours(2);
-
-        assertEquals(Instant.parse("2022-12-31T22:00:00Z"), DateTimeUtils.parseInstant("2023-01-01", offset));
-        assertEquals(Instant.parse("2023-01-01T08:00:00Z"), DateTimeUtils.parseInstant("2023-01-01 10:00:00", offset));
-    }
-
-    @Test
-    void testParseInstantWithZoneOffsetNegativeOffset() {
-        ZoneOffset offset = ZoneOffset.ofHours(-5);
-
-        assertEquals(Instant.parse("2023-01-01T05:00:00Z"), DateTimeUtils.parseInstant("2023-01-01", offset));
-        assertEquals(Instant.parse("2023-01-01T15:00:00Z"), DateTimeUtils.parseInstant("2023-01-01 10:00:00", offset));
-    }
-
-    @Test
-    void testParseInstantWithZoneOffsetKeepsExplicitInstantIndependentOfOffset() {
-        assertEquals(
-                Instant.parse("2023-01-01T10:00:00Z"),
-                DateTimeUtils.parseInstant("2023-01-01T10:00:00Z", ZoneOffset.ofHours(2))
-        );
-    }
-
-    @Test
-    void testParseInstantWithZoneOffsetNullOrBlankReturnsNull() {
-        assertNull(DateTimeUtils.parseInstant(null, ZoneOffset.ofHours(2)));
-        assertNull(DateTimeUtils.parseInstant("", ZoneOffset.ofHours(2)));
-        assertNull(DateTimeUtils.parseInstant("   ", ZoneOffset.ofHours(2)));
-    }
-
-    @Test
-    void testParseInstantWithZoneOffsetInvalidInputThrowsException() {
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> DateTimeUtils.parseInstant("not-a-date", ZoneOffset.ofHours(2))
-        );
-    }
-
-    @Test
-    void testParseInstantWithZeroOffsetNullOrBlankReturnsNull() {
-        assertNull(DateTimeUtils.parseInstantWithZeroOffset(null));
-        assertNull(DateTimeUtils.parseInstantWithZeroOffset(""));
-        assertNull(DateTimeUtils.parseInstantWithZeroOffset("   "));
-        assertNull(DateTimeUtils.parseInstantWithOffset(null, 2 * 60 * 60));
-        assertNull(DateTimeUtils.parseInstantWithOffset("", 2 * 60 * 60));
-        assertNull(DateTimeUtils.parseInstantWithOffset("   ", 2 * 60 * 60));
-    }
-
-    @Test
-    void testParseInstantWithZeroOffsetInvalidInputThrowsException() {
-        assertThrows(IllegalArgumentException.class, () -> DateTimeUtils.parseInstantWithZeroOffset("not-a-date"));
-        assertThrows(IllegalArgumentException.class, () -> DateTimeUtils.parseInstantWithOffset("not-a-date", 2 * 60 * 60));
-    }
-
-    @Test
-    void testParseInstantWithOffsetWithSystemTimezoneOffsetUsesSystemZeroOffset() {
+    void testParseInstantUsesSystemTimezoneOffset() {
         TimeZone originalTimeZone = TimeZone.getDefault();
         try {
             TimeZone.setDefault(TimeZone.getTimeZone("GMT+02:00"));
@@ -168,7 +82,7 @@ class DateTimeUtilsTest {
     }
 
     @Test
-    void testParseInstantWithSystemTimezoneOffsetKeepsExplicitInstantWithOffsetIndependentOfSystemOffset() {
+    void testParseInstantKeepsExplicitInstantIndependentOfSystemOffset() {
         TimeZone originalTimeZone = TimeZone.getDefault();
         try {
             TimeZone.setDefault(TimeZone.getTimeZone("GMT+02:00"));
@@ -183,17 +97,56 @@ class DateTimeUtilsTest {
     }
 
     @Test
-    void testParseInstantWithOffsetWithSystemTimezoneZeroOffsetNullOrBlankReturnsNull() {
+    void testParseInstantNullOrBlankReturnsNull() {
         assertNull(DateTimeUtils.parseInstant(null));
         assertNull(DateTimeUtils.parseInstant(""));
         assertNull(DateTimeUtils.parseInstant("   "));
     }
 
     @Test
-    void testParseInstantWithOffsetWithSystemTimezoneZeroOffsetInvalidInputThrowsException() {
+    void testParseInstantInvalidInputThrowsException() {
         assertThrows(
                 IllegalArgumentException.class,
                 () -> DateTimeUtils.parseInstant("not-a-date")
+        );
+    }
+
+    @Test
+    void testParseInstantWithOffsetPositiveOffset() {
+        ZoneOffset offset = ZoneOffset.ofHours(2);
+
+        assertEquals(Instant.parse("2022-12-31T22:00:00Z"), DateTimeUtils.parseInstantWithOffset("2023-01-01", offset));
+        assertEquals(Instant.parse("2023-01-01T08:00:00Z"), DateTimeUtils.parseInstantWithOffset("2023-01-01 10:00:00", offset));
+    }
+
+    @Test
+    void testParseInstantWithOffsetNegativeOffset() {
+        ZoneOffset offset = ZoneOffset.ofHours(-5);
+
+        assertEquals(Instant.parse("2023-01-01T05:00:00Z"), DateTimeUtils.parseInstantWithOffset("2023-01-01", offset));
+        assertEquals(Instant.parse("2023-01-01T15:00:00Z"), DateTimeUtils.parseInstantWithOffset("2023-01-01 10:00:00", offset));
+    }
+
+    @Test
+    void testParseInstantWithOffsetKeepsExplicitInstantIndependentOfOffset() {
+        assertEquals(
+                Instant.parse("2023-01-01T10:00:00Z"),
+                DateTimeUtils.parseInstantWithOffset("2023-01-01T10:00:00Z", ZoneOffset.ofHours(2))
+        );
+    }
+
+    @Test
+    void testParseInstantWithOffsetNullOrBlankReturnsNull() {
+        assertNull(DateTimeUtils.parseInstantWithOffset(null, ZoneOffset.ofHours(2)));
+        assertNull(DateTimeUtils.parseInstantWithOffset("", ZoneOffset.ofHours(2)));
+        assertNull(DateTimeUtils.parseInstantWithOffset("   ", ZoneOffset.ofHours(2)));
+    }
+
+    @Test
+    void testParseInstantWithOffsetInvalidInputThrowsException() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> DateTimeUtils.parseInstantWithOffset("not-a-date", ZoneOffset.ofHours(2))
         );
     }
 }
