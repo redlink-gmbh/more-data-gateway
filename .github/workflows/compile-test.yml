@@ -63,8 +63,8 @@ jobs:
           if [ "$BRANCH" == "$MAIN_BRANCH" ]; then
             TAGS="latest,$TAGS"
           fi
-          if [[ $GITHUB_REF == refs/tags/v* ]]; then
-            VERSION="${REF#refs/tags/v}"
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
             MAJOR_MINOR="${VERSION%.*}"
             MAJOR="${VERSION%%.*}"
             TAGS="$VERSION,$MAJOR_MINOR,$MAJOR"
