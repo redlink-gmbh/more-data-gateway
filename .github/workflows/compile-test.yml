@@ -64,8 +64,10 @@ jobs:
             TAGS="latest,$TAGS"
           fi
           if [[ $GITHUB_REF == refs/tags/v* ]]; then
-            VERSION=${GITHUB_REF#refs/tags/v}
-            TAGS="$VERSION,v$VERSION"
+            VERSION="${REF#refs/tags/v}"
+            MAJOR_MINOR="${VERSION%.*}"
+            MAJOR="${VERSION%%.*}"
+            TAGS="$VERSION,$MAJOR_MINOR,$MAJOR"
           fi
           if [ -n "$EVENT_PARAM" ]; then
             TAGS="$EVENT_PARAM"
