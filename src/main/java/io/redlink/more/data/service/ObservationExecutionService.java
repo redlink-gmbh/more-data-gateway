@@ -65,6 +65,8 @@ public class ObservationExecutionService {
             callbackStore.saveRedirect(routingInfo, activeObservation, redirect);
         }
 
+        LOG.info("Starting observation {} for routinginfo {}", activeObservation, routingInfo);
+
         Optional<Pair<Study, List<ParticipantObservationSeed>>> studyResult = studyService.getStudy(routingInfo);
         if (studyResult.isEmpty()) {
             throw new NotFoundException("Study not found for " + routingInfo);
