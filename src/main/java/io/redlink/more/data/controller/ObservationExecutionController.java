@@ -106,6 +106,9 @@ public class ObservationExecutionController implements ExecutionApi {
         }
 
         URI redirectUrl = builder.build().toUri();
+        
+        LOG.info("process callback: pathVars: {}, params: {}, redirect to: {}", pathVars, params, redirectUrl);
+
         int status = HttpStatus.OK.value();
 
         try {
