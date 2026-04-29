@@ -111,7 +111,8 @@ public class ObservationExecutionService {
                         || r.contains(scheduleStart) && r.contains(scheduleEnd));
 
         if (!isValidSchedule) {
-            throw new ForbiddenException("Provided schedule is not valid for observation " + observationId + "; scheduleStart: " + scheduleStart + "; scheduleEnd: " + scheduleEnd + "; validRanges: " + validRanges);
+            LOG.error("Provided schedule is not valid for observation {}: scheduleStart: {}; scheduleEnd: {}; validRanges: {}", observationId, scheduleStart, scheduleEnd, validRanges);
+            throw new ForbiddenException("Provided schedule is not valid for observation " + observationId);
         }
 
         var uri = URI.create(component.produceUrl(observation, routingInfo, scheduleStart, scheduleEnd)
