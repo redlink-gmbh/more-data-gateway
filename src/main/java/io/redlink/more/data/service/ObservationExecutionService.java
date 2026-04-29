@@ -122,11 +122,13 @@ public class ObservationExecutionService {
     }
 
     public Optional<URI> processCallback(String observationId, Optional<RoutingInfo> routingInfo, Map<String, String> parameters) {
+        LOG.info("process callback for observation {}, routingInfo: {}, params: {}", observationId, routingInfo, parameters);
         Optional<Pair<RoutingInfo, Integer>> cbResult = Optional.empty();
         if (routingInfo.isEmpty() || observationId == null) {
             for (ObservationComponent component : observationComponents.values()) {
                 var result = component.processCallback(parameters, null, null);
                 if (result.isPresent()) {
+                    LOG.info("mapped to {} with result: {}", component.getClass().getSimpleName(), result);
                     cbResult = result;
                     break;
                 }
@@ -141,18 +143,24 @@ public class ObservationExecutionService {
             Optional<Observation> studyObservation = study.observations().stream()
                     .filter(o -> String.valueOf(o.observationId()).equals(observationId))
                     .findFirst();
-
             if (studyObservation.isPresent()) {
                 Observation observation = studyObservation.get();
                 ObservationComponent component = observationComponents.get(observation.type());
                 if (component != null) {
+                    LOG.info("mapped to study {}, observation {},  component: {}", study.studyId(), observation.observationId(), component.getClass().getSimpleName());
                     cbResult = component.processCallback(parameters, routingInfo.get(), observation);
+                } else {
+                    LOG.warn("ObservationComponent for Observation-type: {} not found (study {}, observation: {})", observation.type(), study.studyId(), observation.observationId());
                 }
+            } else  {
+                LOG.warn("Observation with id: {} not found in Study {} ", observationId, study.studyId());
             }
         }
 
         if (cbResult.isPresent()) {
             return callbackStore.pullRedirect(cbResult.get().getLeft(), cbResult.get().getRight());
+        } else {
+            LOG.warn("No callback result generated for observation {}, routingInfo: {}, params: {}", observationId, routingInfo, parameters);
         }
 
         return Optional.empty();
