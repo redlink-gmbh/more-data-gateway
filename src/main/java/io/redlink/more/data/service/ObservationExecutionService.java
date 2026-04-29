@@ -65,6 +65,8 @@ public class ObservationExecutionService {
             callbackStore.saveRedirect(routingInfo, activeObservation, redirect);
         }
 
+        LOG.info("Starting observation {} for routinginfo {}", activeObservation, routingInfo);
+
         Optional<Pair<Study, List<ParticipantObservationSeed>>> studyResult = studyService.getStudy(routingInfo);
         if (studyResult.isEmpty()) {
             throw new NotFoundException("Study not found for " + routingInfo);
@@ -109,6 +111,7 @@ public class ObservationExecutionService {
                         || r.contains(scheduleStart) && r.contains(scheduleEnd));
 
         if (!isValidSchedule) {
+            LOG.error("Provided schedule is not valid for observation {}: scheduleStart: {}; scheduleEnd: {}; validRanges: {}", observationId, scheduleStart, scheduleEnd, validRanges);
             throw new ForbiddenException("Provided schedule is not valid for observation " + observationId);
         }
 

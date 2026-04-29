@@ -56,7 +56,7 @@ public class ObservationExecutionController implements ExecutionApi {
             final Instant end = DateTimeUtils.parseInstant(scheduleEnd);
             final RoutingInfo routingInfo = getRoutingInfo()
                     .orElseThrow(() -> new AccessDeniedException("No credentials found!"));
-
+            
             var url = observationExecutionService.executeObservation(observationId, start, end, routingInfo, redirect);
 
             if (url.isEmpty()) {
