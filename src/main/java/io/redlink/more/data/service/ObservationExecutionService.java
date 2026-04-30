@@ -3,6 +3,7 @@ package io.redlink.more.data.service;
 import io.redlink.more.data.exception.ForbiddenException;
 import io.redlink.more.data.exception.NotFoundException;
 import io.redlink.more.data.model.ActiveObservation;
+import io.redlink.more.data.model.CallbackResult;
 import io.redlink.more.data.model.CompletedData;
 import io.redlink.more.data.model.Observation;
 import io.redlink.more.data.model.ParticipantObservationSeed;
@@ -121,48 +122,27 @@ public class ObservationExecutionService {
         return Optional.of(uri);
     }
 
-    public Optional<URI> processCallback(String observationId, Optional<RoutingInfo> routingInfo, Map<String, String> parameters) {
-        LOG.info("process callback for observation {}, routingInfo: {}, params: {}", observationId, routingInfo, parameters);
-        Optional<Pair<RoutingInfo, Integer>> cbResult = Optional.empty();
-        if (routingInfo.isEmpty() || observationId == null) {
-            for (ObservationComponent component : observationComponents.values()) {
-                var result = component.processCallback(parameters, null, null);
+    public Optional<URI> processCallback(Map<String, String> parameters) {
+        LOG.info("process callback for params: {}", parameters);
+        Optional<CallbackResult> cbResult = Optional.empty();
+        for (ObservationComponent component : observationComponents.values()) {
+            if (component.necessaryCallbackParameters(parameters)) {
+                var result = component.processCallback(parameters);
                 if (result.isPresent()) {
                     LOG.info("mapped to {} with result: {}", component.getClass().getSimpleName(), result);
                     cbResult = result;
                     break;
                 }
-            }
-        } else {
-            Optional<Pair<Study, List<ParticipantObservationSeed>>> studyResult = studyService.getStudy(routingInfo.get());
-            if (studyResult.isEmpty()) {
-                return Optional.empty();
-            }
-            Study study = studyResult.get().getLeft();
-
-            Optional<Observation> studyObservation = study.observations().stream()
-                    .filter(o -> String.valueOf(o.observationId()).equals(observationId))
-                    .findFirst();
-            if (studyObservation.isPresent()) {
-                Observation observation = studyObservation.get();
-                ObservationComponent component = observationComponents.get(observation.type());
-                if (component != null) {
-                    LOG.info("mapped to study {}, observation {},  component: {}", study.studyId(), observation.observationId(), component.getClass().getSimpleName());
-                    cbResult = component.processCallback(parameters, routingInfo.get(), observation);
-                } else {
-                    LOG.warn("ObservationComponent for Observation-type: {} not found (study {}, observation: {})", observation.type(), study.studyId(), observation.observationId());
-                }
-            } else  {
-                LOG.warn("Observation with id: {} not found in Study {} ", observationId, study.studyId());
+            } else {
+                LOG.info("Necessary parameters not provided for component {}", component.getClass().getSimpleName());
             }
         }
 
         if (cbResult.isPresent()) {
-            return callbackStore.pullRedirect(cbResult.get().getLeft(), cbResult.get().getRight());
-        } else {
-            LOG.warn("No callback result generated for observation {}, routingInfo: {}, params: {}", observationId, routingInfo, parameters);
+            return callbackStore.pullRedirect(cbResult.get().routingInfo(), cbResult.get().observationId());
         }
 
+        LOG.warn("No callback result generated for callback result: {}, params: {}", cbResult, parameters);
         return Optional.empty();
     }
 

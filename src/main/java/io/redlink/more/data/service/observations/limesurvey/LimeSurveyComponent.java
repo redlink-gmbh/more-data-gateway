@@ -1,5 +1,6 @@
 package io.redlink.more.data.service.observations.limesurvey;
 
+import io.redlink.more.data.model.CallbackResult;
 import io.redlink.more.data.model.DataPoint;
 import io.redlink.more.data.model.Observation;
 import io.redlink.more.data.model.RoutingInfo;
@@ -7,7 +8,7 @@ import io.redlink.more.data.service.ElasticService;
 import io.redlink.more.data.service.StudyService;
 import io.redlink.more.data.service.observations.ObservationComponent;
 import io.redlink.more.data.util.DateTimeUtils;
-import org.apache.commons.lang3.tuple.Pair;
+import io.redlink.more.data.util.MapperUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -30,10 +31,11 @@ public class LimeSurveyComponent implements ObservationComponent {
     private static final String LIME_SURVEY_ID_KEY = "limeSurveyId";
     private static final String LIME_SURVEY_TOKEN_KEY = "token";
     private static final String LIME_SURVEY_URL_KEY = "limeUrl";
-    private static final String LIME_SAVE_ID = "savedId";
-    private static final String LIME_SAVE_ID_ALT = "savedid";
-    private static final String LIME_SAVE_ID_SHORT = "saveId";
-    private static final String LIME_RESPONSE_SURVEY_ID = "surveyId";
+
+    private static final String[] LIME_SURVEY_ID_RESPONSE_KEYS = {"surveyId", "survey-id", "surveyid"};
+    private static final String[] LIME_SURVEY_SAVE_ID_KEYS = {"savedId", "savedid", "saveId"};
+    private static final String[] OBSERVATION_ID_KEYS = {"observationId", "observation-id", "observationid"};
+    private static final String[] STUDY_ID_KEYS = {"studyId", "study-id", "studyid"};
 
     private final LimeSurveyRequestService limeSurveyRequestService;
     private final ElasticService elasticService;
@@ -56,63 +58,49 @@ public class LimeSurveyComponent implements ObservationComponent {
     }
 
     @Override
-    public Optional<Pair<RoutingInfo, Integer>> processCallback(Map<String, String> parameters, RoutingInfo routingInfo, Observation observation) {
-        Optional<Integer> observationId = observation != null
-                ? Optional.of(observation.observationId())
-                : Optional
-                  .ofNullable(getParameter(parameters, "observationId", "observation-id", "observationid"))
-                  .map(Integer::parseInt);
-        if (observationId.isEmpty()) {
-            return Optional.empty();
-        }
-        if (routingInfo == null) {
-            String studyIdParam = getParameter(parameters, "studyid", "studyId");
-            String tokenParam = getParameter(parameters, "token");
-            if (studyIdParam != null && tokenParam != null) {
-                routingInfo = studyService.getRoutingInfoByToken(Long.parseLong(studyIdParam), observationId.get(), tokenParam)
-                        .orElse(null);
-            }
-        }
-        if (routingInfo == null) {
-            return Optional.empty();
-        }
-
-        String token = getParameter(parameters, LIME_SURVEY_TOKEN_KEY, LIME_SURVEY_ID_KEY);
-        String savedId = getParameter(parameters, LIME_SAVE_ID, LIME_SAVE_ID_ALT, LIME_SAVE_ID_SHORT);
-        String surveyIdParam = getParameter(parameters, LIME_RESPONSE_SURVEY_ID);
-
-        if (token == null || savedId == null || surveyIdParam == null) {
-            LOG.debug("RoutingInfo: {}; parameters: {}; observation: {}", routingInfo, parameters, observation);
-            throw new IllegalArgumentException("Necessary parameter not provided! Please provide all of these: token, savedId, surveyId!");
-        }
-        Integer saveId = Integer.parseInt(savedId);
-        Integer surveyId = Integer.parseInt(surveyIdParam);
-        int currentObservationId = observation != null ? observation.observationId() : observationId.get();
-        if (storeAnswer(surveyId, saveId, token, routingInfo, Integer.toString(currentObservationId))) {
-            return Optional.of(Pair.of(routingInfo, currentObservationId));
-        }
-        return Optional.empty();
+    public boolean necessaryCallbackParameters(Map<String, String> parameters) {
+        return MapperUtils.containsParameter(parameters, OBSERVATION_ID_KEYS)
+                && MapperUtils.containsParameter(parameters, STUDY_ID_KEYS)
+                && MapperUtils.containsParameter(parameters, LIME_SURVEY_TOKEN_KEY)
+                && MapperUtils.containsParameter(parameters, LIME_SURVEY_ID_RESPONSE_KEYS)
+                && MapperUtils.containsParameter(parameters, LIME_SURVEY_SAVE_ID_KEYS);
     }
 
-    private String getParameter(Map<String, String> parameters, String... keys) {
-        for (String key : keys) {
-            if (parameters.containsKey(key)) {
-                return parameters.get(key);
-            }
+    @Override
+    public Optional<CallbackResult> processCallback(Map<String, String> parameters) {
+        Optional<Integer> observationId = Optional.ofNullable(MapperUtils.getParameter(parameters, OBSERVATION_ID_KEYS))
+                .map(Integer::parseInt);
+        Optional<Long> studyIdParam = Optional.ofNullable(MapperUtils.getParameter(parameters, STUDY_ID_KEYS))
+                .map(Long::parseLong);
+        String token = MapperUtils.getParameter(parameters, LIME_SURVEY_TOKEN_KEY);
+        Optional<Integer> savedId = Optional.ofNullable(MapperUtils.getParameter(parameters, LIME_SURVEY_SAVE_ID_KEYS))
+                .map(Integer::parseInt);
+        Optional<Integer> surveyId = Optional.ofNullable(MapperUtils.getParameter(parameters, LIME_SURVEY_ID_RESPONSE_KEYS))
+                .map(Integer::parseInt);
+
+        if (observationId.isEmpty() || studyIdParam.isEmpty() || token == null || savedId.isEmpty() || surveyId.isEmpty()) {
+            LOG.warn("Missing parameters for LimeSurvey Component: observationId={}, studyId={}, token={}, savedId={}, surveyId={}", observationId, studyIdParam, token, savedId, surveyId);
+            throw new IllegalArgumentException("Necessary parameter not provided! Please provide all of these: studyID, observationId, token!");
         }
-        for (String key : keys) {
-            for (Map.Entry<String, String> entry : parameters.entrySet()) {
-                if (entry.getKey().equalsIgnoreCase(key)) {
-                    return entry.getValue();
-                }
-            }
+
+        RoutingInfo routingInfo = studyService.getRoutingInfoByToken(studyIdParam.get(), observationId.get(), token)
+                .orElseThrow(() -> {
+                    LOG.warn("Could not find RoutingInfo for LimeSurvey Component: observationId={}, studyId={}, token={}, savedId={}, surveyId={}", observationId, studyIdParam, token, savedId, surveyId);
+                    return new IllegalArgumentException("Could not find RoutingInfo for LimeSurvey Component for provided parameters");
+                });
+
+        if (storeAnswer(surveyId.get(), savedId.get(), token, routingInfo, Integer.toString(observationId.get()))) {
+            LOG.debug("Stored LimeSurvey answer for survey {}, token {}, observation {}", surveyId.get(), token, observationId.get());
+            return Optional.of(new CallbackResult(routingInfo, observationId.get()));
         }
-        return null;
+        LOG.warn("Failed to store LimeSurvey answer for survey {}, token {}, observation {}", surveyId.get(), token, observationId.get());
+        return Optional.empty();
     }
 
     private Optional<String> generateLimeSurveyUrl(Observation observation) {
         var props = observation.properties();
         if (!(props instanceof Map<?, ?> properties)) {
+            LOG.warn("Observation properties are not a Map! {}", props);
             return Optional.empty();
         }
 
@@ -158,7 +146,7 @@ public class LimeSurveyComponent implements ObservationComponent {
     private boolean storeAnswer(Integer surveyId, Integer saveId, String token, RoutingInfo routingInfo, String observationId) {
         Optional<Map<String, Object>> answerOpt = limeSurveyRequestService.getAnswer(token, surveyId, saveId);
         if (answerOpt.isPresent() && !answerOpt.get().isEmpty()) {
-
+            LOG.info("Received answer for LimeSurvey survey {}, routingInfo {}, savedId {}", surveyId, routingInfo, saveId);
             Map<String, Object> answer = answerOpt.get();
             Object submitDateObj = answer.remove("submitdate");
             Instant dateSubmitted = Optional
@@ -184,7 +172,7 @@ public class LimeSurveyComponent implements ObservationComponent {
                 LOG.error("Error storing LimeSurvey answers: {}", e.toString());
             }
         } else {
-            LOG.warn("Could not fetch answer for LimeSurvey survey {}, token {}, savedId {}", surveyId, token, saveId);
+            LOG.warn("Could not fetch answer for LimeSurvey survey {}, token {}, savedId {}, routingInfo {}", surveyId, token, saveId, routingInfo);
         }
         return false;
     }
