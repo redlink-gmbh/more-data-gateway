@@ -2,6 +2,7 @@ package io.redlink.more.data.service;
 
 import io.redlink.more.data.exception.ForbiddenException;
 import io.redlink.more.data.exception.NotFoundException;
+import io.redlink.more.data.model.CallbackResult;
 import io.redlink.more.data.model.Observation;
 import io.redlink.more.data.model.RoutingInfo;
 import io.redlink.more.data.model.Study;
@@ -26,7 +27,8 @@ import java.util.OptionalInt;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -168,34 +170,25 @@ class ObservationExecutionServiceTest {
 
     @Test
     void testProcessCallback() {
-        String observationId = "1";
-        Instant now = Instant.now().truncatedTo(ChronoUnit.SECONDS);
         RoutingInfo routingInfo = new RoutingInfo(1L, 1, OptionalInt.empty(), Set.of(), true, true);
         Map<String, String> parameters = Map.of("key", "value");
 
-        Observation observation = new Observation(1, 1, "Title", "test-type", "Info", null, null, now, now, false, false, false, Set.of());
-        Study study = new Study(1L, "Title", true, "Info", "Finish", "active", "Consent", null, null, null, null, List.of(observation), now, now, null);
+        when(observationComponent.necessaryCallbackParameters(any())).thenReturn(true);
+        when(observationComponent.processCallback(any())).thenReturn(Optional.of(new CallbackResult(routingInfo, 1)));
 
-        when(studyService.getStudy(routingInfo)).thenReturn(Optional.of(Pair.of(study, Collections.emptyList())));
-        when(observationComponent.processCallback(any(), any(), any())).thenReturn(Optional.of(Pair.of(routingInfo, 1)));
+        observationExecutionService.processCallback(parameters);
 
-        observationExecutionService.processCallback(observationId, Optional.of(routingInfo), parameters);
-
-        verify(observationComponent).processCallback(any(), eq(routingInfo), eq(observation));
+        verify(observationComponent).processCallback(eq(parameters));
     }
 
     @Test
     void testProcessCallbackFallback() {
-        String observationId = "1";
-        Instant now = Instant.now().truncatedTo(ChronoUnit.SECONDS);
         Map<String, String> parameters = Map.of("key", "value");
-        RoutingInfo routingInfo = new RoutingInfo(1L, 1, OptionalInt.empty(), Set.of(), true, true);
 
-        when(observationComponent.processCallback(eq(parameters), isNull(), isNull())).thenReturn(Optional.of(Pair.of(routingInfo, 1)));
+        when(observationComponent.necessaryCallbackParameters(any())).thenReturn(false);
 
-        Optional<URI> result = observationExecutionService.processCallback(observationId, Optional.empty(), parameters);
+        Optional<URI> result = observationExecutionService.processCallback(parameters);
 
         assertFalse(result.isPresent());
-        verify(observationComponent).processCallback(eq(parameters), isNull(), isNull());
     }
 }

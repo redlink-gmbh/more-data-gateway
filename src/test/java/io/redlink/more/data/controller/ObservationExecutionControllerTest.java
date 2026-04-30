@@ -202,7 +202,7 @@ class ObservationExecutionControllerTest {
         when(authenticationFacade.getAuthentication()).thenReturn(authentication);
         when(authentication.getPrincipal()).thenReturn(userDetails);
 
-        when(observationExecutionService.processCallback(any(), any(), any())).thenThrow(new IllegalArgumentException("Missing params"));
+        when(observationExecutionService.processCallback(any())).thenThrow(new IllegalArgumentException("Missing params"));
 
         org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder requestBuilder = org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/execution/callback");
 
@@ -221,7 +221,7 @@ class ObservationExecutionControllerTest {
         when(authenticationFacade.getAuthentication()).thenReturn(authentication);
         when(authentication.getPrincipal()).thenReturn(userDetails);
 
-        when(observationExecutionService.processCallback(any(), any(), any())).thenReturn(Optional.empty());
+        when(observationExecutionService.processCallback(any())).thenReturn(Optional.empty());
 
         org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder requestBuilder = org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/execution/callback")
                 .requestAttr(org.springframework.web.servlet.HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE, new HashMap<>());
@@ -248,7 +248,7 @@ class ObservationExecutionControllerTest {
         lenient().when(request.getContextPath()).thenReturn("");
 
         lenient().when(request.getAttribute(org.springframework.web.servlet.HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE)).thenReturn(new HashMap<>());
-        lenient().when(observationExecutionService.processCallback(eq("1"), any(), any())).thenReturn(Optional.of(URI.create("http://redirect.com/end.htm")));
+        lenient().when(observationExecutionService.processCallback(any())).thenReturn(Optional.of(URI.create("http://redirect.com/end.htm")));
 
         ResponseEntity<String> response = observationExecutionController.callback();
 
@@ -286,14 +286,13 @@ class ObservationExecutionControllerTest {
         lenient().when(request.getContextPath()).thenReturn("");
         lenient().when(request.getAttribute(org.springframework.web.servlet.HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE)).thenReturn(new HashMap<>());
 
-        // ObservationExecutionService.processCallback called with null routingInfo, as it's now handled by the component
-        lenient().when(observationExecutionService.processCallback(eq("101"), eq(Optional.empty()), any())).thenReturn(Optional.of(URI.create("http://redirect.com")));
+        lenient().when(observationExecutionService.processCallback(any())).thenReturn(Optional.of(URI.create("http://redirect.com")));
 
         ResponseEntity<String> response = observationExecutionController.callback();
 
         assertEquals(HttpStatus.FOUND, response.getStatusCode());
         String location = response.getHeaders().getLocation().toString();
         assertTrue(location.contains("status=200"));
-        verify(observationExecutionService).processCallback(eq("101"), eq(Optional.empty()), any());
+        verify(observationExecutionService).processCallback(any());
     }
 }
