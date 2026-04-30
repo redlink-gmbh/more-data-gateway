@@ -56,7 +56,7 @@ public class ObservationExecutionController implements ExecutionApi {
             final Instant end = DateTimeUtils.parseInstant(scheduleEnd);
             final RoutingInfo routingInfo = getRoutingInfo()
                     .orElseThrow(() -> new AccessDeniedException("No credentials found!"));
-            
+
             var url = observationExecutionService.executeObservation(observationId, start, end, routingInfo, redirect);
 
             if (url.isEmpty()) {
@@ -96,23 +96,15 @@ public class ObservationExecutionController implements ExecutionApi {
                 builder.replaceQueryParam(k, v);
             }
         });
-        String observationId = params.get("observationId");
-
-        if (observationId == null) {
-            observationId = params.get("observationid");
-        }
-        if (observationId == null) {
-            observationId = params.get("observation-id");
-        }
 
         URI redirectUrl = builder.build().toUri();
-        
-        LOG.info("process callback: pathVars: {}, params: {}, redirect to: {}", pathVars, params, redirectUrl);
+
+        LOG.info("process callback: pathVars: {}, params: {}", pathVars, params);
 
         int status = HttpStatus.OK.value();
 
         try {
-            var redirect = observationExecutionService.processCallback(observationId, getRoutingInfo(), params);
+            var redirect = observationExecutionService.processCallback(params);
 
             if (redirect.isPresent()) {
                 UriComponentsBuilder redirectBuilder = UriComponentsBuilder.fromUri(redirect.get());

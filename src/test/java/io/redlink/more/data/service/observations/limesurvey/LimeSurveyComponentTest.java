@@ -1,9 +1,9 @@
 package io.redlink.more.data.service.observations.limesurvey;
 
+import io.redlink.more.data.model.CallbackResult;
 import io.redlink.more.data.model.Observation;
 import io.redlink.more.data.model.RoutingInfo;
 import io.redlink.more.data.service.ElasticService;
-import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -65,17 +65,20 @@ class LimeSurveyComponentTest {
         Map<String, String> parameters = Map.of(
                 "token", "token123",
                 "saveId", "50",
-                "surveyId", "100"
+                "surveyId", "100",
+                "studyId", "1",
+                "observationId", "1"
         );
         RoutingInfo routingInfo = new RoutingInfo(1L, 1, OptionalInt.empty(), Set.of(), true, true);
-        Observation observation = new Observation(1, 1, "Title", "lime-survey-observation", "Info", Map.of(), null, Instant.now(), Instant.now(), false, false, false, Set.of());
 
+        when(studyService.getRoutingInfoByToken(1L, 1, "token123")).thenReturn(Optional.of(routingInfo));
         when(limeSurveyRequestService.getAnswer("token123", 100, 50))
                 .thenReturn(Optional.of(new java.util.HashMap<>(Map.of("some_key", "some_value"))));
 
-        Optional<Pair<RoutingInfo, Integer>> result = limeSurveyComponent.processCallback(parameters, routingInfo, observation);
+        Optional<CallbackResult> result = limeSurveyComponent.processCallback(parameters);
         assertTrue(result.isPresent());
-        assertEquals(routingInfo, result.get().getLeft());
+        assertEquals(routingInfo, result.get().routingInfo());
+        assertEquals(1, result.get().observationId());
         verify(elasticService).storeDataPoints(anyList(), eq(routingInfo));
     }
 
@@ -94,18 +97,17 @@ class LimeSurveyComponentTest {
         when(limeSurveyRequestService.getAnswer("token123", 100, 50))
                 .thenReturn(Optional.of(new java.util.HashMap<>(Map.of("some_key", "some_value"))));
 
-        Optional<Pair<RoutingInfo, Integer>> result = limeSurveyComponent.processCallback(parameters, null, null);
+        Optional<CallbackResult> result = limeSurveyComponent.processCallback(parameters);
         assertTrue(result.isPresent());
-        assertEquals(routingInfo, result.get().getLeft());
+        assertEquals(routingInfo, result.get().routingInfo());
+        assertEquals(1, result.get().observationId());
         verify(elasticService).storeDataPoints(anyList(), eq(routingInfo));
     }
 
     @Test
     void testProcessCallbackMissingParams() {
         Map<String, String> parameters = Map.of("token", "token123");
-        RoutingInfo routingInfo = new RoutingInfo(1L, 1, OptionalInt.empty(), Set.of(), true, true);
-        Observation observation = new Observation(1, 1, "Title", "lime-survey-observation", "Info", Map.of(), null, Instant.now(), Instant.now(), false, false, false, Set.of());
 
-        assertThrows(IllegalArgumentException.class, () -> limeSurveyComponent.processCallback(parameters, routingInfo, observation));
+        assertThrows(IllegalArgumentException.class, () -> limeSurveyComponent.processCallback(parameters));
     }
 }
