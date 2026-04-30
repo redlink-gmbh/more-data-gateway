@@ -3,6 +3,7 @@ package io.redlink.more.data.service;
 import io.redlink.more.data.controller.transformer.StudyTransformer;
 import io.redlink.more.data.model.ParticipantObservationSeed;
 import io.redlink.more.data.model.RoutingInfo;
+import io.redlink.more.data.model.RoutingInfoWithObservation;
 import io.redlink.more.data.model.Study;
 import io.redlink.more.data.repository.StudyRepository;
 import org.apache.commons.lang3.tuple.Pair;
@@ -31,8 +32,9 @@ public class StudyService {
         return studyRepository.getRoutingInfo(studyId, participantId);
     }
 
-    public Optional<RoutingInfo> getRoutingInfoByToken(long studyId, int observationId, String token) {
-        return studyRepository.getRoutingInfoByToken(studyId, observationId, token);
+    public Optional<RoutingInfoWithObservation> getRoutingInfoByToken(long studyId, String token) {
+//        return studyRepository.getRoutingInfoAndObservationIdByToken(studyId, token); --> only if limesurveys are not cross study
+        return studyRepository.getRoutingInfoAndObservationIdByToken(token); // Use cross study functionality with mcuh higher runtime
     }
 
     public Optional<String> getStudyState(long studyId) {

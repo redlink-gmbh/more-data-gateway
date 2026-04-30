@@ -3,6 +3,7 @@ package io.redlink.more.data.service.observations.limesurvey;
 import io.redlink.more.data.model.CallbackResult;
 import io.redlink.more.data.model.Observation;
 import io.redlink.more.data.model.RoutingInfo;
+import io.redlink.more.data.model.RoutingInfoWithObservation;
 import io.redlink.more.data.service.ElasticService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -71,7 +72,7 @@ class LimeSurveyComponentTest {
         );
         RoutingInfo routingInfo = new RoutingInfo(1L, 1, OptionalInt.empty(), Set.of(), true, true);
 
-        when(studyService.getRoutingInfoByToken(1L, 1, "token123")).thenReturn(Optional.of(routingInfo));
+        when(studyService.getRoutingInfoByToken(1L, "token123")).thenReturn(Optional.of(new RoutingInfoWithObservation(routingInfo, 1)));
         when(limeSurveyRequestService.getAnswer("token123", 100, 50))
                 .thenReturn(Optional.of(new java.util.HashMap<>(Map.of("some_key", "some_value"))));
 
@@ -93,7 +94,7 @@ class LimeSurveyComponentTest {
         );
         RoutingInfo routingInfo = new RoutingInfo(1L, 1, OptionalInt.empty(), Set.of(), true, true);
 
-        when(studyService.getRoutingInfoByToken(1L, 1, "token123")).thenReturn(Optional.of(routingInfo));
+        when(studyService.getRoutingInfoByToken(1L, "token123")).thenReturn(Optional.of(new RoutingInfoWithObservation(routingInfo, 1)));
         when(limeSurveyRequestService.getAnswer("token123", 100, 50))
                 .thenReturn(Optional.of(new java.util.HashMap<>(Map.of("some_key", "some_value"))));
 
