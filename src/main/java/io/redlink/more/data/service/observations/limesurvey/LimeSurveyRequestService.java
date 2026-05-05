@@ -15,6 +15,7 @@ import io.redlink.more.data.limesurvey.model.LimeSurveyMethod;
 import io.redlink.more.data.limesurvey.model.LimeSurveyObjectResponse;
 import io.redlink.more.data.limesurvey.model.LimeSurveyRequest;
 import io.redlink.more.data.service.observations.limesurvey.config.LimeSurveyProperties;
+import io.redlink.more.data.service.observations.limesurvey.model.ParticipantData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -150,6 +151,56 @@ public class LimeSurveyRequestService {
             releaseSessionKey(sessionKey);
         } catch (RuntimeException e) {
             LOGGER.warn("Could not release session key cleanly", e);
+        }
+    }
+
+    public Optional<ParticipantData> getParticipant(String token, int surveyId) {
+        if (token == null || token.isBlank() || surveyId <= 0) {
+            LOGGER.warn("Invalid participant query parameters: surveyId={}, token={}", surveyId, token);
+            return Optional.empty();
+        }
+        String sessionKey = null;
+
+        try {
+            sessionKey = getSessionKey();
+            var response = limeSurveyRcApi.callMethod(
+                    createRequest(
+                            LimeSurveyMethod.GET_PARTICIPANT_PROPERTIES,
+                            sessionKey,
+                            surveyId,
+                            Map.of("token", token),
+                            List.of("tid", "token", "participant_info", "firstname", "lastname", "email")
+                    )
+            );
+
+            if (response == null) {
+                LOGGER.warn("LimeSurvey returned null response for get_participant_properties (surveyId={})", surveyId);
+                return Optional.empty();
+            }
+            if (response.getError() != null && !response.getError().isBlank()) {
+                LOGGER.warn("LimeSurvey returned error for get_participant_properties (surveyId={}): {}", surveyId, response.getError());
+                return Optional.empty();
+            }
+            if (response.getResult() == null) {
+                LOGGER.warn("LimeSurvey returned null result for get_participant_properties (surveyId={})", surveyId);
+                return Optional.empty();
+            }
+
+            Object result = response.getResult();
+            if (result instanceof Map<?, ?> resultMap && resultMap.get("status") != null) {
+                LOGGER.warn("LimeSurvey returned status for get_participant_properties (surveyId={}): {}", surveyId, resultMap.get("status"));
+                return Optional.empty();
+            }
+
+            return Optional.of(mapper.convertValue(result, ParticipantData.class));
+        } catch (IllegalArgumentException e) {
+            LOGGER.error("Could not map LimeSurvey participant data for surveyId={} and token={}", surveyId, token, e);
+            return Optional.empty();
+        } catch (RuntimeException e) {
+            LOGGER.error("Could not get participant from LimeSurvey remote control", e);
+            return Optional.empty();
+        } finally {
+            releaseSessionKeyQuietly(sessionKey);
         }
     }
 

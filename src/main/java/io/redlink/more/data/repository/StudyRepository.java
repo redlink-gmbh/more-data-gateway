@@ -10,6 +10,8 @@ import io.redlink.more.data.util.MapperUtils;
 import io.redlink.more.data.util.RandomSchedulerUtils;
 import io.redlink.more.data.util.SchedulerUtils;
 import org.apache.commons.lang3.tuple.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -42,6 +44,7 @@ import static io.redlink.more.data.util.RandomSchedulerUtils.OBSERVATION_SCHEDUL
 
 @Service
 public class StudyRepository {
+    private static final Logger LOG = LoggerFactory.getLogger(StudyRepository.class);
 
     private static final String SQL_FIND_STUDY_BY_ID =
             "SELECT *, status IN ('active', 'preview') as study_active FROM studies WHERE study_id = ?";
@@ -111,17 +114,18 @@ public class StudyRepository {
             """;
     private static final String SQL_ROUTING_INFO_BY_REG_TOKEN_WITH_LOCK =
             SQL_ROUTING_INFO_BY_REG_TOKEN + " FOR UPDATE OF rt";
-    private static final String SQL_ROUTING_INFO_BY_OBSERVATION_TOKEN = """
-            SELECT pt.study_id as study_id, pt.participant_id as participant_id, study_group_id,
-                s.status IN ('active', 'preview') as study_active,
-                pt.status = 'active' as participant_active,
-                (SELECT ARRAY_AGG(pog.observation_group_id)
-                          FROM participant_observation_groups pog
-                          WHERE pog.study_id = pt.study_id AND pog.participant_id = pt.participant_id) AS observation_group_ids
-            FROM participants pt
-                INNER JOIN studies s on (s.study_id = pt.study_id)
-                INNER JOIN participant_observation_properties pop ON (pt.study_id = pop.study_id AND pt.participant_id = pop.participant_id)
-            WHERE pop.study_id = ? AND pop.observation_id = ? AND pop.properties#>>'{token}' = ?
+    private static final String SQL_PARTICIPANT_ID_AND_OBSERVATION_ID_BY_OBSERVATION_TOKEN = """
+            SELECT pop.participant_id, pop.observation_id
+            FROM participant_observation_properties pop
+            WHERE pop.study_id = ?
+              AND pop.properties ->> 'token' = ?
+            LIMIT 1
+            """;
+    private static final String SQL_STUDY_ID_PARTICIPANT_ID_AND_OBSERVATION_ID_BY_OBSERVATION_TOKEN = """
+            SELECT pop.study_id, pop.participant_id, pop.observation_id
+            FROM participant_observation_properties pop
+            WHERE pop.properties ->> 'token' = ?
+            LIMIT 1
             """;
     private static final String GET_ROUTING_INFO = """
             SELECT pt.study_id as study_id, pt.participant_id as participant_id, study_group_id,
@@ -353,13 +357,48 @@ public class StudyRepository {
         }
     }
 
-    public Optional<RoutingInfo> getRoutingInfoByToken(long studyId, int observationId, String token) {
+    public Optional<RoutingInfoWithObservation> getRoutingInfoAndObservationIdByToken(long studyId, String token) {
         try {
-            return Optional.ofNullable(jdbcTemplate.queryForObject(
-                    SQL_ROUTING_INFO_BY_OBSERVATION_TOKEN,
-                    getRoutingInfoMapper(),
-                    studyId, observationId, token
-            ));
+            Pair<Integer, Integer> participantAndObservationId = jdbcTemplate.queryForObject(
+                    SQL_PARTICIPANT_ID_AND_OBSERVATION_ID_BY_OBSERVATION_TOKEN,
+                    (rs, rowNum) -> Pair.of(
+                            rs.getInt("participant_id"),
+                            rs.getInt("observation_id")
+                    ),
+                    studyId, token
+            );
+
+            if (participantAndObservationId == null) {
+                LOG.warn("Participant and observation id not found for token {} in study {}", token, studyId);
+                return Optional.empty();
+            }
+
+            return getRoutingInfo(studyId, participantAndObservationId.getLeft())
+                    .map(routingInfo -> new RoutingInfoWithObservation(routingInfo, participantAndObservationId.getRight()));
+        } catch (EmptyResultDataAccessException e) {
+            return Optional.empty();
+        }
+    }
+
+    public Optional<RoutingInfoWithObservation> getRoutingInfoAndObservationIdByToken(String token) {
+        try {
+            var studyParticipantAndObservationId = jdbcTemplate.queryForObject(
+                    SQL_STUDY_ID_PARTICIPANT_ID_AND_OBSERVATION_ID_BY_OBSERVATION_TOKEN,
+                    (rs, rowNum) -> new Object() {
+                        final long studyId = rs.getLong("study_id");
+                        final int participantId = rs.getInt("participant_id");
+                        final int observationId = rs.getInt("observation_id");
+                    },
+                    token
+            );
+
+            if (studyParticipantAndObservationId == null) {
+                LOG.warn("Study, participant and observation id not found for token {}", token);
+                return Optional.empty();
+            }
+
+            return getRoutingInfo(studyParticipantAndObservationId.studyId, studyParticipantAndObservationId.participantId)
+                    .map(routingInfo -> new RoutingInfoWithObservation(routingInfo, studyParticipantAndObservationId.observationId));
         } catch (EmptyResultDataAccessException e) {
             return Optional.empty();
         }

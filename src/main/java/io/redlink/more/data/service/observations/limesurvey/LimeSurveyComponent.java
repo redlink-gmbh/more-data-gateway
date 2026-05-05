@@ -4,9 +4,11 @@ import io.redlink.more.data.model.CallbackResult;
 import io.redlink.more.data.model.DataPoint;
 import io.redlink.more.data.model.Observation;
 import io.redlink.more.data.model.RoutingInfo;
+import io.redlink.more.data.model.RoutingInfoWithObservation;
 import io.redlink.more.data.service.ElasticService;
 import io.redlink.more.data.service.StudyService;
 import io.redlink.more.data.service.observations.ObservationComponent;
+import io.redlink.more.data.service.observations.limesurvey.model.ParticipantData;
 import io.redlink.more.data.util.DateTimeUtils;
 import io.redlink.more.data.util.MapperUtils;
 import org.slf4j.Logger;
@@ -24,9 +26,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Component
 public class LimeSurveyComponent implements ObservationComponent {
+    private static final String LIME_SURVEY_USER_TEMPLATE = "study_%s-observation_%s-participant_%s";
+
     private static final Logger LOG = LoggerFactory.getLogger(LimeSurveyComponent.class);
     private static final String LIME_SURVEY_ID_KEY = "limeSurveyId";
     private static final String LIME_SURVEY_TOKEN_KEY = "token";
@@ -34,7 +40,6 @@ public class LimeSurveyComponent implements ObservationComponent {
 
     private static final String[] LIME_SURVEY_ID_RESPONSE_KEYS = {"surveyId", "survey-id", "surveyid"};
     private static final String[] LIME_SURVEY_SAVE_ID_KEYS = {"savedId", "savedid", "saveId"};
-    private static final String[] OBSERVATION_ID_KEYS = {"observationId", "observation-id", "observationid"};
     private static final String[] STUDY_ID_KEYS = {"studyId", "study-id", "studyid"};
 
     private final LimeSurveyRequestService limeSurveyRequestService;
@@ -59,8 +64,7 @@ public class LimeSurveyComponent implements ObservationComponent {
 
     @Override
     public boolean necessaryCallbackParameters(Map<String, String> parameters) {
-        return MapperUtils.containsParameter(parameters, OBSERVATION_ID_KEYS)
-                && MapperUtils.containsParameter(parameters, STUDY_ID_KEYS)
+        return MapperUtils.containsParameter(parameters, STUDY_ID_KEYS)
                 && MapperUtils.containsParameter(parameters, LIME_SURVEY_TOKEN_KEY)
                 && MapperUtils.containsParameter(parameters, LIME_SURVEY_ID_RESPONSE_KEYS)
                 && MapperUtils.containsParameter(parameters, LIME_SURVEY_SAVE_ID_KEYS);
@@ -68,8 +72,6 @@ public class LimeSurveyComponent implements ObservationComponent {
 
     @Override
     public Optional<CallbackResult> processCallback(Map<String, String> parameters) {
-        Optional<Integer> observationId = Optional.ofNullable(MapperUtils.getParameter(parameters, OBSERVATION_ID_KEYS))
-                .map(Integer::parseInt);
         Optional<Long> studyIdParam = Optional.ofNullable(MapperUtils.getParameter(parameters, STUDY_ID_KEYS))
                 .map(Long::parseLong);
         String token = MapperUtils.getParameter(parameters, LIME_SURVEY_TOKEN_KEY);
@@ -78,22 +80,32 @@ public class LimeSurveyComponent implements ObservationComponent {
         Optional<Integer> surveyId = Optional.ofNullable(MapperUtils.getParameter(parameters, LIME_SURVEY_ID_RESPONSE_KEYS))
                 .map(Integer::parseInt);
 
-        if (observationId.isEmpty() || studyIdParam.isEmpty() || token == null || savedId.isEmpty() || surveyId.isEmpty()) {
-            LOG.warn("Missing parameters for LimeSurvey Component: observationId={}, studyId={}, token={}, savedId={}, surveyId={}", observationId, studyIdParam, token, savedId, surveyId);
+        if (studyIdParam.isEmpty() || token == null || savedId.isEmpty() || surveyId.isEmpty()) {
+            LOG.warn("Missing parameters for LimeSurvey Component: studyId={}, token={}, savedId={}, surveyId={}", studyIdParam, token, savedId, surveyId);
             throw new IllegalArgumentException("Necessary parameter not provided! Please provide all of these: studyID, observationId, token!");
         }
 
-        RoutingInfo routingInfo = studyService.getRoutingInfoByToken(studyIdParam.get(), observationId.get(), token)
+        RoutingInfoWithObservation routingInfoAndObservationId = limeSurveyRequestService.getParticipant(token, surveyId.get())
+                .flatMap(this::lsParticipantToRoutingInfo)
+                .or(() -> studyService.getRoutingInfoByToken(studyIdParam.get(), token))
                 .orElseThrow(() -> {
-                    LOG.warn("Could not find RoutingInfo for LimeSurvey Component: observationId={}, studyId={}, token={}, savedId={}, surveyId={}", observationId, studyIdParam, token, savedId, surveyId);
-                    return new IllegalArgumentException("Could not find RoutingInfo for LimeSurvey Component for provided parameters");
+                    LOG.warn("Could not find participant for LimeSurvey Component: studyId={}, token={}, savedId={}, surveyId={}", studyIdParam, token, savedId, surveyId);
+                    return new IllegalArgumentException("Could not find participant for LimeSurvey Component for provided parameters");
                 });
 
-        if (storeAnswer(surveyId.get(), savedId.get(), token, routingInfo, Integer.toString(observationId.get()))) {
-            LOG.debug("Stored LimeSurvey answer for survey {}, token {}, observation {}", surveyId.get(), token, observationId.get());
-            return Optional.of(new CallbackResult(routingInfo, observationId.get()));
+        RoutingInfo routingInfo = routingInfoAndObservationId.routingInfo();
+        Integer resolvedObservationId = routingInfoAndObservationId.observationId();
+
+        if (routingInfo == null || resolvedObservationId == null) {
+            LOG.warn("Could not find RoutingInfo for LimeSurvey Component: studyId={}, token={}, savedId={}, surveyId={}", studyIdParam, token, savedId, surveyId);
+            throw new IllegalArgumentException("Could not find RoutingInfo for LimeSurvey Component for provided parameters");
         }
-        LOG.warn("Failed to store LimeSurvey answer for survey {}, token {}, observation {}", surveyId.get(), token, observationId.get());
+
+        if (storeAnswer(surveyId.get(), savedId.get(), token, routingInfo, Integer.toString(resolvedObservationId))) {
+            LOG.debug("Stored LimeSurvey answer for survey {}, token {}, observation {}", surveyId.get(), token, resolvedObservationId);
+            return Optional.of(new CallbackResult(routingInfo, resolvedObservationId));
+        }
+        LOG.warn("Failed to store LimeSurvey answer for survey {}, token {}, observation {}", surveyId.get(), token, resolvedObservationId);
         return Optional.empty();
     }
 
@@ -175,5 +187,49 @@ public class LimeSurveyComponent implements ObservationComponent {
             LOG.warn("Could not fetch answer for LimeSurvey survey {}, token {}, savedId {}, routingInfo {}", surveyId, token, saveId, routingInfo);
         }
         return false;
+    }
+
+    private Optional<RoutingInfoWithObservation> lsParticipantToRoutingInfo(ParticipantData participantData) {
+        if (participantData == null || participantData.firstname() == null) {
+            LOG.warn("Could not map participant data to RoutingInfo: {}", participantData);
+            return Optional.empty();
+        }
+
+        String firstname = participantData.firstname();
+
+        if (firstname.matches("\\d+")) {
+            LOG.warn("Could not map LimeSurvey firstname to RoutingInfo as it conforms to the old format: {}", participantData);
+            return Optional.empty();
+        }
+
+        String pattern = LIME_SURVEY_USER_TEMPLATE
+                .replace("%s", "(\\d+)")
+                .replace("study_", "^study_")
+                .replace("-participant_", "-participant_") + "$";
+
+        Matcher matcher = Pattern.compile(pattern).matcher(firstname);
+        if (!matcher.matches()) {
+            LOG.warn("Could not map LimeSurvey firstname to RoutingInfo: {}", firstname);
+            return Optional.empty();
+        }
+
+        long studyId = Long.parseLong(matcher.group(1));
+        int observationId = Integer.parseInt(matcher.group(2));
+        int participantId = Integer.parseInt(matcher.group(3));
+
+        if (studyId <= 0 || observationId <= 0 || participantId <= 0) {
+            LOG.warn("Could not map LimeSurvey firstname to RoutingInfo: {}", firstname);
+            return Optional.empty();
+        }
+
+        RoutingInfo routingInfo = studyService.getRoutingInfo(studyId, participantId)
+                .orElse(null);
+
+        if (routingInfo == null) {
+            LOG.warn("Could not find RoutingInfo for LimeSurvey participant data: {}", participantData);
+            return Optional.empty();
+        }
+
+        return Optional.of(new RoutingInfoWithObservation(routingInfo, observationId));
     }
 }

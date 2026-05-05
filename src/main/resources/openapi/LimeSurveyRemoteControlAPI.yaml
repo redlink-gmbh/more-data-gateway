@@ -46,6 +46,7 @@ components:
         - add_participants
         - list_surveys
         - list_participants
+        - get_participant_properties
         - export_responses_by_token
         - get_survey_properties
 
