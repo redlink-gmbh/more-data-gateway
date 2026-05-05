@@ -60,7 +60,7 @@ public final class ParticipantPortalTransformer {
             return null;
         }
         return new SimpleParticipantDTO()
-                .id(participant.id())
+                .id(null)
                 .alias(participant.alias());
     }
 
