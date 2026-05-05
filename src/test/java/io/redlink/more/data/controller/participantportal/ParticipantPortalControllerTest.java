@@ -385,7 +385,7 @@ class ParticipantPortalControllerTest {
                 .andExpect(jsonPath("$.active").value(true))
                 .andExpect(jsonPath("$.studyState").value("active"))
 
-                .andExpect(jsonPath("$.participant.id").value(9))
+                .andExpect(jsonPath("$.participant.id").doesNotExist())
                 .andExpect(jsonPath("$.participant.alias").value("alias"))
 
                 .andExpect(jsonPath("$.studyTitle").value("Title"))
