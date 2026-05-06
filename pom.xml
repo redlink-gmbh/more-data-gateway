@@ -37,9 +37,9 @@
     </properties>
 
     <scm>
-        <connection>https://github.com/MORE-Platform/more-dsb-gateway.git</connection>
-        <developerConnection>git@github.com:MORE-Platform/more-dsb-gateway.git</developerConnection>
-        <url>https://github.com/MORE-Platform/more-dsb-gateway</url>
+        <connection>https://github.com/MORE-Platform/more-data-gateway.git</connection>
+        <developerConnection>git@github.com:MORE-Platform/more-data-gateway.git</developerConnection>
+        <url>https://github.com/MORE-Platform/more-data-gateway</url>
         <tag>HEAD</tag>
     </scm>
 
@@ -370,6 +370,32 @@
                         </configuration>
                     </execution>
                     <execution>
+                        <id>participant-portal-api</id>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                        <configuration>
+                            <inputSpec>${project.basedir}/src/main/resources/openapi/ParticipantPortalAPI.yaml</inputSpec>
+                            <output>${project.build.directory}/generated-sources/participant-portal</output>
+                            <apiPackage>io.redlink.more.data.api.participant.v1.webservices</apiPackage>
+                            <modelPackage>io.redlink.more.data.api.participant.v1.model</modelPackage>
+                            <modelNameSuffix>DTO</modelNameSuffix>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>observation-execution-api</id>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                        <configuration>
+                            <inputSpec>${project.basedir}/src/main/resources/openapi/ObservationExecutionAPI.yaml</inputSpec>
+                            <output>${project.build.directory}/generated-sources/observation-execution</output>
+                            <apiPackage>io.redlink.more.data.api.execution.v1.webservices</apiPackage>
+                            <modelPackage>io.redlink.more.data.api.execution.v1.model</modelPackage>
+                            <modelNameSuffix>DTO</modelNameSuffix>
+                        </configuration>
+                    </execution>
+                    <execution>
                         <id>garmin-api</id>
                         <goals>
                             <goal>generate</goal>
@@ -447,6 +473,32 @@
                             </configOptions>
                         </configuration>
                     </execution>
+                    <execution>
+                        <id>limesurvey-api</id>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                        <configuration>
+                            <inputSpec>${project.basedir}/src/main/resources/openapi/LimeSurveyRemoteControlAPI.yaml</inputSpec>
+                            <output>${project.build.directory}/generated-sources/limesurvey</output>
+                            <generatorName>java</generatorName>
+                            <library>resttemplate</library>
+                            <packageName>io.redlink.more.data.limesurvey</packageName>
+                            <apiPackage>io.redlink.more.data.limesurvey.client</apiPackage>
+                            <modelPackage>io.redlink.more.data.limesurvey.model</modelPackage>
+                            <generateSupportingFiles>true</generateSupportingFiles>
+                            <addCompileSourceRoot>true</addCompileSourceRoot>
+                            <configOptions>
+                                <dateLibrary>java8</dateLibrary>
+                                <useJakartaEe>true</useJakartaEe>
+                                <serializationLibrary>jackson</serializationLibrary>
+                                <removeOperationIdPrefix>true</removeOperationIdPrefix>
+                                <modelMutable>false</modelMutable>
+                                <useBeanValidation>false</useBeanValidation>
+                                <openApiNullable>false</openApiNullable>
+                            </configOptions>
+                        </configuration>
+                    </execution>
                  </executions>
                 <configuration>
                     <generatorName>spring</generatorName>
@@ -458,7 +510,7 @@
                     <apiPackage>io.redlink.more.data.api.app.v1.webservices</apiPackage>
 
                     <generateModels>true</generateModels>
-                    <apiPackage>io.redlink.more.data.api.app.v1.model</apiPackage>
+                    <modelPackage>io.redlink.more.data.api.app.v1.model</modelPackage>
 
                     <generateApiTests>false</generateApiTests>
                     <generateApiDocumentation>true</generateApiDocumentation>

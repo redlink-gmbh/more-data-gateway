@@ -31,10 +31,6 @@ public record RoutingInfo(
         this(studyId, participantId, studyGroupId.orElse(Integer.MIN_VALUE), observationGroupIds, studyActive, participantActive);
     }
 
-/*    public RoutingInfo(ApiRoutingInfo routingInfo, Integer participantId, boolean participantActive) {
-        this(routingInfo.studyId(), participantId, routingInfo.studyGroupId(), routingInfo.studyActive(), participantActive);
-    }*/
-
     public OptionalInt studyGroupId() {
         if (this.rawStudyGroupId < 0) {
             return OptionalInt.empty();
@@ -45,5 +41,9 @@ public record RoutingInfo(
 
     public boolean acceptData() {
         return studyActive && participantActive;
+    }
+
+    public String participantRef() {
+        return studyId + ":" + participantId;
     }
 }

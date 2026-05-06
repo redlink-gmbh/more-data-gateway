@@ -3,8 +3,13 @@ package io.redlink.more.data.util;
 import org.apache.commons.lang3.Range;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -59,5 +64,50 @@ public class DateTimeUtils {
         }
         merged.add(current);
         return new HashSet<>(merged);
+    }
+
+    public static Instant parseInstant(String source) {
+        if (source == null || source.isBlank()) {
+            return null;
+        }
+
+        ZoneOffset systemOffset = ZoneId.systemDefault()
+                .getRules()
+                .getOffset(LocalDateTime.now());
+
+        return parseInstantWithOffset(source, systemOffset);
+    }
+
+    /**
+     * Parses an Instant from a string representation, considering a specific timezone offset.
+     *
+     * @param source     The string representation of the Instant.
+     * @param zoneOffset The timezone offset.
+     * @return The parsed Instant or null if the source is null or blank.
+     */
+    public static Instant parseInstantWithOffset(String source, ZoneOffset zoneOffset) {
+        if (source == null || source.isBlank()) {
+            return null;
+        }
+
+        try {
+            return Instant.parse(source);
+        } catch (DateTimeParseException e) {
+            try {
+                return LocalDate.parse(source)
+                        .atStartOfDay()
+                        .atOffset(zoneOffset)
+                        .toInstant();
+            } catch (DateTimeParseException e2) {
+                try {
+                    // Handle format: "yyyy-MM-dd HH:mm:ss"
+                    return LocalDateTime.parse(source, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                            .atOffset(zoneOffset)
+                            .toInstant();
+                } catch (DateTimeParseException e3) {
+                    throw new IllegalArgumentException("Invalid date format: " + source, e);
+                }
+            }
+        }
     }
 }

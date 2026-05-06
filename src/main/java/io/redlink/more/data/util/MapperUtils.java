@@ -6,6 +6,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.redlink.more.data.exception.BadRequestException;
 import io.redlink.more.data.model.Alias;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -55,5 +56,25 @@ public class MapperUtils {
                 || value instanceof Boolean
                 || value instanceof Character
                 || value instanceof Enum<?>;
+    }
+
+    public static String getParameter(Map<String, String> parameters, String... keys) {
+        for (String key : keys) {
+            if (parameters.containsKey(key)) {
+                return parameters.get(key);
+            }
+        }
+        for (String key : keys) {
+            for (Map.Entry<String, String> entry : parameters.entrySet()) {
+                if (entry.getKey().equalsIgnoreCase(key)) {
+                    return entry.getValue();
+                }
+            }
+        }
+        return null;
+    }
+
+    public static boolean containsParameter(Map<String, String> parameters, String... keys) {
+        return Arrays.stream(keys).anyMatch(parameters::containsKey);
     }
 }

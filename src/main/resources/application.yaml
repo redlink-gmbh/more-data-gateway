@@ -12,6 +12,10 @@ spring:
     password: ${POSTGRES_PASSWORD:more}
     name: ${POSTGRES_DBNAME:more}
 
+  jackson:
+    # optional properties that are not set should not be included
+    default-property-inclusion: non_null
+
   session:
     store-type: redis
     redis:
@@ -29,6 +33,16 @@ server:
 more:
   gateway:
     baseUrl: ${BASE_URL:}
+
+  login-token:
+    hash-algorithm: ${LOGIN_TOKEN_HASH_ALGORITHM:SHA-256}
+  application:
+    urls:
+      PARTICIPANT_PORTAL: '${PARTICIPANT_PORTAL_URL:http://localhost:3001}'
+  limesurvey:
+    username: '${LIME_ADMIN_USER:more-admin}'
+    password: '${LIME_ADMIN_PWD:more-admin}'
+    baseUrl: '${LIME_BASE_URL:https://lime.platform-test.more.redlink.io}'
 
 elastic:
   host: ${ELASTIC_HOST:localhost}

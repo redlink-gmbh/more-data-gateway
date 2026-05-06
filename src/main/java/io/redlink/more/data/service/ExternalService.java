@@ -38,7 +38,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 @Service
 public class ExternalService {
@@ -71,7 +70,7 @@ public class ExternalService {
                 throw new AccessDeniedException("Invalid token");
             }
             return apiRoutingInfo.get();
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             throw new AccessDeniedException("Invalid token");
         }
     }
@@ -118,7 +117,7 @@ public class ExternalService {
             }
         } catch (BadRequestException e) {
             throw e;
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             throw BadRequestException.NotFound(studyId, observationId);
         }
     }
