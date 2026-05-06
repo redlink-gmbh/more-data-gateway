@@ -58,6 +58,12 @@ public class SecurityConfig {
                             .permitAll();
                     req.requestMatchers("/api/v1/signup")
                             .permitAll();
+                    req.requestMatchers("/api/v1/login/**")
+                            .permitAll();
+                    req.requestMatchers("/api/v1/execution/callback", "/api/v1/execution/callback/end.htm")
+                            .permitAll();
+                    req.requestMatchers("/participant-portal/api/v1/login/**")
+                            .permitAll();
                     //External Data Gateway
                     req.requestMatchers("/api/v1/external/bulk")
                             .permitAll();
@@ -76,6 +82,8 @@ public class SecurityConfig {
                             .permitAll();
                     // all other apis require credentials
                     req.requestMatchers("/api/v1/**")
+                            .authenticated();
+                    req.requestMatchers("/participant-portal/api/v1/**")
                             .authenticated();
                     // actuator only from localhost
                     req.requestMatchers(

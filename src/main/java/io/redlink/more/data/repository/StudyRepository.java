@@ -10,6 +10,8 @@ import io.redlink.more.data.util.MapperUtils;
 import io.redlink.more.data.util.RandomSchedulerUtils;
 import io.redlink.more.data.util.SchedulerUtils;
 import org.apache.commons.lang3.tuple.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -42,6 +44,7 @@ import static io.redlink.more.data.util.RandomSchedulerUtils.OBSERVATION_SCHEDUL
 
 @Service
 public class StudyRepository {
+    private static final Logger LOG = LoggerFactory.getLogger(StudyRepository.class);
 
     private static final String SQL_FIND_STUDY_BY_ID =
             "SELECT *, status IN ('active', 'preview') as study_active FROM studies WHERE study_id = ?";
@@ -111,6 +114,19 @@ public class StudyRepository {
             """;
     private static final String SQL_ROUTING_INFO_BY_REG_TOKEN_WITH_LOCK =
             SQL_ROUTING_INFO_BY_REG_TOKEN + " FOR UPDATE OF rt";
+    private static final String SQL_PARTICIPANT_ID_AND_OBSERVATION_ID_BY_OBSERVATION_TOKEN = """
+            SELECT pop.participant_id, pop.observation_id
+            FROM participant_observation_properties pop
+            WHERE pop.study_id = ?
+              AND pop.properties ->> 'token' = ?
+            LIMIT 1
+            """;
+    private static final String SQL_STUDY_ID_PARTICIPANT_ID_AND_OBSERVATION_ID_BY_OBSERVATION_TOKEN = """
+            SELECT pop.study_id, pop.participant_id, pop.observation_id
+            FROM participant_observation_properties pop
+            WHERE pop.properties ->> 'token' = ?
+            LIMIT 1
+            """;
     private static final String GET_ROUTING_INFO = """
             SELECT pt.study_id as study_id, pt.participant_id as participant_id, study_group_id,
                 s.status IN ('active', 'preview') as study_active,
@@ -149,6 +165,16 @@ public class StudyRepository {
                     UPDATE participation_consents
                     SET consent_withdrawn = now()
                     WHERE study_id = :study_id AND participant_id = :participant_id""";
+
+    private static final String SQL_GET_CONSENT = """
+            SELECT accepted, origin, content_md5, consent_timestamp, consent_withdrawn
+            FROM participation_consents
+            WHERE study_id = :study_id AND participant_id = :participant_id""";
+
+    private static final String SQL_GET_OBSERVATION_CONSENTS = """
+            SELECT observation_id
+            FROM observation_consents
+            WHERE study_id = :study_id AND participant_id = :participant_id""";
 
     private static final String SQL_INSERT_OBSERVATION_CONSENT =
             """
@@ -328,6 +354,53 @@ public class StudyRepository {
     public Optional<RoutingInfo> getRoutingInfo(Long studyId, Integer participantId) {
         try (var stream = jdbcTemplate.queryForStream(GET_ROUTING_INFO, getRoutingInfoMapper(), studyId, participantId)) {
             return stream.findFirst();
+        }
+    }
+
+    public Optional<RoutingInfoWithObservation> getRoutingInfoAndObservationIdByToken(long studyId, String token) {
+        try {
+            Pair<Integer, Integer> participantAndObservationId = jdbcTemplate.queryForObject(
+                    SQL_PARTICIPANT_ID_AND_OBSERVATION_ID_BY_OBSERVATION_TOKEN,
+                    (rs, rowNum) -> Pair.of(
+                            rs.getInt("participant_id"),
+                            rs.getInt("observation_id")
+                    ),
+                    studyId, token
+            );
+
+            if (participantAndObservationId == null) {
+                LOG.warn("Participant and observation id not found for token {} in study {}", token, studyId);
+                return Optional.empty();
+            }
+
+            return getRoutingInfo(studyId, participantAndObservationId.getLeft())
+                    .map(routingInfo -> new RoutingInfoWithObservation(routingInfo, participantAndObservationId.getRight()));
+        } catch (EmptyResultDataAccessException e) {
+            return Optional.empty();
+        }
+    }
+
+    public Optional<RoutingInfoWithObservation> getRoutingInfoAndObservationIdByToken(String token) {
+        try {
+            var studyParticipantAndObservationId = jdbcTemplate.queryForObject(
+                    SQL_STUDY_ID_PARTICIPANT_ID_AND_OBSERVATION_ID_BY_OBSERVATION_TOKEN,
+                    (rs, rowNum) -> new Object() {
+                        final long studyId = rs.getLong("study_id");
+                        final int participantId = rs.getInt("participant_id");
+                        final int observationId = rs.getInt("observation_id");
+                    },
+                    token
+            );
+
+            if (studyParticipantAndObservationId == null) {
+                LOG.warn("Study, participant and observation id not found for token {}", token);
+                return Optional.empty();
+            }
+
+            return getRoutingInfo(studyParticipantAndObservationId.studyId, studyParticipantAndObservationId.participantId)
+                    .map(routingInfo -> new RoutingInfoWithObservation(routingInfo, studyParticipantAndObservationId.observationId));
+        } catch (EmptyResultDataAccessException e) {
+            return Optional.empty();
         }
     }
 
@@ -728,10 +801,15 @@ public class StudyRepository {
 
         if (apiId != null) {
             jdbcTemplate.update(SQL_CLEAR_TOKEN, registrationToken);
-            updateParticipantStatus(routingInfo.studyId(), routingInfo.studyGroupId().orElse(0), routingInfo.observationGroupIds(), routingInfo.participantId(), "new", "active");
+            updateParticipantStatus(routingInfo, "new", "invited");
+            updateParticipantStatus(routingInfo, "invited", "active");
             return Optional.of(apiId);
         }
         throw new IllegalStateException("Creating API-Credentials failed!");
+    }
+
+    public void updateParticipantStatus(RoutingInfo routingInfo, String oldStatus, String newStatus) {
+        updateParticipantStatus(routingInfo.studyId(), routingInfo.studyGroupId().orElse(0), routingInfo.observationGroupIds(), routingInfo.participantId(), oldStatus, newStatus);
     }
 
     private void updateParticipantStatus(long studyId, int studyGroupId, Collection<Integer> observationGroupIds, int participantId, String oldStatus, String newStatus) {
@@ -751,7 +829,7 @@ public class StudyRepository {
         namedTemplate.update(SQL_SET_PARTICIPANT_STATUS, parameterSource);
     }
 
-    private void storeConsent(long studyId, int participantId, ParticipantConsent consent) {
+    public void storeConsent(long studyId, int participantId, ParticipantConsent consent) {
         // Store Study-Consent
         namedTemplate.update(SQL_INSERT_STUDY_CONSENT, toParameterSource(studyId, participantId, consent));
         // Store Consent for individual Observations
@@ -759,6 +837,40 @@ public class StudyRepository {
                 consent.observationConsents().stream()
                         .map(c -> toParameterSource(studyId, participantId, c))
                         .toArray(SqlParameterSource[]::new));
+    }
+
+    public Optional<ParticipantConsent> getConsent(long studyId, Integer participantId) {
+        try {
+            return namedTemplate.query(SQL_GET_CONSENT,
+                    new MapSqlParameterSource()
+                            .addValue("study_id", studyId)
+                            .addValue("participant_id", participantId),
+                    rs -> {
+                        if (rs.next()) {
+                            return Optional.of(new ParticipantConsent(
+                                    rs.getBoolean("accepted"),
+                                    rs.getString("origin"),
+                                    rs.getString("content_md5"),
+                                    toInstant(rs.getTimestamp("consent_timestamp")),
+                                    getObservationConsents(studyId, participantId)
+                            ));
+                        }
+                        return Optional.empty();
+                    });
+        } catch (DataAccessException e) {
+            return Optional.empty();
+        }
+    }
+
+    private List<ParticipantConsent.ObservationConsent> getObservationConsents(long studyId, int participantId) {
+        return namedTemplate.query(SQL_GET_OBSERVATION_CONSENTS,
+                new MapSqlParameterSource()
+                        .addValue("study_id", studyId)
+                        .addValue("participant_id", participantId),
+                (rs, rowNum) -> new ParticipantConsent.ObservationConsent(
+                        rs.getInt("observation_id"),
+                        null
+                ));
     }
 
     private void withdrawConsent(long studyId, int participantId) {

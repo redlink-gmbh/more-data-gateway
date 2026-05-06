@@ -95,7 +95,7 @@ paths:
                 items:
                   $ref: '#/components/schemas/Participant'
         '401':
-          $ref: '#/components/responses/UnauthorizedApiKey'
+          $ref: 'BaseComponents.yaml#/components/responses/UnauthorizedApiKey'
 
 components:
   schemas:
@@ -202,8 +202,3 @@ components:
         type: integer
         format: int32
       required: true
-
-  responses:
-    UnauthorizedApiKey:
-      description: Invalid/Unknown authentication Token
-

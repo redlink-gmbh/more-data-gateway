@@ -3,6 +3,7 @@ package io.redlink.more.data.util;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
 
 public class StringUtils {
     public static String anonymize(String s) {
@@ -40,5 +41,9 @@ public class StringUtils {
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException("SHA-256 not available", e);
         }
+    }
+
+    public static String base64Decode(String input) {
+        return new String(Base64.getDecoder().decode(input));
     }
 }
