@@ -3,7 +3,7 @@ info:
   title: LimeSurvey RemoteControl API
   version: 1.0.0
 servers:
-  - url: /index.php/admin/remotecontrol
+  - url: /admin/remotecontrol
 
 tags:
   - name: LimeSurveyRC
