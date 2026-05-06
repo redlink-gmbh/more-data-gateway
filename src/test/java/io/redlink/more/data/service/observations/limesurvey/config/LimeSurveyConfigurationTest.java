@@ -20,7 +20,7 @@ class LimeSurveyConfigurationTest {
                 .withPropertyValues(
                         "more.limesurvey.username=admin",
                         "more.limesurvey.password=admin",
-                        "more.limesurvey.baseUrl=https://lime.example.com"
+                        "more.limesurvey.baseUrl=https://lime.example.com/index.php"
                 )
                 .run(context -> {
                     assertThat(context).hasSingleBean(LimeSurveyRcApi.class);
@@ -36,7 +36,7 @@ class LimeSurveyConfigurationTest {
                 .withPropertyValues(
                         "more.limesurvey.username=admin",
                         "more.limesurvey.password=admin",
-                        "more.limesurvey.baseUrl=https://lime.example.com/"
+                        "more.limesurvey.baseUrl=https://lime.example.com/index.php"
                 )
                 .run(context -> {
                     assertThat(context).hasSingleBean(LimeSurveyRcApi.class);
@@ -52,13 +52,13 @@ class LimeSurveyConfigurationTest {
                 .withPropertyValues(
                         "more.limesurvey.username=admin",
                         "more.limesurvey.password=admin",
-                        "more.limesurvey.baseUrl=https://lime.example.com/limesurvey"
+                        "more.limesurvey.baseUrl=https://lime.example.com/index.php/limesurvey"
                 )
                 .run(context -> {
                     assertThat(context).hasSingleBean(LimeSurveyRcApi.class);
                     LimeSurveyRcApi api = context.getBean(LimeSurveyRcApi.class);
                     assertThat(api.getApiClient().getBasePath())
-                            .isEqualTo("https://lime.example.com/limesurvey/index.php/admin/remotecontrol");
+                            .isEqualTo("https://lime.example.com/index.php/limesurvey/admin/remotecontrol");
                 });
     }
 }
