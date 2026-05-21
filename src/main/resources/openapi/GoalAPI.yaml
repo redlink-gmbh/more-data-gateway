@@ -60,7 +60,7 @@ paths:
           description: "Invalid request body"
         '401':
           $ref: 'BaseComponents.yaml#/components/responses/UnauthorizedApiKey'
-  /geoals/{goalId}:
+  /goals/{goalId}:
     get:
       tags:
         - Goals
