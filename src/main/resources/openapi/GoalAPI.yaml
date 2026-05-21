@@ -28,8 +28,6 @@ paths:
       responses:
         '200':
           $ref: '#/components/responses/GoalListResponse'
-        '404':
-          description: "No goals found"
         '401':
           $ref: 'BaseComponents.yaml#/components/responses/UnauthorizedApiKey'
     post:
@@ -41,7 +39,6 @@ paths:
         $ref: '#/components/requestBodies/GoalRequestBody'
       responses:
         '201':
-          description: "List of created goals"
           $ref: '#/components/responses/GoalListResponse'
         '400':
           description: "Invalid request body"
@@ -88,8 +85,6 @@ paths:
           description: "Deleted goal"
         '400':
           description: "Invalid request body"
-        '404':
-          description: Goal not found
         '401':
           $ref: 'BaseComponents.yaml#/components/responses/UnauthorizedApiKey'
 
@@ -108,8 +103,6 @@ paths:
                 $ref: '#/components/schemas/StudyGoalConfigData'
         '401':
           $ref: 'BaseComponents.yaml#/components/responses/UnauthorizedApiKey'
-        '404':
-          description: No goals config
 
   /templates:
     get:
@@ -128,8 +121,6 @@ paths:
                   $ref: '#/components/schemas/GoalTemplate'
         '401':
           $ref: 'BaseComponents.yaml#/components/responses/UnauthorizedApiKey'
-        '404':
-          description: not found
 
 components:
   schemas:
@@ -174,9 +165,7 @@ components:
           $ref: 'BaseComponents.yaml#/components/schemas/Id'
         title:
           type: string
-        participantTitle:
-          type: string
-        participantInfo:
+        info:
           type: string
         type:
           type: string
@@ -200,8 +189,6 @@ components:
         - templateId
         - type
         - title
-        - participantTitle
-        - participantInfo
         - categories
 
     Categories:
