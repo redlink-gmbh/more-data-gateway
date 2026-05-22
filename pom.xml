@@ -396,6 +396,19 @@
                         </configuration>
                     </execution>
                     <execution>
+                        <id>goal-api</id>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                        <configuration>
+                            <inputSpec>${project.basedir}/src/main/resources/openapi/GoalAPI.yaml</inputSpec>
+                            <output>${project.build.directory}/generated-sources/goal</output>
+                            <apiPackage>io.redlink.more.data.api.goal.v1.webservices</apiPackage>
+                            <modelPackage>io.redlink.more.data.api.goal.v1.model</modelPackage>
+                            <modelNameSuffix>DTO</modelNameSuffix>
+                        </configuration>
+                    </execution>
+                    <execution>
                         <id>garmin-api</id>
                         <goals>
                             <goal>generate</goal>

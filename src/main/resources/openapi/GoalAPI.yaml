@@ -1,0 +1,330 @@
+openapi: 3.0.3
+info:
+  title: Goal API
+  version: 1.0.0
+  description: API for managing goals
+
+servers:
+  - url: /goals/api/v1
+
+security:
+  - apiKey: [ ]
+
+tags:
+  - name: Goals
+    description: Goal management
+  - name: GoalsConfig
+    description: Receives goal configuration
+  - name: GoalTemplates
+    description: Receives goal templates
+
+paths:
+  /goals:
+    get:
+      tags:
+        - Goals
+      description: Getter of all participant goals
+      operationId: getGoals
+      responses:
+        '200':
+          $ref: '#/components/responses/GoalListResponse'
+        '401':
+          $ref: 'BaseComponents.yaml#/components/responses/UnauthorizedApiKey'
+    post:
+      tags:
+        - Goals
+      description: Creating a list of goals
+      operationId: goalsCreation
+      requestBody:
+        $ref: '#/components/requestBodies/GoalRequestBody'
+      responses:
+        '201':
+          $ref: '#/components/responses/GoalListResponse'
+        '400':
+          description: "Invalid request body"
+        '401':
+          $ref: 'BaseComponents.yaml#/components/responses/UnauthorizedApiKey'
+    delete:
+      tags:
+        - Goals
+      description: Deleting a list of goals
+      operationId: goalsDeletion
+      responses:
+        '200':
+          description: "List of deleted goalIds"
+          $ref: '#/components/responses/GoalIdsResponse'
+        '400':
+          description: "Invalid request body"
+        '401':
+          $ref: 'BaseComponents.yaml#/components/responses/UnauthorizedApiKey'
+  /goals/{goalId}:
+    get:
+      tags:
+        - Goals
+      description: Getter of a single participant goal
+      operationId: getGoal
+      parameters:
+        - $ref: '#/components/parameters/GoalIdParameter'
+      responses:
+        '200':
+          description: "Single goal"
+          $ref: '#/components/responses/GoalResponse'
+        '401':
+          $ref: 'BaseComponents.yaml#/components/responses/UnauthorizedApiKey'
+        '404':
+          description: Goal not found
+    delete:
+      tags:
+        - Goals
+      description: Deleting a single goal
+      operationId: goalDeletion
+      parameters:
+        - $ref: '#/components/parameters/GoalIdParameter'
+      responses:
+        '200':
+          description: "Deleted goal"
+        '400':
+          description: "Invalid request body"
+        '401':
+          $ref: 'BaseComponents.yaml#/components/responses/UnauthorizedApiKey'
+
+  /config:
+    get:
+      tags:
+        - GoalsConfig
+      description: Getter for the goal configuration
+      operationId: getGoalConfig
+      responses:
+        '200':
+          description: Study goal configuration updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudyGoalConfigData'
+        '401':
+          $ref: 'BaseComponents.yaml#/components/responses/UnauthorizedApiKey'
+
+  /templates:
+    get:
+      tags:
+        - GoalTemplates
+      description: List goal templates
+      operationId: listGoalTemplates
+      responses:
+        '200':
+          description: operation successful
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GoalTemplate'
+        '401':
+          $ref: 'BaseComponents.yaml#/components/responses/UnauthorizedApiKey'
+
+components:
+  schemas:
+    GoalRequest:
+      description: New Goal request data
+      type: object
+      properties:
+        templateId:
+          $ref: 'BaseComponents.yaml#/components/schemas/Id'
+        title:
+          type: string
+        properties:
+          type: object
+      required:
+        - templateId
+        - properties
+    Goal:
+      description: Participant goal data
+      type: object
+      properties:
+        goalId:
+          $ref: 'BaseComponents.yaml#/components/schemas/Id'
+        templateId:
+          $ref: 'BaseComponents.yaml#/components/schemas/Id'
+        title:
+          type: string
+        properties:
+          type: object
+        created:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+        - goalId
+        - templateId
+        - created
+
+    GoalTemplate:
+      type: object
+      properties:
+        templateId:
+          $ref: 'BaseComponents.yaml#/components/schemas/Id'
+        title:
+          type: string
+        info:
+          type: string
+        type:
+          type: string
+        categories:
+          $ref: '#/components/schemas/Categories'
+        adherenceChecks:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdherenceCheckScheduleEnum'
+        properties:
+          type: object
+        created:
+          type: string
+          format: date-time
+          readOnly: true
+        modified:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+        - templateId
+        - type
+        - title
+        - categories
+
+    Categories:
+      type: object
+      properties:
+        kind:
+          type: string
+          format: enum
+          enum:
+            - outcome
+            - behavioral
+        topics:
+          type: array
+          items:
+            $ref: '#/components/schemas/GoalTopic'
+      required:
+        - kind
+        - topics
+
+    StudyGoalConfig:
+      type: object
+      properties:
+        consents:
+          type: object
+          properties:
+            commitment:
+              type: string
+            achievability:
+              type: string
+            understandable:
+              type: string
+          required:
+            - commitment
+            - achievability
+            - understandable
+        schedule:
+          type: array
+          items:
+            type: object
+            properties:
+              key:
+                $ref: '#/components/schemas/AdherenceCheckScheduleEnum'
+              time:
+                type: string
+                format: time
+                description: Follows ISO 8601 format for time
+      required:
+        - consents
+        - schedule
+
+    StudyGoalConfigData:
+      allOf:
+        - $ref: "#/components/schemas/StudyGoalConfig"
+        - type: object
+          properties:
+            topics:
+              type: array
+              items:
+                $ref: '#/components/schemas/GoalTopic'
+      required:
+        - consents
+        - schedule
+        - topics
+
+    AdherenceCheckScheduleEnum:
+      type: string
+      enum:
+        - morning
+        - noon
+        - afternoon
+        - evening
+        - night
+
+
+    GoalTopic:
+      type: object
+      properties:
+        key:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+      required:
+        - title
+        - description
+
+  requestBodies:
+    GoalRequestBody:
+      description: New Goal request data
+      required: true
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/GoalRequest'
+
+  parameters:
+    GoalIdParameter:
+      name: goalId
+      in: path
+      description: The id of the goal
+      required: true
+      schema:
+        $ref: 'BaseComponents.yaml#/components/schemas/Id'
+
+  responses:
+    GoalListResponse:
+      description: A list of participant goals
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/Goal'
+
+    GoalIdsResponse:
+      description: A list of goalIds
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: 'BaseComponents.yaml#/components/schemas/Id'
+
+    GoalResponse:
+      description: A single participant goal
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Goal'
+
+  securitySchemes:
+    apiKey:
+      description: |
+        Login with `apiId` as username and `apiKey` as password
+      type: http
+      scheme: basic
