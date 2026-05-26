@@ -147,6 +147,13 @@ components:
           $ref: 'BaseComponents.yaml#/components/schemas/Id'
         title:
           type: string
+        adherenceChecks:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdherenceCheckScheduleEnum'
+        adherenceChecksMutable:
+          type: boolean
+          default: false
         properties:
           type: object
         created:
@@ -203,7 +210,7 @@ components:
         topics:
           type: array
           items:
-            $ref: '#/components/schemas/GoalTopic'
+            $ref: '#/components/schemas/GoalTopicKey'
       required:
         - kind
         - topics
@@ -267,7 +274,7 @@ components:
       type: object
       properties:
         key:
-          type: string
+          $ref: '#/components/schemas/GoalTopicKey'
         title:
           type: string
         description:
@@ -275,6 +282,10 @@ components:
       required:
         - title
         - description
+
+    GoalTopicKey:
+      description: The - within a study - unique key of a GoalTopic
+      type: string
 
   requestBodies:
     GoalRequestBody:
