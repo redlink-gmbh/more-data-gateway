@@ -151,9 +151,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AdherenceCheckScheduleEnum'
-        adherenceChecksMutable:
-          type: boolean
-          default: false
         properties:
           type: object
         created:
