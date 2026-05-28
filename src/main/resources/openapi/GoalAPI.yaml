@@ -203,7 +203,7 @@ components:
         topics:
           type: array
           items:
-            $ref: '#/components/schemas/GoalTopic'
+            $ref: '#/components/schemas/GoalTopicKey'
       required:
         - kind
         - topics
@@ -267,7 +267,7 @@ components:
       type: object
       properties:
         key:
-          type: string
+          $ref: '#/components/schemas/GoalTopicKey'
         title:
           type: string
         description:
@@ -275,6 +275,10 @@ components:
       required:
         - title
         - description
+
+    GoalTopicKey:
+      description: The - within a study - unique key of a GoalTopic
+      type: string
 
   requestBodies:
     GoalRequestBody:

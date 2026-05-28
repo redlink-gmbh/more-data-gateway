@@ -46,6 +46,9 @@ import static io.redlink.more.data.util.RandomSchedulerUtils.OBSERVATION_SCHEDUL
 public class StudyRepository {
     private static final Logger LOG = LoggerFactory.getLogger(StudyRepository.class);
 
+    private static final String STUDY_HAS_STATE =
+            "SELECT study_id FROM studies WHERE study_id = :study_id AND status::varchar IN (:study_status)";
+
     private static final String SQL_FIND_STUDY_BY_ID =
             "SELECT *, status IN ('active', 'preview') as study_active FROM studies WHERE study_id = ?";
 
@@ -460,6 +463,21 @@ public class StudyRepository {
             return study;
         }
     }
+
+    public boolean hasStudyState(long studyId, Collection<String> allowedStates){
+        if(allowedStates.isEmpty())
+            return false;
+        try(
+                var stream = namedTemplate.queryForStream(STUDY_HAS_STATE,
+                        new MapSqlParameterSource()
+                                .addValue("study_id", studyId)
+                                .addValue("study_status", allowedStates.stream().distinct().toList()),
+                        (rs, rowNum) -> rs.getLong("study_id")
+                )) {
+            return stream.findFirst().isPresent();
+        }
+    }
+
 
     public Optional<SimpleParticipant> findParticipant(RoutingInfo routingInfo) {
         try (var stream = jdbcTemplate.queryForStream(GET_PARTICIPANT_INFO_AND_START_DURATION_END_FOR_STUDY_AND_PARTICIPANT,

@@ -83,6 +83,8 @@ public class SecurityConfig {
                     // all other apis require credentials
                     req.requestMatchers("/api/v1/**")
                             .authenticated();
+                    req.requestMatchers("goals/api/v1/**")
+                            .authenticated();
                     req.requestMatchers("/participant-portal/api/v1/**")
                             .authenticated();
                     // actuator only from localhost
