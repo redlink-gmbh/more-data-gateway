@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @Component
 public class GoalService {
@@ -85,6 +86,9 @@ public class GoalService {
     public List<Goal> listGoals(RoutingInfo routingInfo, int templateId) {
         return goalRepository.listGoals(routingInfo.studyId(), routingInfo.participantId(), templateId);
     }
+    public Goal getGoal(RoutingInfo routingInfo, int goalId) {
+        return goalRepository.getGoalById(routingInfo.studyId(), goalId);
+    }
 
     /**
      * Helper method to get the value of a goal template property with a given type and an optional default value
@@ -99,6 +103,4 @@ public class GoalService {
         }
         return defaultValue;
     }
-
-
 }

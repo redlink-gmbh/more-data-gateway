@@ -10,12 +10,14 @@ package io.redlink.more.data.controller.transformer;
 
 import io.redlink.more.data.api.goal.v1.model.AdherenceCheckScheduleEnumDTO;
 import io.redlink.more.data.api.goal.v1.model.CategoriesDTO;
+import io.redlink.more.data.api.goal.v1.model.GoalDTO;
 import io.redlink.more.data.api.goal.v1.model.GoalTemplateDTO;
 import io.redlink.more.data.api.goal.v1.model.GoalTopicDTO;
 import io.redlink.more.data.api.goal.v1.model.StudyGoalConfigConsentsDTO;
 import io.redlink.more.data.api.goal.v1.model.StudyGoalConfigDataDTO;
 import io.redlink.more.data.api.goal.v1.model.StudyGoalConfigScheduleInnerDTO;
 import io.redlink.more.data.model.goal.AdherenceCheck;
+import io.redlink.more.data.model.goal.Goal;
 import io.redlink.more.data.model.goal.GoalTemplate;
 import io.redlink.more.data.model.goal.GoalTopic;
 import io.redlink.more.data.model.goal.StudyGoalConfig;
@@ -134,4 +136,6 @@ public final class GoalTransformer {
         }
     }
 
+    public static GoalDTO toGoalDTO_V1(Goal goal) {
+    }
 }
