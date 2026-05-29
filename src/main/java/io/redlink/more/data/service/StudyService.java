@@ -37,6 +37,30 @@ public class StudyService {
         return studyRepository.getRoutingInfoAndObservationIdByToken(token); // Use cross study functionality with mcuh higher runtime
     }
 
+    /**
+     * Checks if the study referenced by the {@link RoutingInfo} is active
+     * @param routingInfo the routing info
+     * @return <code>true</code> if the study is active, otherwise <code>false</code>
+     */
+    public boolean isActive(RoutingInfo routingInfo) {
+        return studyRepository.hasStudyState(routingInfo.studyId(), List.of("preview", "active"));
+    }
+
+    /**
+     * Returns true if the study is in any of the parsed states
+     * @param routingInfo the routing info referring the study
+     * @param allowedStates the allowed states
+     * @return <code>true</code> if the study is in any of the parsed states, otherwise <code>false</code>
+     */
+    public boolean hasState(RoutingInfo routingInfo, String...allowedStates) {
+        return studyRepository.hasStudyState(routingInfo.studyId(), List.of(allowedStates));
+    }
+
+    /**
+     * Getter for the state of the study
+     * @param studyId the id of the study
+     * @return the state or empty of the study with the parsed id does not exist
+     */
     public Optional<String> getStudyState(long studyId) {
         return studyRepository.getStudyState(studyId);
     }
