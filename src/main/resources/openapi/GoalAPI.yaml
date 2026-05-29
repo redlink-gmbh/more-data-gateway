@@ -147,6 +147,10 @@ components:
           $ref: 'BaseComponents.yaml#/components/schemas/Id'
         title:
           type: string
+        adherenceChecks:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdherenceCheckScheduleEnum'
         properties:
           type: object
         created:
