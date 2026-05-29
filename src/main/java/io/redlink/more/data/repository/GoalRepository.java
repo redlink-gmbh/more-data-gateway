@@ -47,6 +47,18 @@ public class GoalRepository {
                                 AND gtog2.observation_group_id = ANY(:observation_group_ids)))
             GROUP BY gt.study_id, gt.template_id""";
 
+    private static final String GET_GOAL_TEMPLATE_BY_IDS = """
+            SELECT gt.*,
+                   ARRAY_AGG(gtog.observation_group_id) FILTER (WHERE gtog.observation_group_id IS NOT NULL) AS observation_group_ids,
+                   ARRAY_AGG(gtt.key) FILTER (WHERE gtt.key IS NOT NULL) AS topic_keys,
+                   ARRAY_AGG(gtac.check_id) FILTER (WHERE gtac.check_id IS NOT NULL) AS adherence_check_ids
+            FROM goal_templates gt
+                LEFT JOIN goal_template_observation_groups gtog ON gt.study_id = gtog.study_id AND gt.template_id = gtog.template_id
+                LEFT JOIN goal_template_topics gtt ON gt.study_id = gtt.study_id AND gt.template_id = gtt.template_id
+                LEFT JOIN goal_template_adherence_checks gtac ON gt.study_id = gtac.study_id AND gt.template_id = gtac.template_id
+            WHERE gt.study_id = ? AND gt.template_id = ?
+            GROUP BY gt.study_id, gt.template_id""";
+
     // ==================== GOALS (Read + Write) ====================
 
     private static final String INSERT_GOAL = """
@@ -55,17 +67,23 @@ public class GoalRepository {
                     (SELECT COALESCE(MAX(goal_id),0)+1 FROM goal WHERE study_id = :study_id),
                     :participant_id, :template_id, :properties::jsonb)""";
 
-    private static final String IMPORT_GOAL = """
-            INSERT INTO goal(study_id, goal_id, participant_id, template_id, properties)
-            VALUES (:study_id, :goal_id, :participant_id, :template_id, :properties::jsonb)""";
-
-    private static final String GET_GOAL_BY_ID = "SELECT * FROM goal WHERE study_id = ? AND goal_id = ?";
+    private static final String GET_GOAL_BY_ID = """
+            SELECT g.*,
+                   ARRAY_AGG(ggac.check_id) FILTER (WHERE ggac.check_id IS NOT NULL) AS adherence_check_ids
+            FROM goal g
+                LEFT JOIN goal_goal_adherence_checks ggac ON g.study_id = ggac.study_id AND g.goal_id = ggac.goal_id
+            WHERE g.study_id = ? AND g.goal_id = ?
+            GROUP BY g.study_id, g.goal_id""";
 
     private static final String LIST_GOALS = """
-            SELECT * FROM goal
-            WHERE study_id = :study_id
-              AND (:participant_id IS NULL OR participant_id = :participant_id)
-              AND (:template_id IS NULL OR template_id = :template_id)""";
+            SELECT g.*,
+                   ARRAY_AGG(ggac.check_id) FILTER (WHERE ggac.check_id IS NOT NULL) AS adherence_check_ids
+            FROM goal g
+                LEFT JOIN goal_goal_adherence_checks ggac ON g.study_id = ggac.study_id AND g.goal_id = ggac.goal_id
+            WHERE g.study_id = :study_id
+              AND (:participant_id IS NULL OR g.participant_id = :participant_id)
+              AND (:template_id IS NULL OR g.template_id = :template_id)
+            GROUP BY g.study_id, g.goal_id""";
 
     private static final String UPDATE_GOAL = """
             UPDATE goal
@@ -76,6 +94,13 @@ public class GoalRepository {
             WHERE study_id = :study_id AND goal_id = :goal_id""";
 
     private static final String DELETE_GOAL = "DELETE FROM goal WHERE study_id = ? AND goal_id = ?";
+
+    private static final String DELETE_GOAL_ADHERENCE_CHECKS =
+            "DELETE FROM goal_goal_adherence_checks WHERE study_id = :study_id AND goal_id = :goal_id";
+
+    private static final String SET_GOAL_ADHERENCE_CHECKS =
+            "INSERT INTO goal_goal_adherence_checks (study_id, goal_id, check_id) " +
+                    "SELECT :study_id, :goal_id, unnest(:adherence_check_ids::int[])";
 
     // ==================== READ-ONLY CONFIG ====================
 
@@ -170,6 +195,15 @@ public class GoalRepository {
         );
     }
 
+    public GoalTemplate getGoalTemplateById(Long studyId, Integer templateId) {
+        try {
+            return jdbcTemplate.queryForObject(GET_GOAL_TEMPLATE_BY_IDS, goalTemplateRowMapper, studyId, templateId);
+        } catch (EmptyResultDataAccessException e) {
+            return null;
+        }
+    }
+
+
     // ==================== GOALS (Full CRUD) ====================
 
     @Transactional
@@ -188,27 +222,8 @@ public class GoalRepository {
             throw new RuntimeException("Failed to insert goal", e);
         }
         Integer goalId = Objects.requireNonNull(keyHolder.getKey()).intValue();
+        setGoalAdherenceChecks(goal.getStudyId(), goalId, goal.getAdherenceCheckIds());
         return getGoalById(goal.getStudyId(), goalId);
-    }
-
-    @Transactional
-    public Goal doImport(Long studyId, Goal goal) {
-        final KeyHolder keyHolder = new GeneratedKeyHolder();
-        try {
-            namedTemplate.update(IMPORT_GOAL,
-                    new MapSqlParameterSource()
-                            .addValue("study_id", studyId, Types.BIGINT)
-                            .addValue("goal_id", goal.getGoalId(), Types.INTEGER)
-                            .addValue("participant_id", goal.getParticipantId(), Types.INTEGER)
-                            .addValue("template_id", goal.getTemplateId(), Types.INTEGER)
-                            .addValue("properties", MapperUtils.writeValueAsString(goal.getProperties())),
-                    keyHolder,
-                    new String[]{"goal_id"});
-        } catch (DataIntegrityViolationException e) {
-            throw new RuntimeException("Failed to import goal", e);
-        }
-        Integer goalId = Objects.requireNonNull(keyHolder.getKey()).intValue();
-        return getGoalById(studyId, goalId);
     }
 
     public Goal getGoalById(Long studyId, Integer goalId) {
@@ -239,12 +254,42 @@ public class GoalRepository {
                         .addValue("participant_id", goal.getParticipantId(), Types.INTEGER)
                         .addValue("template_id", goal.getTemplateId(), Types.INTEGER)
                         .addValue("properties", MapperUtils.writeValueAsString(goal.getProperties())));
-
+        updateGoalAdherenceChecks(goal.getStudyId(), goal.getGoalId(), goal.getAdherenceCheckIds());
         return getGoalById(goal.getStudyId(), goal.getGoalId());
     }
 
     public void deleteGoal(Long studyId, Integer goalId) {
         jdbcTemplate.update(DELETE_GOAL, studyId, goalId);
+    }
+
+    /**
+     * Sets the check ids for the parsed check ids for goal referenced by studyId and goalId
+     * @param studyId
+     * @param goalId
+     * @param checkIds the checks Ids. Does nothing if NULL or empty
+     */
+    private void setGoalAdherenceChecks(Long studyId, Integer goalId, Collection<Integer> checkIds) {
+        if (checkIds != null && !checkIds.isEmpty()) {
+            final var params = new MapSqlParameterSource()
+                    .addValue("study_id", studyId)
+                    .addValue("goal_id", goalId);
+            params.addValue("adherence_check_ids", checkIds.toArray(new Integer[0]));
+            namedTemplate.update(SET_GOAL_ADHERENCE_CHECKS, params);
+        } //else nothing to do
+    }
+
+    /**
+     * Deletes existing and sets the parsed check ids for goal referenced by studyId and goalId
+     * @param studyId
+     * @param goalId
+     * @param checkIds the checks Ids. NULL or empty if none
+     */
+    private void updateGoalAdherenceChecks(Long studyId, Integer goalId, Collection<Integer> checkIds) {
+        final var params = new MapSqlParameterSource()
+                .addValue("study_id", studyId)
+                .addValue("goal_id", goalId);
+        namedTemplate.update(DELETE_GOAL_ADHERENCE_CHECKS, params);
+        setGoalAdherenceChecks(studyId, goalId, checkIds);
     }
 
     // ==================== READ-ONLY CONFIG ====================
