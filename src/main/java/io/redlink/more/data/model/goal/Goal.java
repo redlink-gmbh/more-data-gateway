@@ -1,12 +1,15 @@
 package io.redlink.more.data.model.goal;
 
 import java.time.Instant;
+import java.util.HashSet;
+import java.util.Set;
 
 public class Goal {
     private Long studyId;
     private Integer goalId;
     private Integer participantId;
     private Integer templateId;
+    private Set<Integer> adherenceCheckIds;
     private Object properties;
     private Instant created;
     private Instant modified;
@@ -23,6 +26,13 @@ public class Goal {
 
     public Integer getTemplateId() { return templateId; }
     public Goal setTemplateId(Integer templateId) { this.templateId = templateId; return this; }
+
+    public Goal setAdherenceCheckIds(Set<Integer> adherenceCheckIds) {
+        this.adherenceCheckIds = adherenceCheckIds == null ? new HashSet<>() : adherenceCheckIds;
+        return this;
+    }
+
+    public Set<Integer> getAdherenceCheckIds() { return adherenceCheckIds; }
 
     public Object getProperties() { return properties; }
     public Goal setProperties(Object properties) { this.properties = properties; return this; }
