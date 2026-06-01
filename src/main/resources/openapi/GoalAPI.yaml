@@ -49,10 +49,11 @@ paths:
         - Goals
       description: Deleting a list of goals
       operationId: goalsDeletion
+      requestBody:
+        $ref: '#/components/requestBodies/GoalDeletionRequestBody'
       responses:
-        '200':
-          description: "List of deleted goalIds"
-          $ref: '#/components/responses/GoalIdsResponse'
+        '204':
+          description: "Goals deleted"
         '400':
           description: "Invalid request body"
         '401':
@@ -124,25 +125,10 @@ paths:
 
 components:
   schemas:
-    GoalRequest:
-      description: New Goal request data
+    GoalData:
+      description: Goal data present for unsaved goals
       type: object
       properties:
-        templateId:
-          $ref: 'BaseComponents.yaml#/components/schemas/Id'
-        title:
-          type: string
-        properties:
-          type: object
-      required:
-        - templateId
-        - properties
-    Goal:
-      description: Participant goal data
-      type: object
-      properties:
-        goalId:
-          $ref: 'BaseComponents.yaml#/components/schemas/Id'
         templateId:
           $ref: 'BaseComponents.yaml#/components/schemas/Id'
         title:
@@ -153,10 +139,22 @@ components:
             $ref: '#/components/schemas/AdherenceCheckScheduleEnum'
         properties:
           type: object
-        created:
-          type: string
-          format: date-time
-          readOnly: true
+      required:
+        - templateId
+        - properties
+
+    Goal:
+      description: Participant goal data
+      allOf:
+        - $ref: '#/components/schemas/GoalData'
+        - type: object
+          properties:
+            goalId:
+              $ref: 'BaseComponents.yaml#/components/schemas/Id'
+            created:
+              type: string
+              format: date-time
+              readOnly: true
       required:
         - goalId
         - templateId
@@ -293,7 +291,17 @@ components:
           schema:
             type: array
             items:
-              $ref: '#/components/schemas/GoalRequest'
+              $ref: '#/components/schemas/GoalData'
+
+    GoalDeletionRequestBody:
+      description: Goal IDs to delete
+      required: true
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: 'BaseComponents.yaml#/components/schemas/Id'
 
   parameters:
     GoalIdParameter:

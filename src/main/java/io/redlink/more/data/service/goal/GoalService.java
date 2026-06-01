@@ -18,6 +18,7 @@ import java.util.Objects;
 public class GoalService {
 
     private final String PROPERTY_CUSTOM_ADHERENCE_CHECKS_STATE = "custom-adherence-checks-state";
+    private final String PROPERTY_CUSTOM_TITLE_STATE = "goal-title-state";
 
     private final GoalRepository goalRepository;
 
@@ -49,6 +50,28 @@ public class GoalService {
                     "GoalTemplate[studyId: %s, templateId: %s] referenced by the parsed Goal does not exist",
                     routingInfo.studyId(), goal.getTemplateId()));
         }
+
+        //----------
+        //GOAL TITLE
+        //----------
+        //Copy over the title from the template if not set
+        if(goal.getTitle() == null || goal.getTitle().isBlank()) {
+            goal.setTitle(template.getTitle());
+        }
+        //the 'goal-title-state' decides if a user can give custom titles to a goal
+        if(!getProperty(template, PROPERTY_CUSTOM_TITLE_STATE, Boolean.class, false) &&
+                !goal.getTitle().equals(template.getTitle())) {
+            throw new ConflictException(String.format(
+                    "The title of the parsed Goal[templateId: %s, title: %s] is not compatible with the " +
+                            "title of the GoalTemplate[studyId: %s, templateId: %s, title: %s]",
+                    goal.getTemplateId(), goal.getTitle(), template.getStudyId(), template.getTemplateId(),
+                    template.getTitle()));
+        }
+
+        //---------------------
+        //GOAL ADHERENCE CHECKS
+        //---------------------
+        //copy over the adherence checks form the template if not set
         if(goal.getAdherenceCheckIds() == null || goal.getAdherenceCheckIds().isEmpty()) {
             goal.setAdherenceCheckIds(template.getAdherenceCheckIds());
         }
@@ -57,9 +80,10 @@ public class GoalService {
         if(!getProperty(template, PROPERTY_CUSTOM_ADHERENCE_CHECKS_STATE, Boolean.class, false) &&
                 !goal.getAdherenceCheckIds().equals(template.getAdherenceCheckIds())){
             throw new ConflictException(String.format(
-                    "The adherence checks of the parsed Goal[adherenceChecksIds: %s] are not compatible with the " +
+                    "The adherence checks of the parsed Goal[templateId: %s, adherenceChecksIds: %s] are not compatible with the " +
                             "adherence checks defined for the GoalTemplate[studyId: %s, templateId: %s, adherenceChecksIds: %s]",
-                    goal.getAdherenceCheckIds(), routingInfo.studyId(), goal.getTemplateId(), goal.getAdherenceCheckIds()));
+                    goal.getTemplateId(), goal.getAdherenceCheckIds(), template.getStudyId(), template.getTemplateId(),
+                    template.getAdherenceCheckIds()));
         }
         return goalRepository.insertGoal(goal);
     }
