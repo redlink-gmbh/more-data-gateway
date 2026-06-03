@@ -1,6 +1,5 @@
 package io.redlink.more.data.service.goal;
 
-import io.redlink.more.data.elastic.model.ElasticDataPoint;
 import io.redlink.more.data.exception.BadRequestException;
 import io.redlink.more.data.exception.ConflictException;
 import io.redlink.more.data.model.DataPoint;
@@ -22,7 +21,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.regex.Pattern;
 
 @Component
 public class GoalService {
@@ -44,7 +42,12 @@ public class GoalService {
 
     @Transactional(readOnly = true)
     public StudyGoalConfig getStudyGoalConfig(RoutingInfo routingInfo) {
-        return goalRepository.getStudyGoalConfig(routingInfo.studyId());
+        StudyGoalConfig config = goalRepository.getStudyGoalConfig(routingInfo.studyId());
+        if (config != null) {
+            config.setGoalTopics(goalRepository.listGoalTopics(routingInfo.studyId()));
+            config.setAdherenceChecks(goalRepository.listGoalAdherenceChecks(routingInfo.studyId()));
+        }
+        return config;
     }
 
     public List<GoalTemplate> getGoalTemplates(RoutingInfo routingInfo) {
@@ -72,11 +75,11 @@ public class GoalService {
         //GOAL TITLE
         //----------
         //Copy over the title from the template if not set
-        if(goal.getTitle() == null || goal.getTitle().isBlank()) {
+        if (goal.getTitle() == null || goal.getTitle().isBlank()) {
             goal.setTitle(template.getTitle());
         }
         //the 'goal-title-state' decides if a user can give custom titles to a goal
-        if(!getProperty(template, PROPERTY_CUSTOM_TITLE_STATE, Boolean.class, false) &&
+        if (!getProperty(template, PROPERTY_CUSTOM_TITLE_STATE, Boolean.class, false) &&
                 !goal.getTitle().equals(template.getTitle())) {
             throw new ConflictException(String.format(
                     "The title of the parsed Goal[templateId: %s, title: %s] is not compatible with the " +
@@ -89,13 +92,13 @@ public class GoalService {
         //GOAL ADHERENCE CHECKS
         //---------------------
         //copy over the adherence checks form the template if not set
-        if(goal.getAdherenceCheckIds() == null || goal.getAdherenceCheckIds().isEmpty()) {
+        if (goal.getAdherenceCheckIds() == null || goal.getAdherenceCheckIds().isEmpty()) {
             goal.setAdherenceCheckIds(template.getAdherenceCheckIds());
         }
         //the 'custom-adherence-checks-state' decides if adherence checks for the goal
         //can be customized or not
-        if(!getProperty(template, PROPERTY_CUSTOM_ADHERENCE_CHECKS_STATE, Boolean.class, false) &&
-                !goal.getAdherenceCheckIds().equals(template.getAdherenceCheckIds())){
+        if (!getProperty(template, PROPERTY_CUSTOM_ADHERENCE_CHECKS_STATE, Boolean.class, false) &&
+                !goal.getAdherenceCheckIds().equals(template.getAdherenceCheckIds())) {
             throw new ConflictException(String.format(
                     "The adherence checks of the parsed Goal[templateId: %s, adherenceChecksIds: %s] are not compatible with the " +
                             "adherence checks defined for the GoalTemplate[studyId: %s, templateId: %s, adherenceChecksIds: %s]",
@@ -121,7 +124,7 @@ public class GoalService {
         }
         goalRepository.deleteGoal(routingInfo.studyId(), goalId);
         GoalTemplate template = goalRepository.getGoalTemplateById(routingInfo.studyId(), goal.getTemplateId());
-        if(template == null) {
+        if (template == null) {
             //NOTE: This should never happen as we have a releational database
             log.error("Goal template with id {} referenced by {} does not exist", goal.getTemplateId(), goal);
         }
@@ -138,6 +141,7 @@ public class GoalService {
 
     /**
      * Lists all goals for the study and participant referenced by the routing info
+     *
      * @param routingInfo the routing info
      * @return all goals for the study and participant
      */
@@ -147,13 +151,15 @@ public class GoalService {
 
     /**
      * Lists all goals for the parsed template for the study and participant referenced by the routing info
+     *
      * @param routingInfo the routing info
-     * @param templateId the id of the template
+     * @param templateId  the id of the template
      * @return all goals for the study and participant
      */
     public List<Goal> listGoals(RoutingInfo routingInfo, int templateId) {
         return goalRepository.listGoals(routingInfo.studyId(), routingInfo.participantId(), templateId);
     }
+
     public Goal getGoal(RoutingInfo routingInfo, int goalId) {
         return goalRepository.getGoalById(routingInfo.studyId(), goalId);
     }
@@ -176,9 +182,9 @@ public class GoalService {
         data.put("action", action);
         data.put("title", goal.getTitle());
         data.put("adherence_checks", goal.getAdherenceCheckIds());
-        if(goal.getProperties() instanceof Map<?, ?>) {
-            ((Map<?,?>)goal.getProperties())
-                    .forEach((key,value) -> data.put("property_" + key.toString(), value));
+        if (goal.getProperties() instanceof Map<?, ?>) {
+            ((Map<?, ?>) goal.getProperties())
+                    .forEach((key, value) -> data.put("property_" + key.toString(), value));
         }
         return data;
     }
@@ -188,9 +194,9 @@ public class GoalService {
      */
     private <T> T getProperty(GoalTemplate template, String property, Class<T> type, T defaultValue) {
         var properties = template.getProperties();
-        if(properties instanceof Map<?,?>) {
-            var value = ((Map<?,?>)properties).get(property);
-            if(type.isInstance(value)){
+        if (properties instanceof Map<?, ?>) {
+            var value = ((Map<?, ?>) properties).get(property);
+            if (type.isInstance(value)) {
                 return type.cast(value);
             }
         }
