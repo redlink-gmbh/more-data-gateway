@@ -1,29 +1,45 @@
 package io.redlink.more.data.service.goal;
 
+import io.redlink.more.data.elastic.model.ElasticDataPoint;
 import io.redlink.more.data.exception.BadRequestException;
 import io.redlink.more.data.exception.ConflictException;
+import io.redlink.more.data.model.DataPoint;
 import io.redlink.more.data.model.RoutingInfo;
 import io.redlink.more.data.model.goal.Goal;
 import io.redlink.more.data.model.goal.GoalTemplate;
 import io.redlink.more.data.model.goal.StudyGoalConfig;
 import io.redlink.more.data.repository.GoalRepository;
+import io.redlink.more.data.service.ElasticService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
+import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
+import java.util.regex.Pattern;
 
 @Component
 public class GoalService {
+    private static final Logger log = LoggerFactory.getLogger(GoalService.class);
+
+    public static final String DATA_TYPE_GAOL_CONFIG = "goal-configuration";
 
     private final String PROPERTY_CUSTOM_ADHERENCE_CHECKS_STATE = "custom-adherence-checks-state";
     private final String PROPERTY_CUSTOM_TITLE_STATE = "goal-title-state";
 
     private final GoalRepository goalRepository;
+    private final ElasticService elasticService;
 
-    public GoalService(GoalRepository goalRepository) {
+
+    public GoalService(GoalRepository goalRepository, ElasticService elasticService) {
         this.goalRepository = goalRepository;
+        this.elasticService = elasticService;
     }
 
     @Transactional(readOnly = true)
@@ -42,6 +58,7 @@ public class GoalService {
         return goalRepository.getGoalTemplateById(routingInfo.studyId(), templateId);
     }
 
+    @Transactional(readOnly = false)
     public Goal createGoal(RoutingInfo routingInfo, Goal goal) {
         //we need the goal template to check the adherence checks for the goal
         var template = getGoalTemplate(routingInfo, goal.getTemplateId());
@@ -85,11 +102,38 @@ public class GoalService {
                     goal.getTemplateId(), goal.getAdherenceCheckIds(), template.getStudyId(), template.getTemplateId(),
                     template.getAdherenceCheckIds()));
         }
-        return goalRepository.insertGoal(goal);
+        try {
+            return writeGoalToElastic(goalRepository.insertGoal(goal), template, routingInfo, "CREATE");
+        } catch (IOException ex) {
+            //NOTE: Failing to write the Goal to the Elastic Index will rollback the database as we do not want to have
+            //      goals in the database that are not recorded in the index!
+            log.error("Error while writing {} for action=CREATE to Elastic", goal, ex);
+            throw new IllegalStateException("Unable to create Goal(s) because time series index (elastic) is not available (" +
+                    ex.getClass().getSimpleName() + ": " + ex.getMessage() + ")", ex);
+        }
     }
 
+    @Transactional(readOnly = false)
     public void deleteGoal(RoutingInfo routingInfo, int goalId) {
+        Goal goal = goalRepository.getGoalById(routingInfo.studyId(), goalId);
+        if (goal == null) {
+            return;
+        }
         goalRepository.deleteGoal(routingInfo.studyId(), goalId);
+        GoalTemplate template = goalRepository.getGoalTemplateById(routingInfo.studyId(), goal.getTemplateId());
+        if(template == null) {
+            //NOTE: This should never happen as we have a releational database
+            log.error("Goal template with id {} referenced by {} does not exist", goal.getTemplateId(), goal);
+        }
+        try {
+            writeGoalToElastic(goal, template, routingInfo, "DELETE");
+        } catch (IOException ex) {
+            //NOTE: Failing to write the Goal to the Elastic Index will rollback the database as we do not want to have
+            //      goals in the database that are not recorded in the index!
+            log.error("Error while writing {} for action=DELETE to Elastic", goal, ex);
+            throw new IllegalStateException("Unable to delete Goal(s) because time series index (elastic) is not available (" +
+                    ex.getClass().getSimpleName() + ": " + ex.getMessage() + ")", ex);
+        }
     }
 
     /**
@@ -112,6 +156,31 @@ public class GoalService {
     }
     public Goal getGoal(RoutingInfo routingInfo, int goalId) {
         return goalRepository.getGoalById(routingInfo.studyId(), goalId);
+    }
+
+    private Goal writeGoalToElastic(Goal goal, GoalTemplate template, RoutingInfo routingInfo, String action) throws IOException {
+        DataPoint dataPoint = new DataPoint(
+                UUID.randomUUID().toString(),
+                "%s:%s".formatted(Objects.requireNonNull(goal).getExternalTemplateId(), goal.getExternalGoalId()),
+                template != null ? template.getType() : null,
+                DATA_TYPE_GAOL_CONFIG,
+                Instant.now(),
+                goal.getModified(),
+                toDataMap(goal, Objects.requireNonNull(action)));
+        elasticService.storeDataPoints(List.of(dataPoint), Objects.requireNonNull(routingInfo));
+        return goal;
+    }
+
+    private Map<String, Object> toDataMap(Goal goal, String action) {
+        Map<String, Object> data = new HashMap<>();
+        data.put("action", action);
+        data.put("title", goal.getTitle());
+        data.put("adherence_checks", goal.getAdherenceCheckIds());
+        if(goal.getProperties() instanceof Map<?, ?>) {
+            ((Map<?,?>)goal.getProperties())
+                    .forEach((key,value) -> data.put("property_" + key.toString(), value));
+        }
+        return data;
     }
 
     /**

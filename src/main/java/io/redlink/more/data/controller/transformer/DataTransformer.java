@@ -10,6 +10,7 @@ import io.redlink.more.data.api.app.v1.model.ObservationDataDTO;
 import io.redlink.more.data.model.ApiRoutingInfo;
 import io.redlink.more.data.model.DataPoint;
 import io.redlink.more.data.util.MapperUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import java.time.Instant;
 import java.util.List;
@@ -34,7 +35,7 @@ public final class DataTransformer {
                 dataPoint.getDataId(),
                 dataPoint.getObservationId(),
                 dataPoint.getObservationType(),
-                dataPoint.getObservationType(),
+                StringUtils.isBlank(dataPoint.getDataType()) ? dataPoint.getObservationType() : dataPoint.getDataType(),
                 recordingTime,
                 dateTime,
                 MapperUtils.convertValue(dataPoint.getDataValue(), Map.class)
@@ -54,7 +55,7 @@ public final class DataTransformer {
                 UUID.randomUUID().toString(),
                 observationId.toString(),
                 routingInfo.observationType(),
-                routingInfo.observationType(),
+                StringUtils.isBlank(dataPoint.getDataType()) ? routingInfo.observationType(): dataPoint.getDataType(),
                 recordingTime,
                 dateTime,
                 dataPoint.getDataValue());

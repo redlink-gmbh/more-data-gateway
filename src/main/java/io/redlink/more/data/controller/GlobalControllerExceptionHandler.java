@@ -3,6 +3,7 @@ package io.redlink.more.data.controller;
 import io.redlink.more.data.api.app.v1.model.ErrorDTO;
 import io.redlink.more.data.controller.transformer.ErrorTransformer;
 import io.redlink.more.data.exception.BadRequestException;
+import io.redlink.more.data.exception.ConflictException;
 import io.redlink.more.data.exception.ForbiddenException;
 import io.redlink.more.data.exception.NotAuthorizedException;
 import io.redlink.more.data.exception.NotFoundException;
@@ -24,6 +25,12 @@ public class GlobalControllerExceptionHandler {
     public ResponseEntity<Void> handleForbidden(ForbiddenException e) {
         LOG.warn("Forbidden: {}", e.getMessage());
         return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+    }
+
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<Void> handleConflict(ConflictException e) {
+        LOG.warn("Conflict: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT).build();
     }
 
     @ExceptionHandler(NotFoundException.class)

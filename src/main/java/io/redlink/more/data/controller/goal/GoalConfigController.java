@@ -16,12 +16,17 @@ import io.redlink.more.data.service.StudyService;
 import io.redlink.more.data.service.goal.GoalService;
 import io.redlink.more.data.util.LoggingUtils;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+@Controller
 @RestController
+@RequestMapping(value = "/goals/api/v1", produces = MediaType.APPLICATION_JSON_VALUE)
 public class GoalConfigController implements GoalsConfigApi, GoalTemplatesApi {
 
     private final AuthenticationFacade authenticationFacade;

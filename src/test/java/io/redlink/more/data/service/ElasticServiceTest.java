@@ -7,22 +7,28 @@ import co.elastic.clients.elasticsearch.core.BulkResponse;
 import co.elastic.clients.elasticsearch.core.DeleteByQueryRequest;
 import co.elastic.clients.elasticsearch.core.DeleteByQueryResponse;
 import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem;
+import co.elastic.clients.elasticsearch.core.bulk.IndexOperation;
+import io.redlink.more.data.elastic.model.ElasticDataPoint;
 import io.redlink.more.data.model.DataPoint;
 import io.redlink.more.data.model.RoutingInfo;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import javax.xml.crypto.Data;
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 import static io.redlink.more.data.util.ElasticUtils.Constants.GARMIN_SUMMARY_ID_KEY;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -59,6 +65,8 @@ class ElasticServiceTest {
         when(dp2.data()).thenReturn(data2);
         when(dp1.datapointId()).thenReturn("1");
         when(dp2.datapointId()).thenReturn("2");
+        when(dp1.observationId()).thenReturn("1");
+        when(dp2.observationId()).thenReturn("1");
 
         List<DataPoint> bulk = List.of(dp1, dp2);
 
@@ -83,11 +91,83 @@ class ElasticServiceTest {
     }
 
     @Test
+    @DisplayName("storeDataPoints with InstanceId: returns successfully stored ids")
+    void storeDataPoints_withInstanceId_returnsIds() throws Exception {
+        var dp1Now = Instant.now();
+        var dp1EffectiveTime = dp1Now.minusSeconds(10);
+        var dp2Now = Instant.now();
+        var dp2EffectiveTime = dp1Now.minusSeconds(5);
+        DataPoint dp1 = new DataPoint(
+                UUID.randomUUID().toString(),
+                "goaltemplate-1:goal-1",
+                "reduce-amount-of",
+                "amount-of",
+                dp1Now,
+                dp1EffectiveTime,
+                Map.of("amount", "5", "unit", "Zigarren"));
+        DataPoint dp2 = new DataPoint(
+                UUID.randomUUID().toString(),
+                "goaltemplate-1:goal-2",
+                "reduce-amount-of",
+                "amount-of",
+                dp2Now,
+                dp2EffectiveTime,
+                Map.of("amount", "15", "unit", "Zigaretten"));
+
+        List<DataPoint> bulk = List.of(dp1, dp2);
+
+        String uidPrefix = "1_10_";
+        BulkResponseItem item1 = mock(BulkResponseItem.class);
+        BulkResponseItem item2 = mock(BulkResponseItem.class);
+        when(item1.id()).thenReturn(uidPrefix + "1");
+        when(item2.id()).thenReturn(uidPrefix + "2");
+        when(item1.error()).thenReturn(null);
+        when(item2.error()).thenReturn(null);
+
+        BulkResponse bulkResponse = mock(BulkResponse.class);
+        when(bulkResponse.errors()).thenReturn(false);
+        when(bulkResponse.items()).thenReturn(List.of(item1, item2));
+
+        ArgumentCaptor<BulkRequest> bulkRequestCaptor = ArgumentCaptor.forClass(BulkRequest.class);
+
+        when(client.bulk(any(BulkRequest.class))).thenReturn(bulkResponse);
+
+        List<String> ids = elasticService.storeDataPoints(bulk, routingInfo);
+        assertThat(ids).containsExactlyInAnyOrder("1", "2");
+        verify(client).bulk(bulkRequestCaptor.capture());
+        BulkRequest bulkRequest = bulkRequestCaptor.getValue();
+        assertThat(bulkRequest).isNotNull();
+        assertThat(bulkRequest.operations()).hasSize(2);
+        assertThat(bulkRequest.operations().get(0).index()).isNotNull();
+        assertThat(bulkRequest.operations().get(0).index().document()).isInstanceOf(ElasticDataPoint.class);
+        ElasticDataPoint indexDataPoint1 = (ElasticDataPoint)bulkRequest.operations().get(0).index().document();
+        assertThat(indexDataPoint1.observationId()).isEqualTo("goaltemplate-1");
+        assertThat(indexDataPoint1.instanceId()).isEqualTo("goal-1");
+        assertThat(indexDataPoint1.observationType()).isEqualTo("reduce-amount-of");
+        assertThat(indexDataPoint1.dataType()).isEqualTo("amount-of");
+        assertThat(indexDataPoint1.data()).hasSize(2);
+        assertThat(indexDataPoint1.data().get("amount")).isEqualTo("5");
+        assertThat(indexDataPoint1.data().get("unit")).isEqualTo("Zigarren");
+
+        assertThat(bulkRequest.operations().get(1).index()).isNotNull();
+        assertThat(bulkRequest.operations().get(1).index().document()).isInstanceOf(ElasticDataPoint.class);
+        ElasticDataPoint indexDataPoint2 = (ElasticDataPoint)bulkRequest.operations().get(1).index().document();
+        assertThat(indexDataPoint2.observationId()).isEqualTo("goaltemplate-1");
+        assertThat(indexDataPoint2.instanceId()).isEqualTo("goal-2");
+        assertThat(indexDataPoint2.observationType()).isEqualTo("reduce-amount-of");
+        assertThat(indexDataPoint2.dataType()).isEqualTo("amount-of");
+        assertThat(indexDataPoint2.data()).hasSize(2);
+        assertThat(indexDataPoint2.data().get("amount")).isEqualTo("15");
+        assertThat(indexDataPoint2.data().get("unit")).isEqualTo("Zigaretten");
+    }
+
+    @Test
     @DisplayName("storeDataPoints: stores datapoints without Garmin summary ids")
     void storeDataPoints_storesWithoutGarminSummaryIds() throws Exception {
         DataPoint dp = mock(DataPoint.class);
         when(dp.data()).thenReturn(Map.of("other", "value"));
         when(dp.datapointId()).thenReturn("42");
+        when(dp.observationId()).thenReturn("1");
 
         String uidPrefix = "1_10_";
         BulkResponseItem item = mock(BulkResponseItem.class);
@@ -129,6 +209,7 @@ class ElasticServiceTest {
         DataPoint dp = mock(DataPoint.class);
         when(dp.data()).thenReturn(Map.of());
         when(dp.datapointId()).thenReturn("1");
+        when(dp.observationId()).thenReturn("1");
 
         IOException io = new IOException("boom");
         when(client.bulk(any(BulkRequest.class))).thenThrow(io);

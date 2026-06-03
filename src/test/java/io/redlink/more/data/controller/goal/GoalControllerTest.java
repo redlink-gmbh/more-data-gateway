@@ -77,8 +77,8 @@ class GoalControllerTest {
                         .with(user(userDetails)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[0].goalId").value("1"))
-                .andExpect(jsonPath("$[0].templateId").value("101"))
+                .andExpect(jsonPath("$[0].goalId").value("goal-1"))
+                .andExpect(jsonPath("$[0].templateId").value("goaltemplate-101"))
                 .andExpect(jsonPath("$[0].title").value("Daily Step Goal"))
                 .andExpect(jsonPath("$[0].adherenceChecks[0]").value("morning"))
                 .andExpect(jsonPath("$[0].properties.target").value(10000))
@@ -101,8 +101,8 @@ class GoalControllerTest {
         mockMvc.perform(get("/goals/api/v1/goals/5")
                         .with(user(userDetails)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.goalId").value("5"))
-                .andExpect(jsonPath("$.templateId").value("101"))
+                .andExpect(jsonPath("$.goalId").value("goal-5"))
+                .andExpect(jsonPath("$.templateId").value("goaltemplate-101"))
                 .andExpect(jsonPath("$.title").value("Daily Step Goal"))
                 .andExpect(jsonPath("$.adherenceChecks[0]").value("morning"))
                 .andExpect(jsonPath("$.properties.target").value(10000));
@@ -168,7 +168,7 @@ class GoalControllerTest {
         RoutingInfo routingInfo = new RoutingInfo(STUDY_ID, PARTICIPANT_ID, -1, Set.of(), true, true);
         GatewayUserDetails userDetails = new GatewayUserDetails("app-user", "app-user-pwd", Set.of(GatewayUserDetailService.APP_ROLE), routingInfo);
         GoalDataDTO dto1 = new GoalDataDTO()
-                .templateId("101")
+                .templateId("goaltemplate-101")
                 .title("Morning Walk")
                 .adherenceChecks(List.of(AdherenceCheckScheduleEnumDTO.MORNING))
                 .properties(java.util.Map.of("target", 8000));
@@ -183,10 +183,29 @@ class GoalControllerTest {
                         .content(objectMapper.writeValueAsString(List.of(dto1))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].goalId").value("100"))
-                .andExpect(jsonPath("$[0].templateId").value("101"))
+                .andExpect(jsonPath("$[0].goalId").value("goal-100"))
+                .andExpect(jsonPath("$[0].templateId").value("goaltemplate-101"))
                 .andExpect(jsonPath("$[0].title").value("Daily Step Goal"))
                 .andExpect(jsonPath("$[0].adherenceChecks[0]").value("morning"));
+    }
+
+    @Test
+    void goalsCreation_illegalTemplateId() throws Exception {
+        RoutingInfo routingInfo = new RoutingInfo(STUDY_ID, PARTICIPANT_ID, -1, Set.of(), true, true);
+        GatewayUserDetails userDetails = new GatewayUserDetails("app-user", "app-user-pwd", Set.of(GatewayUserDetailService.APP_ROLE), routingInfo);
+        GoalDataDTO dto1 = new GoalDataDTO()
+                .templateId("101") //expected 'goaltemplate-101'
+                .title("Morning Walk")
+                .adherenceChecks(List.of(AdherenceCheckScheduleEnumDTO.MORNING))
+                .properties(java.util.Map.of("target", 8000));
+
+        when(authenticationFacade.assertAuthority(GatewayUserDetailService.APP_ROLE)).thenReturn(userDetails);
+
+        mockMvc.perform(post("/goals/api/v1/goals")
+                        .with(user(userDetails))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(List.of(dto1))))
+                .andExpect(status().isConflict());
     }
 
     // =====================================================================
