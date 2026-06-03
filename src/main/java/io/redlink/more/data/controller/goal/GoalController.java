@@ -8,6 +8,7 @@ import io.redlink.more.data.controller.transformer.GoalTransformer;
 import io.redlink.more.data.exception.BadRequestException;
 import io.redlink.more.data.exception.NotFoundException;
 import io.redlink.more.data.model.GatewayUserDetails;
+import io.redlink.more.data.model.goal.Goal;
 import io.redlink.more.data.service.GatewayUserDetailService;
 import io.redlink.more.data.service.goal.GoalService;
 import io.redlink.more.data.util.LoggingUtils;
@@ -42,8 +43,7 @@ public class GoalController implements GoalsApi {
     @Override
     public ResponseEntity<GoalDTO> getGoal(String goalIdStr) {
         final GatewayUserDetails userDetails = getAndValidateUser();
-        final Integer goalId = toGaolId(goalIdStr)
-                .orElseThrow( () -> new NotFoundException("Goal with id=%s not found".formatted(goalIdStr)));
+        final Integer goalId = Goal.parseExternalGoalId(goalIdStr);
         try (LoggingUtils.LoggingContext ctx = LoggingUtils.createContext(userDetails.getRoutingInfo())) {
             var goal = goalService.getGoal(userDetails.getRoutingInfo(), goalId);
             if(goal == null){
@@ -66,8 +66,7 @@ public class GoalController implements GoalsApi {
     @Override
     public ResponseEntity<Void> goalDeletion(String goalIdStr) {
         final GatewayUserDetails userDetails = getAndValidateUser();
-        final Integer goalId = toGaolId(goalIdStr)
-                .orElseThrow( () -> new NotFoundException("Goal with id=%s not found".formatted(goalIdStr)));
+        final Integer goalId = Goal.parseExternalGoalId(goalIdStr);
         try (LoggingUtils.LoggingContext ctx = LoggingUtils.createContext(userDetails.getRoutingInfo())) {
             goalService.deleteGoal(userDetails.getRoutingInfo(), goalId);
             return ResponseEntity.noContent().build();
@@ -108,14 +107,6 @@ public class GoalController implements GoalsApi {
             throw new NotFoundException(null);
         }
         return userDetails;
-    }
-
-    private Optional<Integer> toGaolId(String goalId){
-        try {
-            return Optional.of(Integer.parseInt(goalId));
-        } catch(NumberFormatException e){
-            return Optional.empty();
-        }
     }
 
 }
