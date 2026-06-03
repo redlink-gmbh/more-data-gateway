@@ -138,6 +138,7 @@ public class GoalRepository {
                     .setGoalId(rs.getInt("goal_id"))
                     .setParticipantId(rs.getInt("participant_id"))
                     .setTemplateId(rs.getInt("template_id"))
+                    .setTitle(rs.getString("title"))
                     .setProperties(DbUtils.readObject(rs, "properties") instanceof Map<?,?> map
                             ? map : new HashMap<String,Object>())
                     .setCreated(DbUtils.toInstant(rs.getTimestamp("created")))
