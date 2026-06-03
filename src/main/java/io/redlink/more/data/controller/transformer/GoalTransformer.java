@@ -87,7 +87,7 @@ public final class GoalTransformer {
                 List.of();
 
         return new GoalTemplateDTO(
-                Objects.toString(template.getTemplateId()),
+                template.getExternalTemplateId(),
                 template.getParticipantTitle() != null ?
                         template.getParticipantTitle() : //NOTE: the ParticipantTitle is mapped to the title
                         template.getTitle(), //the internal title is used as fallback
@@ -113,8 +113,8 @@ public final class GoalTransformer {
                 List.of();
 
         return new GoalDTO()
-                .goalId(Objects.toString(goal.getGoalId()))
-                .templateId(Objects.toString(goal.getTemplateId()))
+                .goalId(goal.getExternalGoalId())
+                .templateId(goal.getExternalTemplateId())
                 .created(goal.getCreated())
                 .title(goal.getTitle())
                 .adherenceChecks(adherenceChecks)
@@ -127,7 +127,7 @@ public final class GoalTransformer {
         Goal goal = new Goal()
                 .setStudyId(studyId)
                 .setParticipantId(participantId)
-                .setTemplateId(parseId(dto.getTemplateId()))
+                .setTemplateId(GoalTemplate.parseExternalTemplateId(dto.getTemplateId()))
                 .setTitle(dto.getTitle());
 
         // Adherence Checks: Enum → Ordinal

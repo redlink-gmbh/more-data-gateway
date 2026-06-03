@@ -15,6 +15,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import io.redlink.more.data.model.DataPoint;
 import io.redlink.more.data.model.RoutingInfo;
+import org.apache.commons.lang3.StringUtils;
+
 import java.time.Instant;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -30,6 +32,8 @@ public record ElasticDataPoint(
         String studyGroupId,
         @JsonProperty("observation_id")
         String observationId,
+        @JsonProperty("instance_id")
+        String instanceId,
         @JsonProperty("observation_type")
         String observationType,
         @JsonProperty("data_type")
@@ -64,6 +68,11 @@ public record ElasticDataPoint(
     }
 
     public static ElasticDataPoint toElastic(DataPoint dataPoint, RoutingInfo elasticInfo) {
+        var observationIdParts = StringUtils.split(dataPoint.observationId(),':');
+        if(observationIdParts.length > 2) { //NOTE: no full validation, just a smoke test
+            throw new IllegalStateException("Illegal formatted observation id: " + dataPoint.observationId() +
+                    "(Expected <observation-id>[:<instance-id>],  Format: ^[\\w-]+(:[\\w-]+)?$");
+        }
         return new ElasticDataPoint(
                 dataPoint.datapointId(),
                 "participant_%d".formatted(elasticInfo.participantId()),
@@ -73,9 +82,10 @@ public record ElasticDataPoint(
                         .findFirst()
                         .orElse(null),
                 //TODO: Do we need observation groups in the Elastic index. I am not sure (westei, 18.12.2025)
-                dataPoint.observationId(),
+                observationIdParts[0],
+                observationIdParts.length > 1 ? observationIdParts[1] : null,
                 dataPoint.observationType(),
-                dataPoint.dataType(),
+                dataPoint.dataType() == null ? dataPoint.observationType() : dataPoint.dataType(),
                 dataPoint.serverTime(),
                 dataPoint.effectiveDateTime(),
                 dataPoint.data()

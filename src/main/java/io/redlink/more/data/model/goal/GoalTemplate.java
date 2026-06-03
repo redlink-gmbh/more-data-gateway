@@ -1,10 +1,18 @@
 package io.redlink.more.data.model.goal;
 
+import io.redlink.more.data.exception.ConflictException;
+
 import java.time.Instant;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class GoalTemplate {
+    public static final String GAOL_TEMPLATE_ID_PREFIX = "goaltemplate-";
+    private static final Pattern PATTERN_GOAL_TEMPLATE_ID = Pattern.compile("^" + GAOL_TEMPLATE_ID_PREFIX + "(\\d+)$");
+
     private Long studyId;
     private Integer templateId;
     private String title;
@@ -26,6 +34,10 @@ public class GoalTemplate {
 
     public Integer getTemplateId() { return templateId; }
     public GoalTemplate setTemplateId(Integer templateId) { this.templateId = templateId; return this; }
+
+    public String getExternalTemplateId() {
+        return GAOL_TEMPLATE_ID_PREFIX + templateId;
+    }
 
     public String getTitle() { return title; }
     public GoalTemplate setTitle(String title) { this.title = title; return this; }
@@ -71,4 +83,17 @@ public class GoalTemplate {
         this.adherenceCheckIds = adherenceCheckIds != null ? adherenceCheckIds : new HashSet<>();
         return this;
     }
+
+    public static Integer parseExternalTemplateId(String templateId) throws ConflictException {
+        Matcher m = PATTERN_GOAL_TEMPLATE_ID.matcher(Objects.requireNonNull(templateId));
+        if(!m.find()){
+            throw new ConflictException("Invalid template ID: " + templateId);
+        }
+        try {
+            return Integer.parseInt(m.group(1));
+        } catch (NumberFormatException e) {
+            throw new ConflictException("Invalid template ID: " + templateId);
+        }
+    }
+
 }

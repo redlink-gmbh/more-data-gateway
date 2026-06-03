@@ -397,13 +397,27 @@ components:
           $ref: 'BaseComponents.yaml#/components/schemas/Id'
         observationId:
           type: string
+          pattern: '^[\w-]+(:[\w-]+)?$'
+          description: |
+            The id of the observation. Unique within the context of the current study. The observationId may
+            define two parts separated by a coma. The first refers to the id of the observation. The optional 
+            second part refers to the observation instance. The second part is only present/needed, if the
+            participant can create/configure multiple instances of an observation.
         observationType:
           type: string
+          pattern: '^[\w-]+$'
+          description: the type of the observation
+        dataType:
+          type: string
+          pattern: '^[\w-]+$'
+          description: the type of the dataValue. Needed of a observation type defines data values of different types
         dataValue:
           type: object
+          description: the data of the observation. A JSON object specific to the obserationType and/or dataType
         timestamp:
           type: string
           format: date-time
+          description: the effective time when the observation was recorded
       required:
         - dataId
         - observationId

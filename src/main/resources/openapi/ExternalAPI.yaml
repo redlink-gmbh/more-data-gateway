@@ -120,6 +120,9 @@ components:
       properties:
         dataId:
           type: string
+        dataType:
+          type: string
+          description: the type of the data value. If missing the type will be set to the observation type
         dataValue:
           type: object
           additionalProperties: true
