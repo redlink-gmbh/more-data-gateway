@@ -62,10 +62,10 @@ public class GoalRepository {
     // ==================== GOALS (Read + Write) ====================
 
     private static final String INSERT_GOAL = """
-            INSERT INTO goal(study_id, goal_id, participant_id, template_id, properties)
+            INSERT INTO goal(study_id,goal_id,participant_id,template_id, title, properties)
             VALUES (:study_id,
                     (SELECT COALESCE(MAX(goal_id),0)+1 FROM goal WHERE study_id = :study_id),
-                    :participant_id, :template_id, :properties::jsonb)""";
+                    :participant_id, :template_id, :title, :properties::jsonb)""";
 
     private static final String GET_GOAL_BY_ID = """
             SELECT g.*,
@@ -139,6 +139,7 @@ public class GoalRepository {
                     .setParticipantId(rs.getInt("participant_id"))
                     .setTemplateId(rs.getInt("template_id"))
                     .setTitle(rs.getString("title"))
+                    .setAdherenceCheckIds(DbUtils.readSet(rs, "adherence_check_ids", Integer.class))
                     .setProperties(DbUtils.readObject(rs, "properties") instanceof Map<?,?> map
                             ? map : new HashMap<String,Object>())
                     .setCreated(DbUtils.toInstant(rs.getTimestamp("created")))
@@ -216,6 +217,7 @@ public class GoalRepository {
                             .addValue("study_id", goal.getStudyId(), Types.BIGINT)
                             .addValue("participant_id", goal.getParticipantId(), Types.INTEGER)
                             .addValue("template_id", goal.getTemplateId(), Types.INTEGER)
+                            .addValue("title", goal.getTitle(), Types.VARCHAR)
                             .addValue("properties", MapperUtils.writeValueAsString(goal.getProperties())),  // assuming you have write method or use ObjectMapper
                     keyHolder,
                     new String[]{"goal_id"});
