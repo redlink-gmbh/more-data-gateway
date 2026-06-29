@@ -34,7 +34,7 @@
         <docker.localArch>${os.arch}</docker.localArch>
 
         <start-class>io.redlink.more.data.MoreDataGatewayApplication</start-class>
-    </properties>
+    <kotlin.version>2.3.10</kotlin.version></properties>
 
     <scm>
         <connection>https://github.com/MORE-Platform/more-data-gateway.git</connection>
@@ -191,7 +191,7 @@
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-test</artifactId>
             <scope>test</scope>
-        </dependency>
+        </dependency><dependency><groupId>org.jetbrains.kotlin</groupId><artifactId>kotlin-stdlib-jdk8</artifactId><version>${kotlin.version}</version></dependency><dependency><groupId>org.jetbrains.kotlin</groupId><artifactId>kotlin-test</artifactId><version>${kotlin.version}</version><scope>test</scope></dependency>
     </dependencies>
 
     <dependencyManagement>
@@ -220,18 +220,6 @@
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>flatten-maven-plugin</artifactId>
                 <version>1.7.2</version>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.14.0</version>
-                <configuration>
-                    <source>${java.version}</source>
-                    <target>${java.version}</target>
-                    <release>${java.version}</release>
-                    <parameters>true</parameters>
-                    <optimize>true</optimize>
-                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -560,6 +548,17 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>license-maven-plugin</artifactId>
+            </plugin><plugin><groupId>org.jetbrains.kotlin</groupId><artifactId>kotlin-maven-plugin</artifactId><version>${kotlin.version}</version><extensions>true</extensions><executions><execution><id>compile</id><phase>compile</phase><goals><goal>compile</goal></goals><configuration><sourceDirs><sourceDir>src/main/java</sourceDir><sourceDir>target/generated-sources/annotations</sourceDir><sourceDir>target/generated-sources/app/src</sourceDir><sourceDir>target/generated-sources/custom-model/src</sourceDir><sourceDir>target/generated-sources/external/src</sourceDir><sourceDir>target/generated-sources/garmin-wellness/src</sourceDir><sourceDir>target/generated-sources/garmin/src</sourceDir><sourceDir>target/generated-sources/goal/src</sourceDir><sourceDir>target/generated-sources/license</sourceDir><sourceDir>target/generated-sources/limesurvey/src</sourceDir><sourceDir>target/generated-sources/observation-execution/src</sourceDir><sourceDir>target/generated-sources/participant-portal/src</sourceDir><sourceDir>target/generated-sources</sourceDir></sourceDirs></configuration></execution><execution><id>test-compile</id><phase>test-compile</phase><goals><goal>test-compile</goal></goals></execution></executions><dependencies><dependency><groupId>org.jetbrains.kotlin</groupId><artifactId>kotlin-maven-allopen</artifactId><version>${kotlin.version}</version></dependency></dependencies><configuration><jvmTarget>1.8</jvmTarget><compilerPlugins><plugin>spring</plugin></compilerPlugins></configuration></plugin><plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.14.0</version><executions><execution><id>default-compile</id><phase>none</phase></execution><execution><id>default-testCompile</id><phase>none</phase></execution><execution><id>compile</id><phase>compile</phase><goals><goal>compile</goal></goals></execution><execution><id>testCompile</id><phase>test-compile</phase><goals><goal>testCompile</goal></goals></execution></executions>
+                <configuration>
+                    <source>${java.version}</source>
+                    <target>${java.version}</target>
+                    <release>${java.version}</release>
+                    <parameters>true</parameters>
+                    <optimize>true</optimize>
+                </configuration>
             </plugin>
         </plugins>
         <pluginManagement>

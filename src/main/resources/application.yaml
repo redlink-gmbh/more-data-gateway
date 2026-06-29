@@ -39,6 +39,7 @@ more:
   application:
     urls:
       PARTICIPANT_PORTAL: '${PARTICIPANT_PORTAL_URL:http://localhost:3001}'
+      BLENDEDCARE_BACKEND: '${BLENDED_CARE_BACKEND_URL}'
   limesurvey:
     username: '${LIME_ADMIN_USER:more-admin}'
     password: '${LIME_ADMIN_PWD:more-admin}'
