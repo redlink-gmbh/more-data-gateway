@@ -8,6 +8,7 @@
  */
 package io.redlink.more.data.service;
 
+import io.redlink.more.data.configuration.ApplicationProperties;
 import io.redlink.more.data.event.ParticipantUpdateEvent;
 import io.redlink.more.data.model.ParticipantApplication;
 import io.redlink.more.data.model.ParticipantConsent;
@@ -27,11 +28,13 @@ public class ApplicationAccessService implements ApplicationListener<Participant
     private final LoginTokenService loginTokenService;
     private final ParticipantApplicationRepository participantApplicationRepository;
     private final StudyRepository studyRepository;
+    private final ApplicationProperties applicationProperties;
 
-    public ApplicationAccessService(LoginTokenService loginTokenService, ParticipantApplicationRepository participantApplicationRepository, StudyRepository studyRepository) {
+    public ApplicationAccessService(LoginTokenService loginTokenService, ParticipantApplicationRepository participantApplicationRepository, StudyRepository studyRepository, ApplicationProperties applicationProperties) {
         this.loginTokenService = loginTokenService;
         this.participantApplicationRepository = participantApplicationRepository;
         this.studyRepository = studyRepository;
+        this.applicationProperties = applicationProperties;
     }
 
     public Optional<RoutingInfo> validateLogin(Long studyId, String userDataReference, String loginToken) {
@@ -56,6 +59,10 @@ public class ApplicationAccessService implements ApplicationListener<Participant
             LOG.warn("Consent {} is not accepted by user {}", consent, routingInfo);
             throw new IllegalStateException("Consent was not accepted!");
         }
+    }
+
+    public Optional<String> getApplicationUrl(String application) {
+        return Optional.ofNullable(applicationProperties.getUrls().get(application));
     }
 
     @Override

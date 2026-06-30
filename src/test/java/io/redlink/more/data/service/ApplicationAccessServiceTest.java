@@ -8,6 +8,7 @@
  */
 package io.redlink.more.data.service;
 
+import io.redlink.more.data.configuration.ApplicationProperties;
 import io.redlink.more.data.event.ParticipantUpdateAction;
 import io.redlink.more.data.event.ParticipantUpdateEvent;
 import io.redlink.more.data.model.ParticipantApplication;
@@ -40,11 +41,14 @@ class ApplicationAccessServiceTest {
     @Mock
     private StudyRepository studyRepository;
 
+    @Mock
+    private ApplicationProperties applicationProperties;
+
     private ApplicationAccessService applicationAccessService;
 
     @BeforeEach
     void setUp() {
-        applicationAccessService = new ApplicationAccessService(loginTokenService, participantApplicationRepository, studyRepository);
+        applicationAccessService = new ApplicationAccessService(loginTokenService, participantApplicationRepository, studyRepository, applicationProperties);
     }
 
 

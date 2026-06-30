@@ -21,6 +21,8 @@ tags:
       Provides information about the study signup
   - name: GarminRegistration
     description: Endpoints to register for Garmin Connect using OAuth
+  - name: AppApplications
+    description: Endpoints to manage applications
 
 externalDocs:
   url: https://github.com/MORE-Platform
@@ -281,6 +283,25 @@ paths:
                   $ref: 'BaseComponents.yaml#/components/schemas/Id'
         '401':
           $ref: 'BaseComponents.yaml#/components/responses/UnauthorizedApiKey'
+  /applications/{applicationName}:
+    get:
+      operationId: getApplicationUrl
+      description: Queries the URL for a desired application
+      tags:
+        - AppApplications
+      parameters:
+        - name: applicationName
+          in: path
+          schema:
+            type: string
+          required: true
+      responses:
+        '200':
+          $ref: '#/components/responses/ApplicationAccessUrlResponse'
+        '401':
+          $ref: 'BaseComponents.yaml#/components/responses/UnauthorizedApiKey'
+        '404':
+          description: application not found
 components:
   schemas:
     PushNotification:
@@ -483,6 +504,16 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
+
+    ApplicationAccessUrlResponse:
+      description: The URL to access the application
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              url:
+                type: string
 
   securitySchemes:
     apiKey:
