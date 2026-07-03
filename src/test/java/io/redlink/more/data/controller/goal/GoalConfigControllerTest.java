@@ -141,7 +141,7 @@ class GoalConfigControllerTest {
         mockMvc.perform(get("/goals/api/v1/templates")
                         .with(user(userDetails)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].templateId").value("goaltemplate-1"))
+                .andExpect(jsonPath("$[0].templateId").value("goaltemplate_1"))
                 .andExpect(jsonPath("$[0].title").value("Daily Step Goal"))
                 .andExpect(jsonPath("$[0].info").value("Some info"))
                 .andExpect(jsonPath("$[0].type").value("steps"))

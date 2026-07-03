@@ -11,7 +11,7 @@ import java.util.regex.Pattern;
 
 public class Goal {
 
-    public static final String GOAL_ID_PREFIX = "goal-";
+    public static final String GOAL_ID_PREFIX = "goal_";
     private static final Pattern PATTERN_GOAL_ID = Pattern.compile("^(?:" + GOAL_ID_PREFIX + ")?(\\d+)$");
 
     private Long studyId;

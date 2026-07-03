@@ -418,12 +418,14 @@ components:
           $ref: 'BaseComponents.yaml#/components/schemas/Id'
         observationId:
           type: string
-          pattern: '^[\w-]+(:[\w-]+)?$'
+          pattern: '^[\w-]+$'
           description: |
-            The id of the observation. Unique within the context of the current study. The observationId may
-            define two parts separated by a coma. The first refers to the id of the observation. The optional 
-            second part refers to the observation instance. The second part is only present/needed, if the
-            participant can create/configure multiple instances of an observation.
+            The id of the observation. Unique within the context of the current study.
+        instanceId:
+          type: string
+          description: |
+            The id of the instance. Only present if the user can create multiple instance of the same observation
+            and the sent data belongs to one specific of such instances.
         observationType:
           type: string
           pattern: '^[\w-]+$'

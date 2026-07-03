@@ -14,6 +14,7 @@ import java.util.Map;
 public record DataPoint(
         String datapointId,
         String observationId,
+        String instanceId,
         String observationType,
         String dataType,
         Instant serverTime,

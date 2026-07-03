@@ -76,7 +76,7 @@ class EpochStepDataTransformerTest extends AbstractGarminTransformerTestBase<Epo
         assertThat(result).hasSize(1);
         DataPoint dp = result.get(0);
         assertThat(dp.dataType()).isEqualTo(DataType.EPOCH_STEPS.name());
-        assertThat(dp.observationId()).isEqualTo("1");
+        assertThat(dp.observationId()).isEqualTo("observation_1");
         assertThat(dp.effectiveDateTime()).isEqualTo(start);
 
         Map<String, Object> data = dp.data();
@@ -88,8 +88,8 @@ class EpochStepDataTransformerTest extends AbstractGarminTransformerTestBase<Epo
     @Test
     @DisplayName("filterDataPointByTimeRange: returns input unchanged (no filtering)")
     void filterDataPointByTimeRange_noFiltering() {
-        DataPoint a = new DataPoint("a", "1", "type", DataType.EPOCH_STEPS.name(), Instant.now(), Instant.now(), Map.of());
-        DataPoint b = new DataPoint("b", "1", "type", DataType.EPOCH_STEPS.name(), Instant.now(), Instant.now(), Map.of());
+        DataPoint a = new DataPoint("a", "observation_1", null, "type", DataType.EPOCH_STEPS.name(), Instant.now(), Instant.now(), Map.of());
+        DataPoint b = new DataPoint("b", "observation_1", null, "type", DataType.EPOCH_STEPS.name(), Instant.now(), Instant.now(), Map.of());
         List<DataPoint> input = List.of(a, b);
 
         List<DataPoint> out = transformer.exposeFilterByTimeRange(List.of(Range.of(Instant.EPOCH, Instant.now())), input);

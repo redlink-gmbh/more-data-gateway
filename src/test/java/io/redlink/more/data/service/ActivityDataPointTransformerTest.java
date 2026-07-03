@@ -229,7 +229,8 @@ class ActivityDataPointTransformerTest extends AbstractGarminTransformerTestBase
         // Datapoint representing an ACTIVITY_START inside the range
         DataPoint startPoint = new DataPoint(
                 "dp-start",
-                "1",
+                "observation_1",
+                null,
                 "garmin_epochs",
                 "ACTIVITY_START",
                 Instant.now(),
@@ -240,7 +241,8 @@ class ActivityDataPointTransformerTest extends AbstractGarminTransformerTestBase
         // Datapoint representing an ACTIVITY_END outside the range but linked via START_TIME_KEY
         DataPoint endPoint = new DataPoint(
                 "dp-end",
-                "1",
+                "observation_1",
+                null,
                 "garmin_epochs",
                 "ACTIVITY_END",
                 Instant.now(),
@@ -251,7 +253,8 @@ class ActivityDataPointTransformerTest extends AbstractGarminTransformerTestBase
         // Another datapoint with no overlap at all
         DataPoint unrelated = new DataPoint(
                 "dp-unrelated",
-                "2",
+                "observation_2",
+                null,
                 "garmin_epochs",
                 "ACTIVITY_START",
                 Instant.now(),

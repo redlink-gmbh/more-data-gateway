@@ -101,7 +101,7 @@ public class LimeSurveyComponent implements ObservationComponent {
             throw new IllegalArgumentException("Could not find RoutingInfo for LimeSurvey Component for provided parameters");
         }
 
-        if (storeAnswer(surveyId.get(), savedId.get(), token, routingInfo, Integer.toString(resolvedObservationId))) {
+        if (storeAnswer(surveyId.get(), savedId.get(), token, routingInfo, "observation_" + resolvedObservationId)) {
             LOG.debug("Stored LimeSurvey answer for survey {}, token {}, observation {}", surveyId.get(), token, resolvedObservationId);
             return Optional.of(new CallbackResult(routingInfo, resolvedObservationId));
         }
@@ -169,6 +169,7 @@ public class LimeSurveyComponent implements ObservationComponent {
             DataPoint dataPoint = new DataPoint(
                     UUID.randomUUID().toString(),
                     observationId,
+                    null,
                     getObservationType(),
                     getObservationType(),
                     Instant.now(),

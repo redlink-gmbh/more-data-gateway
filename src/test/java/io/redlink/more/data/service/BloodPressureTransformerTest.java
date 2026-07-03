@@ -77,7 +77,7 @@ class BloodPressureTransformerTest extends AbstractGarminTransformerTestBase<Blo
 
         assertThat(results).hasSize(1);
         DataPoint dp = results.get(0);
-        assertThat(dp.observationId()).isEqualTo("1");
+        assertThat(dp.observationId()).isEqualTo("observation_1");
         assertThat(dp.dataType()).isEqualTo(DataType.BLOOD_PRESSURE.name());
         assertThat(dp.effectiveDateTime()).isEqualTo(ts);
         assertThat(dp.data()).containsEntry("systolic", 120)
@@ -139,7 +139,7 @@ class BloodPressureTransformerTest extends AbstractGarminTransformerTestBase<Blo
         assertThat(result).hasSize(1);
 
         DataPoint dp = result.get(0);
-        assertThat(dp.observationId()).isEqualTo("42");
+        assertThat(dp.observationId()).isEqualTo("observation_42");
         assertThat(dp.dataType()).isEqualTo(DataType.BLOOD_PRESSURE.name());
         assertThat(dp.effectiveDateTime()).isEqualTo(measurement);
 
@@ -156,8 +156,8 @@ class BloodPressureTransformerTest extends AbstractGarminTransformerTestBase<Blo
     @Test
     @DisplayName("filterDataPointByTimeRange: returns data as-is (no filtering)")
     void filterDataPointByTimeRange_returnsInput() throws Exception {
-        DataPoint dp1 = new DataPoint("id1", "1", "garmin-bp", DataType.BLOOD_PRESSURE.name(), Instant.now(), Instant.now(), Map.of());
-        DataPoint dp2 = new DataPoint("id2", "2", "garmin-bp", DataType.BLOOD_PRESSURE.name(), Instant.now(), Instant.now(), Map.of());
+        DataPoint dp1 = new DataPoint("id1", "observation_1", null, "garmin-bp", DataType.BLOOD_PRESSURE.name(), Instant.now(), Instant.now(), Map.of());
+        DataPoint dp2 = new DataPoint("id2", "observation_2", null, "garmin-bp", DataType.BLOOD_PRESSURE.name(), Instant.now(), Instant.now(), Map.of());
 
         List<DataPoint> input = List.of(dp1, dp2);
         List<DataPoint> out = transformer.exposeFilter(List.of(Range.of(Instant.EPOCH, Instant.now())), input);
