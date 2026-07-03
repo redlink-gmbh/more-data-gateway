@@ -18,7 +18,7 @@ class DataUtilsTest {
         Instant end = Instant.parse("2023-01-01T11:00:00Z");
         Instant effective = Instant.parse("2023-01-01T10:30:00Z");
 
-        DataPoint dp = new DataPoint("id", "obsId", "obsType", "dataType", Instant.now(), effective,
+        DataPoint dp = new DataPoint("id", "obsId", null, "obsType", "dataType", Instant.now(), effective,
                 Map.of("startTime", start.toString(), "endTime", end.toString()));
 
         Range<Instant> range = DataUtils.buildRangeFromDataPoint(dp);
@@ -32,7 +32,7 @@ class DataUtilsTest {
         Instant end = Instant.parse("2023-01-01T11:00:00Z");
         Instant effective = Instant.parse("2023-01-01T11:30:00Z");
 
-        DataPoint dp = new DataPoint("id", "obsId", "obsType", "dataType", Instant.now(), effective,
+        DataPoint dp = new DataPoint("id", "obsId", null, "obsType", "dataType", Instant.now(), effective,
                 Map.of("startTime", start.toString(), "endTime", end.toString()));
 
         Range<Instant> range = DataUtils.buildRangeFromDataPoint(dp);
@@ -45,7 +45,7 @@ class DataUtilsTest {
         Instant start = Instant.parse("2023-01-01T10:00:00Z");
         Instant effective = Instant.parse("2023-01-01T11:00:00Z");
 
-        DataPoint dp = new DataPoint("id", "obsId", "obsType", "dataType", Instant.now(), effective,
+        DataPoint dp = new DataPoint("id", "obsId", null, "obsType", "dataType", Instant.now(), effective,
                 Map.of("startTime", start.toString()));
 
         Range<Instant> range = DataUtils.buildRangeFromDataPoint(dp);
@@ -57,7 +57,7 @@ class DataUtilsTest {
     void testBuildRangeFromDataPoint_OnlyEffective() {
         Instant effective = Instant.parse("2023-01-01T11:00:00Z");
 
-        DataPoint dp = new DataPoint("id", "obsId", "obsType", "dataType", Instant.now(), effective, Map.of());
+        DataPoint dp = new DataPoint("id", "obsId", null, "obsType", "dataType", Instant.now(), effective, Map.of());
 
         Range<Instant> range = DataUtils.buildRangeFromDataPoint(dp);
         assertEquals(effective, range.getMinimum());
@@ -68,7 +68,7 @@ class DataUtilsTest {
     void testBuildRangeFromDataPoint_OnlyStartNoEffective() {
         Instant start = Instant.parse("2023-01-01T10:00:00Z");
 
-        DataPoint dp = new DataPoint("id", "obsId", "obsType", "dataType", Instant.now(), null,
+        DataPoint dp = new DataPoint("id", "obsId", null, "obsType", "dataType", Instant.now(), null,
                 Map.of("startTime", start.toString()));
 
         Range<Instant> range = DataUtils.buildRangeFromDataPoint(dp);
@@ -78,7 +78,7 @@ class DataUtilsTest {
 
     @Test
     void testBuildRangeFromDataPoint_NoTimeData() {
-        DataPoint dp = new DataPoint("id", "obsId", "obsType", "dataType", Instant.now(), null, Map.of());
+        DataPoint dp = new DataPoint("id", "obsId", null, "obsType", "dataType", Instant.now(), null, Map.of());
         assertThrows(IllegalArgumentException.class, () -> DataUtils.buildRangeFromDataPoint(dp));
     }
 }

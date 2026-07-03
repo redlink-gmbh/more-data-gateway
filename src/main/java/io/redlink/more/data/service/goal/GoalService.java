@@ -167,7 +167,8 @@ public class GoalService {
     private Goal writeGoalToElastic(Goal goal, GoalTemplate template, RoutingInfo routingInfo, String action) throws IOException {
         DataPoint dataPoint = new DataPoint(
                 UUID.randomUUID().toString(),
-                "%s:%s".formatted(Objects.requireNonNull(goal).getExternalTemplateId(), goal.getExternalGoalId()),
+                Objects.requireNonNull(goal).getExternalTemplateId(),
+                Objects.requireNonNull(goal).getExternalGoalId(),
                 template != null ? template.getType() : null,
                 DATA_TYPE_GAOL_CONFIG,
                 Instant.now(),

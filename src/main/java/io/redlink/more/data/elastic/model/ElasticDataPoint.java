@@ -68,11 +68,6 @@ public record ElasticDataPoint(
     }
 
     public static ElasticDataPoint toElastic(DataPoint dataPoint, RoutingInfo elasticInfo) {
-        var observationIdParts = StringUtils.split(dataPoint.observationId(),':');
-        if(observationIdParts.length > 2) { //NOTE: no full validation, just a smoke test
-            throw new IllegalStateException("Illegal formatted observation id: " + dataPoint.observationId() +
-                    "(Expected <observation-id>[:<instance-id>],  Format: ^[\\w-]+(:[\\w-]+)?$");
-        }
         return new ElasticDataPoint(
                 dataPoint.datapointId(),
                 "participant_%d".formatted(elasticInfo.participantId()),
@@ -82,8 +77,8 @@ public record ElasticDataPoint(
                         .findFirst()
                         .orElse(null),
                 //TODO: Do we need observation groups in the Elastic index. I am not sure (westei, 18.12.2025)
-                observationIdParts[0],
-                observationIdParts.length > 1 ? observationIdParts[1] : null,
+                dataPoint.observationId(),
+                dataPoint.instanceId(),
                 dataPoint.observationType(),
                 dataPoint.dataType() == null ? dataPoint.observationType() : dataPoint.dataType(),
                 dataPoint.serverTime(),

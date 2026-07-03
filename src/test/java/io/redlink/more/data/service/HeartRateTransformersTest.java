@@ -80,7 +80,7 @@ class HeartRateTransformersTest extends AbstractGarminTransformerTestBase<HeartR
 
         DataPoint result = results.get(0);
         assertThat(result).isNotNull();
-        assertThat(result.observationId()).isEqualTo(String.valueOf(observationId));
+        assertThat(result.observationId()).isEqualTo("observation_" + observationId);
         assertThat(result.observationType()).isEqualTo(observationType);
         assertThat(result.dataType()).isEqualTo(dataType.name());
         assertThat(result.effectiveDateTime()).isEqualTo(timestamp);
@@ -102,7 +102,8 @@ class HeartRateTransformersTest extends AbstractGarminTransformerTestBase<HeartR
 
         DataPoint inRange = new DataPoint(
                 "dp-1",
-                "1",
+                "observation_1",
+                null,
                 "garmin-heartrate-type",
                 DataType.HEARTRATE.name(),
                 Instant.now(),
@@ -112,7 +113,8 @@ class HeartRateTransformersTest extends AbstractGarminTransformerTestBase<HeartR
 
         DataPoint outOfRange = new DataPoint(
                 "dp-2",
-                "2",
+                "observation_2",
+                null,
                 "garmin-heartrate-type",
                 DataType.HEARTRATE.name(),
                 Instant.now(),
@@ -138,7 +140,8 @@ class HeartRateTransformersTest extends AbstractGarminTransformerTestBase<HeartR
 
         DataPoint outOfRange1 = new DataPoint(
                 "dp-1",
-                "1",
+                "observation_1",
+                null,
                 "garmin-heartrate-type",
                 DataType.HEARTRATE.name(),
                 Instant.now(),
@@ -148,7 +151,8 @@ class HeartRateTransformersTest extends AbstractGarminTransformerTestBase<HeartR
 
         DataPoint outOfRange2 = new DataPoint(
                 "dp-2",
-                "2",
+                "observation_2",
+                null,
                 "garmin-heartrate-type",
                 DataType.HEARTRATE.name(),
                 Instant.now(),

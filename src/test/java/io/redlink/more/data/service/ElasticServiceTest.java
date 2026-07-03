@@ -99,7 +99,8 @@ class ElasticServiceTest {
         var dp2EffectiveTime = dp1Now.minusSeconds(5);
         DataPoint dp1 = new DataPoint(
                 UUID.randomUUID().toString(),
-                "goaltemplate-1:goal-1",
+                "goaltemplate_1",
+                "goal_1",
                 "reduce-amount-of",
                 "amount-of",
                 dp1Now,
@@ -107,7 +108,8 @@ class ElasticServiceTest {
                 Map.of("amount", "5", "unit", "Zigarren"));
         DataPoint dp2 = new DataPoint(
                 UUID.randomUUID().toString(),
-                "goaltemplate-1:goal-2",
+                "goaltemplate_1",
+                "goal_2",
                 "reduce-amount-of",
                 "amount-of",
                 dp2Now,
@@ -141,8 +143,8 @@ class ElasticServiceTest {
         assertThat(bulkRequest.operations().get(0).index()).isNotNull();
         assertThat(bulkRequest.operations().get(0).index().document()).isInstanceOf(ElasticDataPoint.class);
         ElasticDataPoint indexDataPoint1 = (ElasticDataPoint)bulkRequest.operations().get(0).index().document();
-        assertThat(indexDataPoint1.observationId()).isEqualTo("goaltemplate-1");
-        assertThat(indexDataPoint1.instanceId()).isEqualTo("goal-1");
+        assertThat(indexDataPoint1.observationId()).isEqualTo("goaltemplate_1");
+        assertThat(indexDataPoint1.instanceId()).isEqualTo("goal_1");
         assertThat(indexDataPoint1.observationType()).isEqualTo("reduce-amount-of");
         assertThat(indexDataPoint1.dataType()).isEqualTo("amount-of");
         assertThat(indexDataPoint1.data()).hasSize(2);
@@ -152,8 +154,8 @@ class ElasticServiceTest {
         assertThat(bulkRequest.operations().get(1).index()).isNotNull();
         assertThat(bulkRequest.operations().get(1).index().document()).isInstanceOf(ElasticDataPoint.class);
         ElasticDataPoint indexDataPoint2 = (ElasticDataPoint)bulkRequest.operations().get(1).index().document();
-        assertThat(indexDataPoint2.observationId()).isEqualTo("goaltemplate-1");
-        assertThat(indexDataPoint2.instanceId()).isEqualTo("goal-2");
+        assertThat(indexDataPoint2.observationId()).isEqualTo("goaltemplate_1");
+        assertThat(indexDataPoint2.instanceId()).isEqualTo("goal_2");
         assertThat(indexDataPoint2.observationType()).isEqualTo("reduce-amount-of");
         assertThat(indexDataPoint2.dataType()).isEqualTo("amount-of");
         assertThat(indexDataPoint2.data()).hasSize(2);

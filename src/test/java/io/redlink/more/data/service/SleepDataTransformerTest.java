@@ -200,6 +200,7 @@ class SleepDataTransformerTest extends AbstractGarminTransformerTestBase<SleepDa
                 null,
                 null,
                 null,
+                null,
                 dataType.dataType,
                 effectiveTime,
                 effectiveTime,

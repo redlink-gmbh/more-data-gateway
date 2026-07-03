@@ -15,6 +15,7 @@ import org.apache.commons.lang3.StringUtils;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 public final class DataTransformer {
@@ -34,6 +35,7 @@ public final class DataTransformer {
         return new DataPoint(
                 dataPoint.getDataId(),
                 dataPoint.getObservationId(),
+                dataPoint.getInstanceId(),
                 dataPoint.getObservationType(),
                 StringUtils.isBlank(dataPoint.getDataType()) ? dataPoint.getObservationType() : dataPoint.getDataType(),
                 recordingTime,
@@ -49,14 +51,22 @@ public final class DataTransformer {
                 .toList();
     }
 
+    /**
+     * @deprecated use the String observationId with `{type}_{id}` (e.g. `observation_123`)
+     */
+    @Deprecated
     public static DataPoint createDataPoint(ExternalDataDTO dataPoint, ApiRoutingInfo routingInfo, Instant recordingTime, Integer observationId) {
+        return createDataPoint(dataPoint, routingInfo, recordingTime, "observation_" + Objects.requireNonNull(observationId), null);
+    }
+    public static DataPoint createDataPoint(ExternalDataDTO dataPoint, ApiRoutingInfo routingInfo, Instant recordingTime, String observationId, String instanceId) {
         Instant dateTime = dataPoint.getTimestamp();
         return new DataPoint(
                 UUID.randomUUID().toString(),
-                observationId.toString(),
+                Objects.requireNonNull(observationId),
+                instanceId,
                 routingInfo.observationType(),
                 StringUtils.isBlank(dataPoint.getDataType()) ? routingInfo.observationType(): dataPoint.getDataType(),
-                recordingTime,
+                Objects.requireNonNull(recordingTime),
                 dateTime,
                 dataPoint.getDataValue());
     }

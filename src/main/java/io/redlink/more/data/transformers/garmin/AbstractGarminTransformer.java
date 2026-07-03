@@ -70,7 +70,8 @@ public abstract class AbstractGarminTransformer {
             return observations.stream().map(observation ->
                             new DataPoint(
                                     uniqueSummaryId(summaryId, dataType, data.timestamp()),
-                                    String.valueOf(observation.observationId()),
+                                    "observation_" + observation.observationId(),
+                                    null,
                                     observation.type(),
                                     dataType.name(),
                                     Instant.now(),

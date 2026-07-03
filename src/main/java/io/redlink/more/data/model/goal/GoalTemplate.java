@@ -10,7 +10,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class GoalTemplate {
-    public static final String GOAL_TEMPLATE_ID_PREFIX = "goaltemplate-";
+    public static final String GOAL_TEMPLATE_ID_PREFIX = "goaltemplate_";
     private static final Pattern PATTERN_GOAL_TEMPLATE_ID = Pattern.compile("^" + GOAL_TEMPLATE_ID_PREFIX + "(\\d+)$");
 
     private Long studyId;

@@ -60,7 +60,8 @@ class AbstractGarminTransformerTest extends AbstractGarminTransformerTestBase<Ab
             return observations.stream()
                     .map(obs -> new DataPoint(
                             "dp-" + obs.observationId(),
-                            String.valueOf(obs.observationId()),
+                            "observation_" + obs.observationId(),
+                            null,
                             obs.type(),
                             DataType.HEARTRATE.name(),
                             Instant.now(),
@@ -214,7 +215,7 @@ class AbstractGarminTransformerTest extends AbstractGarminTransformerTestBase<Ab
         @SuppressWarnings("unchecked")
         Map<String, Object> storedData = (Map<String, Object>) dataField.get(dataPoint1);
 
-        assertThat(obsId).isEqualTo(observationId);
+        assertThat(obsId).isEqualTo("observation_" + observationId);
         assertThat(obsType).isEqualTo(observationType);
         assertThat(storedDataType).isEqualTo(dataType.name());
         assertThat(storedTimestamp).isEqualTo(timestamp);
@@ -279,7 +280,7 @@ class AbstractGarminTransformerTest extends AbstractGarminTransformerTestBase<Ab
 
         assertThat(result).hasSize(1);
         DataPoint dp = result.get(0);
-        assertThat(dp.observationId()).isEqualTo("1");
+        assertThat(dp.observationId()).isEqualTo("observation_1");
         assertThat(dp.effectiveDateTime()).isBetween(garminStart.minusSeconds(1), garminEnd.plusSeconds(1));
     }
 
