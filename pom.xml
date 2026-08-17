@@ -500,6 +500,36 @@
                             </configOptions>
                         </configuration>
                     </execution>
+                    <execution>
+                        <id>health-transformation-api</id>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                        <configuration>
+                            <inputSpec>${project.basedir}/src/main/resources/openapi/HealthTransformationAPI.yaml</inputSpec>
+                            <output>${project.build.directory}/generated-sources/health-transformation</output>
+                            <generatorName>java</generatorName>
+                            <library>resttemplate</library>
+                            <packageName>io.redlink.more.data.health</packageName>
+                            <apiPackage>io.redlink.more.data.health.client</apiPackage>
+                            <modelPackage>io.redlink.more.data.health.model</modelPackage>
+                            <generateSupportingFiles>true</generateSupportingFiles>
+                            <addCompileSourceRoot>true</addCompileSourceRoot>
+
+                            <configOptions>
+                                <dateLibrary>java8</dateLibrary>
+                                <useJakartaEe>true</useJakartaEe>
+                                <serializationLibrary>jackson</serializationLibrary>
+                                <removeOperationIdPrefix>true</removeOperationIdPrefix>
+                                <modelMutable>true</modelMutable>
+                                <useBeanValidation>false</useBeanValidation>
+                                <openApiNullable>false</openApiNullable>
+                                <additionalModelTypeAnnotations>
+                                    @com.fasterxml.jackson.annotation.JsonIgnoreProperties(ignoreUnknown = true)
+                                </additionalModelTypeAnnotations>
+                            </configOptions>
+                        </configuration>
+                    </execution>
                  </executions>
                 <configuration>
                     <generatorName>spring</generatorName>
@@ -548,7 +578,7 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>license-maven-plugin</artifactId>
-            </plugin><plugin><groupId>org.jetbrains.kotlin</groupId><artifactId>kotlin-maven-plugin</artifactId><version>${kotlin.version}</version><extensions>true</extensions><executions><execution><id>compile</id><phase>compile</phase><goals><goal>compile</goal></goals><configuration><sourceDirs><sourceDir>src/main/java</sourceDir><sourceDir>target/generated-sources/annotations</sourceDir><sourceDir>target/generated-sources/app/src</sourceDir><sourceDir>target/generated-sources/custom-model/src</sourceDir><sourceDir>target/generated-sources/external/src</sourceDir><sourceDir>target/generated-sources/garmin-wellness/src</sourceDir><sourceDir>target/generated-sources/garmin/src</sourceDir><sourceDir>target/generated-sources/goal/src</sourceDir><sourceDir>target/generated-sources/license</sourceDir><sourceDir>target/generated-sources/limesurvey/src</sourceDir><sourceDir>target/generated-sources/observation-execution/src</sourceDir><sourceDir>target/generated-sources/participant-portal/src</sourceDir><sourceDir>target/generated-sources</sourceDir></sourceDirs></configuration></execution><execution><id>test-compile</id><phase>test-compile</phase><goals><goal>test-compile</goal></goals></execution></executions><dependencies><dependency><groupId>org.jetbrains.kotlin</groupId><artifactId>kotlin-maven-allopen</artifactId><version>${kotlin.version}</version></dependency></dependencies><configuration><jvmTarget>1.8</jvmTarget><compilerPlugins><plugin>spring</plugin></compilerPlugins></configuration></plugin><plugin>
+            </plugin><plugin><groupId>org.jetbrains.kotlin</groupId><artifactId>kotlin-maven-plugin</artifactId><version>${kotlin.version}</version><extensions>true</extensions><executions><execution><id>compile</id><phase>compile</phase><goals><goal>compile</goal></goals><configuration><sourceDirs><sourceDir>src/main/java</sourceDir><sourceDir>target/generated-sources/annotations</sourceDir><sourceDir>target/generated-sources/app/src</sourceDir><sourceDir>target/generated-sources/custom-model/src</sourceDir><sourceDir>target/generated-sources/external/src</sourceDir><sourceDir>target/generated-sources/garmin-wellness/src</sourceDir><sourceDir>target/generated-sources/garmin/src</sourceDir><sourceDir>target/generated-sources/goal/src</sourceDir><sourceDir>target/generated-sources/license</sourceDir><sourceDir>target/generated-sources/limesurvey/src</sourceDir><sourceDir>target/generated-sources/health-transformation/src</sourceDir><sourceDir>target/generated-sources/observation-execution/src</sourceDir><sourceDir>target/generated-sources/participant-portal/src</sourceDir><sourceDir>target/generated-sources</sourceDir></sourceDirs></configuration></execution><execution><id>test-compile</id><phase>test-compile</phase><goals><goal>test-compile</goal></goals></execution></executions><dependencies><dependency><groupId>org.jetbrains.kotlin</groupId><artifactId>kotlin-maven-allopen</artifactId><version>${kotlin.version}</version></dependency></dependencies><configuration><jvmTarget>1.8</jvmTarget><compilerPlugins><plugin>spring</plugin></compilerPlugins></configuration></plugin><plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.14.0</version><executions><execution><id>default-compile</id><phase>none</phase></execution><execution><id>default-testCompile</id><phase>none</phase></execution><execution><id>compile</id><phase>compile</phase><goals><goal>compile</goal></goals></execution><execution><id>testCompile</id><phase>test-compile</phase><goals><goal>testCompile</goal></goals></execution></executions>
