@@ -25,6 +25,7 @@ import io.redlink.more.data.service.LoginTokenService;
 import io.redlink.more.data.service.ObservationExecutionService;
 import io.redlink.more.data.service.RegistrationService;
 import io.redlink.more.data.service.StudyService;
+import io.redlink.more.data.service.milestone.ParticipantMilestoneService;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -101,6 +102,9 @@ class ParticipantPortalControllerTest {
 
     @MockitoBean
     private ObservationExecutionService observationExecutionService;
+
+    @MockitoBean
+    private ParticipantMilestoneService participantMilestoneService;
 
     @MockitoBean
     private SchedulerProperties schedulerProperties;
