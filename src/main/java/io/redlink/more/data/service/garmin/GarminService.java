@@ -266,7 +266,7 @@ public class GarminService implements ApplicationListener<ParticipantUpdateEvent
             ArrayList<DataPoint> value = mapEntry.getValue();
             deduplicateDataPoints(value, key);
             elasticService.storeDataPoints(value, key);
-            LOG.debug("Stored {} datapoints for user {}", value.size(), key);
+            LOG.info("Stored {} datapoints for user {}", value.size(), key);
         }
     }
 

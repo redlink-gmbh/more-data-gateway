@@ -95,13 +95,13 @@ components:
       description: |
         A single heart-rate measurement independent of the source provider.
       properties:
-        beatsPerMinute:
+        hr:
           type: integer
           format: int32
           minimum: 0
           description: Heart rate in beats per minute (BPM).
       required:
-        - beatsPerMinute
+        - hr
 
 
     # -------------------------------------------------------------------------
