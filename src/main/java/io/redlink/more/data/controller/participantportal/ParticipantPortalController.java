@@ -5,6 +5,7 @@ import io.redlink.more.data.api.participant.v1.model.StudyDTO;
 import io.redlink.more.data.api.participant.v1.webservices.AuthorizationApi;
 import io.redlink.more.data.api.participant.v1.webservices.ConfigurationApi;
 import io.redlink.more.data.controller.transformer.ParticipantPortalTransformer;
+import io.redlink.more.data.exception.ForbiddenException;
 import io.redlink.more.data.exception.NotAuthorizedException;
 import io.redlink.more.data.model.CompletedData;
 import io.redlink.more.data.model.DataHealth;
@@ -169,6 +170,9 @@ public class ParticipantPortalController implements AuthorizationApi, Configurat
     public ResponseEntity<StudyDTO> getStudyConfiguration() {
         RoutingInfo routingInfo = validateRoutingInfo()
                 .orElseThrow(NotAuthorizedException::new);
+        if (!applicationAccessService.hasConsent(routingInfo)) {
+            throw new ForbiddenException("Consent was not given");
+        }
 
         var studyData = studyService.getStudy(routingInfo)
                 .filter(sd -> sd.getLeft().active() || "paused".equals(sd.getLeft().studyState()));
