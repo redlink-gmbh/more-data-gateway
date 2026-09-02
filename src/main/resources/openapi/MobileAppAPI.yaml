@@ -23,6 +23,9 @@ tags:
     description: Endpoints to register for Garmin Connect using OAuth
   - name: AppApplications
     description: Endpoints to manage applications
+  - name: Milestones
+    description: |
+      Endpoints to receive participant milestones
 
 externalDocs:
   url: https://github.com/MORE-Platform
@@ -261,6 +264,18 @@ paths:
           description: deleted successfully
         '400':
           description: not found
+
+  /milestones:
+    get:
+      operationId: listMilestones
+      tags:
+        - Milestones
+      responses:
+        '200':
+          $ref: '#/components/responses/ParticipantMilestoneListResponse'
+        '401':
+          $ref: 'BaseComponents.yaml#/components/responses/UnauthorizedApiKey'
+
   /data/bulk:
     post:
       operationId: storeBulk
@@ -459,6 +474,27 @@ components:
         - code
         - state
 
+    ParticipantMilestone:
+      type: object
+      description: This shows the milestone of a single participant
+      properties:
+        participantMilestoneId:
+          type: integer
+        milestoneId:
+          type: integer
+        name:
+          type: string
+          readOnly: true
+          description: The name of the referenced Milestone
+        dateTime:
+          type: string
+          format: date-time
+      required:
+        - participantMilestoneId
+        - milestoneId
+        - name
+        - dateTime
+
     Error:
       description: Generic Error
       type: object
@@ -516,6 +552,15 @@ components:
             properties:
               url:
                 type: string
+
+    ParticipantMilestoneListResponse:
+      description: A list of participant milestones
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/ParticipantMilestone'
 
   securitySchemes:
     apiKey:
