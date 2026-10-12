@@ -14,10 +14,15 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "more")
 public record MoreProperties(
-        GatewayProperties gateway
+        GatewayProperties gateway,
+        boolean acceptOperatorTerms
 ) {
 
     public MoreProperties {
+        if (!acceptOperatorTerms) {
+            throw new IllegalStateException(
+                    "The operator terms must be accepted to start the system: set MORE_ACCEPT_OPERATOR_TERMS=true");
+        }
         gateway = Objects.requireNonNullElse(gateway, new GatewayProperties(null));
     }
 

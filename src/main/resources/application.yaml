@@ -31,6 +31,7 @@ server:
   forward-headers-strategy: framework
 
 more:
+  accept-operator-terms: ${MORE_ACCEPT_OPERATOR_TERMS:false}
   gateway:
     baseUrl: ${BASE_URL:}
 
