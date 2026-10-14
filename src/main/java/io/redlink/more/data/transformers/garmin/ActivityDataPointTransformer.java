@@ -57,7 +57,9 @@ public class ActivityDataPointTransformer extends AbstractGarminTransformer {
                 garminDataPoint.getIntensity(),
                 garminDataPoint.getActiveTimeInSeconds(),
                 garminDataPoint.getMeanMotionIntensity(),
-                garminDataPoint.getMaxMotionIntensity());
+                garminDataPoint.getMaxMotionIntensity(),
+                false);
+        // NOTE: Workout is set to false, as we only collect passive Garmin Workout data, while HealthConnect only collects active activities (workouts)
         var range = super.getGarminDataPointTimeRange(garminDataPoint);
         return new GarminTimeData<>(
                 range.getMaximum(),
