@@ -16,6 +16,7 @@ public record GarminActivityModel(
         GarminDataPoint.IntensityEnum intensity,
         Long activeTimeInSeconds,
         Double meanMotionIntensity,
-        Double maxMotionIntensity
+        Double maxMotionIntensity,
+        Boolean workout
 ) {
 }
