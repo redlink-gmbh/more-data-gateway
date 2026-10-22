@@ -26,6 +26,7 @@ import io.redlink.more.data.service.ObservationExecutionService;
 import io.redlink.more.data.service.RegistrationService;
 import io.redlink.more.data.service.StudyService;
 import io.redlink.more.data.service.milestone.ParticipantMilestoneService;
+import io.redlink.more.data.service.ObservationAttachmentService;
 import io.redlink.more.data.service.observations.limesurvey.LimeSurveyComponent;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.Test;
@@ -116,6 +117,9 @@ class ParticipantPortalControllerTest {
 
     @MockitoBean
     private LimeSurveyComponent limeSurveyComponent;
+
+    @MockitoBean
+    private ObservationAttachmentService observationAttachmentService;
 
     @Test
     void testParticipantLoginSetsSession() throws Exception {

@@ -1,12 +1,16 @@
 package io.redlink.more.data.controller.participantportal;
 
+import io.redlink.more.data.api.participant.v1.model.ObservationAttachmentDTO;
 import io.redlink.more.data.api.participant.v1.model.StudyConsentDTO;
 import io.redlink.more.data.api.participant.v1.model.StudyDTO;
+import io.redlink.more.data.api.participant.v1.webservices.AttachmentsApi;
 import io.redlink.more.data.api.participant.v1.webservices.AuthorizationApi;
 import io.redlink.more.data.api.participant.v1.webservices.ConfigurationApi;
+import io.redlink.more.data.controller.transformer.ObservationAttachmentTransformer;
 import io.redlink.more.data.controller.transformer.ParticipantPortalTransformer;
 import io.redlink.more.data.exception.ForbiddenException;
 import io.redlink.more.data.exception.NotAuthorizedException;
+import io.redlink.more.data.exception.NotFoundException;
 import io.redlink.more.data.model.CompletedData;
 import io.redlink.more.data.model.DataHealth;
 import io.redlink.more.data.model.Observation;
@@ -18,6 +22,7 @@ import io.redlink.more.data.model.Study;
 import io.redlink.more.data.model.StudyParticipantUserDetails;
 import io.redlink.more.data.service.ApplicationAccessService;
 import io.redlink.more.data.service.DataHealthService;
+import io.redlink.more.data.service.ObservationAttachmentService;
 import io.redlink.more.data.service.ObservationExecutionService;
 import io.redlink.more.data.service.StudyService;
 import io.redlink.more.data.service.milestone.ParticipantMilestoneService;
@@ -28,6 +33,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -50,12 +56,13 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.function.Function;
 
 @Controller
 @RestController
 @RequestMapping(value = "/participant-portal/api/v1", produces = MediaType.APPLICATION_JSON_VALUE)
-public class ParticipantPortalController implements AuthorizationApi, ConfigurationApi {
+public class ParticipantPortalController implements AuthorizationApi, ConfigurationApi, AttachmentsApi {
     private static final Logger LOG = LoggerFactory.getLogger(ParticipantPortalController.class);
 
     private static final Collection<String> ALLOWED_STUDY_STATES = Set.of("active", "paused", "preview", "paused-preview");
@@ -66,6 +73,7 @@ public class ParticipantPortalController implements AuthorizationApi, Configurat
     private final ObservationExecutionService observationExecutionService;
     private final ParticipantMilestoneService participantMilestoneService;
     private final LimeSurveyComponent limeSurveyComponent;
+    private final ObservationAttachmentService observationAttachmentService;
 
     ParticipantPortalController(
             ApplicationAccessService applicationAccessService,
@@ -73,13 +81,15 @@ public class ParticipantPortalController implements AuthorizationApi, Configurat
             DataHealthService dataHealthService,
             ObservationExecutionService observationExecutionService,
             ParticipantMilestoneService participantMilestoneService,
-            LimeSurveyComponent limeSurveyComponent) {
+            LimeSurveyComponent limeSurveyComponent,
+            ObservationAttachmentService observationAttachmentService) {
         this.applicationAccessService = applicationAccessService;
         this.studyService = studyService;
         this.dataHealthService = dataHealthService;
         this.observationExecutionService = observationExecutionService;
         this.participantMilestoneService = participantMilestoneService;
         this.limeSurveyComponent = limeSurveyComponent;
+        this.observationAttachmentService = observationAttachmentService;
     }
 
     @Override
@@ -234,6 +244,24 @@ public class ParticipantPortalController implements AuthorizationApi, Configurat
         return ResponseEntity.ok(studyDTO);
     }
 
+
+    @Override
+    public ResponseEntity<List<ObservationAttachmentDTO>> listObservationAttachments(Integer observationId) {
+        RoutingInfo routingInfo = validateRoutingInfo()
+                .orElseThrow(NotAuthorizedException::new);
+        return ResponseEntity.ok(observationAttachmentService.listAttachments(routingInfo.studyId(), observationId).stream()
+                .map(ObservationAttachmentTransformer::toParticipantDTO)
+                .toList());
+    }
+
+    @Override
+    public ResponseEntity<Resource> downloadObservationAttachment(Integer observationId, UUID attachmentId) {
+        RoutingInfo routingInfo = validateRoutingInfo()
+                .orElseThrow(NotAuthorizedException::new);
+        return observationAttachmentService.getAttachment(routingInfo.studyId(), observationId, attachmentId)
+                .map(a -> ObservationAttachmentTransformer.toFileResponse(a, observationAttachmentService.getFile(a)))
+                .orElseThrow(() -> new NotFoundException("Attachment " + attachmentId + " not found"));
+    }
 
     private boolean isLimeSurveySubmitted(RoutingInfo routingInfo, Study study, String observationId, Instant start, Instant end) {
         int id = Integer.parseInt(observationId);

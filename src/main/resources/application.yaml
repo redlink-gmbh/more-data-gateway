@@ -37,6 +37,8 @@ more:
 
   login-token:
     hash-algorithm: ${LOGIN_TOKEN_HASH_ALGORITHM:SHA-256}
+  attachments:
+    dir: ${MORE_ATTACHMENTS_DIR:./data/attachments}
   application:
     urls:
       PARTICIPANT_PORTAL: '${PARTICIPANT_PORTAL_URL:http://localhost:3001}'

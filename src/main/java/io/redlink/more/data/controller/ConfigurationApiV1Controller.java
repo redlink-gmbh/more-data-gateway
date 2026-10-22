@@ -3,6 +3,7 @@
  */
 package io.redlink.more.data.controller;
 
+import io.redlink.more.data.api.app.v1.model.ObservationDTO;
 import io.redlink.more.data.api.app.v1.model.PushNotificationConfigDTO;
 import io.redlink.more.data.api.app.v1.model.PushNotificationServiceTypeDTO;
 import io.redlink.more.data.api.app.v1.model.PushNotificationTokenDTO;
@@ -14,6 +15,7 @@ import io.redlink.more.data.controller.transformer.StudyTransformer;
 import io.redlink.more.data.model.CompletedData;
 import io.redlink.more.data.model.GatewayUserDetails;
 import io.redlink.more.data.model.ParticipantMilestone;
+import io.redlink.more.data.model.RoutingInfo;
 import io.redlink.more.data.service.GatewayUserDetailService;
 import io.redlink.more.data.service.ObservationExecutionService;
 import io.redlink.more.data.service.PushNotificationService;
@@ -26,7 +28,10 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
+import java.util.function.Function;
 
 @Controller
 @RestController
@@ -59,12 +64,38 @@ public class ConfigurationApiV1Controller implements ConfigurationApi {
             var studyData = studyService.getStudy(userDetails.getRoutingInfo());
             List<CompletedData> completedData = observationExecutionService.getCompletedData(userDetails.getRoutingInfo());
             return studyData.map(s -> StudyTransformer.toDTO(s.getLeft(), s.getRight(), completedData,
-                            milestoneId -> participantMilestoneService.findParticipantMilestone(
-                                            userDetails.getRoutingInfo().studyId(), userDetails.getRoutingInfo().participantId(), milestoneId)
-                                    .map(ParticipantMilestone::dateTime)))
+                            milestoneAnchor(userDetails.getRoutingInfo())))
                     .map(ResponseEntity::ok)
                     .orElseGet(() -> ResponseEntity.notFound().build());
         }
+    }
+
+    @Override
+    public ResponseEntity<ObservationDTO> getObservation(Integer observationId) {
+        final GatewayUserDetails userDetails = authenticationFacade
+                .assertAuthority(GatewayUserDetailService.APP_ROLE);
+        final RoutingInfo routingInfo = userDetails.getRoutingInfo();
+        try (LoggingUtils.LoggingContext ctx = LoggingUtils.createContext(routingInfo)) {
+            if (!studyService.isActive(routingInfo)) {
+                return ResponseEntity.notFound().build();
+            }
+            var studyData = studyService.getStudy(routingInfo);
+            List<CompletedData> completedData = observationExecutionService.getCompletedData(routingInfo);
+            return studyData.flatMap(s -> s.getLeft().observations().stream()
+                            .filter(o -> o.observationId() == observationId)
+                            .findFirst()
+                            .map(o -> StudyTransformer.toDTO(s.getRight(), List.of(o),
+                                    s.getLeft().participant().start(), s.getLeft().participant().end(),
+                                    completedData, milestoneAnchor(routingInfo)).get(0)))
+                    .map(ResponseEntity::ok)
+                    .orElseGet(() -> ResponseEntity.notFound().build());
+        }
+    }
+
+    private Function<Integer, Optional<Instant>> milestoneAnchor(RoutingInfo routingInfo) {
+        return milestoneId -> participantMilestoneService.findParticipantMilestone(
+                        routingInfo.studyId(), routingInfo.participantId(), milestoneId)
+                .map(ParticipantMilestone::dateTime);
     }
 
     @Override
