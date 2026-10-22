@@ -13,6 +13,8 @@ import io.redlink.more.data.service.ObservationExecutionService;
 import io.redlink.more.data.service.PushNotificationService;
 import io.redlink.more.data.service.StudyService;
 import io.redlink.more.data.service.milestone.ParticipantMilestoneService;
+import io.redlink.more.data.service.observations.limesurvey.LimeSurveyComponent;
+import io.redlink.more.data.service.observations.limesurvey.LimeSurveyRequestService;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,6 +23,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -49,6 +54,8 @@ class ConfigurationApiV1ControllerTest {
     private ObservationExecutionService observationExecutionService;
     @Mock
     private ParticipantMilestoneService participantMilestoneService;
+    @Mock
+    private LimeSurveyRequestService limeSurveyRequestService;
 
     private ConfigurationApiV1Controller controller;
 
@@ -57,7 +64,7 @@ class ConfigurationApiV1ControllerTest {
     @BeforeEach
     void setUp() {
         controller = new ConfigurationApiV1Controller(authenticationFacade, pushNotificationService, studyService,
-                observationExecutionService, participantMilestoneService);
+                observationExecutionService, participantMilestoneService, limeSurveyRequestService);
         when(authenticationFacade.assertAuthority(GatewayUserDetailService.APP_ROLE))
                 .thenReturn(new GatewayUserDetails("user", "pass", Set.of(), routingInfo));
     }
@@ -87,6 +94,33 @@ class ConfigurationApiV1ControllerTest {
 
         assertThat(controller.getObservation(2).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
         verify(studyService, never()).getStudy(any());
+    }
+
+    @Test
+    void getObservation_adds_gateway_redirect_and_public_url_to_lime_survey() {
+        Instant now = Instant.now();
+        Observation limeSurvey = new Observation(3, null, "Lime", LimeSurveyComponent.OBSERVATION_TYPE, "info",
+                Map.of("limeUrl", "https://wrong.lime", "limeSurveyId", "100", "token", "t"), null,
+                now, now, false, true, false, Set.of());
+        Study study = new Study(1L, "Study", true, "info", "finish", "active", "consent",
+                new Contact("inst", "person", "mail", "phone"), LocalDate.now(), LocalDate.now(), LocalDate.now(),
+                List.of(limeSurvey), now, now, new SimpleParticipant(101, "alias", now, now));
+        when(studyService.isActive(routingInfo)).thenReturn(true);
+        when(studyService.getStudy(routingInfo)).thenReturn(Optional.of(Pair.of(study, List.of())));
+        when(observationExecutionService.getCompletedData(routingInfo)).thenReturn(List.of());
+        when(limeSurveyRequestService.getPublicUrl()).thenReturn(Optional.of("https://public.lime"));
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(new MockHttpServletRequest()));
+        try {
+            ResponseEntity<ObservationDTO> response = controller.getObservation(3);
+
+            assertThat(response.getBody().getConfiguration()).isEqualTo(Map.of(
+                    "redirectUrl", "http://localhost/api/v1/execution/observation/3/redirect",
+                    "limeUrl", "https://public.lime",
+                    "limeSurveyId", "100",
+                    "token", "t"));
+        } finally {
+            RequestContextHolder.resetRequestAttributes();
+        }
     }
 
     private void mockActiveStudy() {

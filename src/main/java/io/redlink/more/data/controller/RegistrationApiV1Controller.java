@@ -19,6 +19,7 @@ import io.redlink.more.data.properties.MoreProperties;
 import io.redlink.more.data.service.GatewayUserDetailService;
 import io.redlink.more.data.service.RegistrationService;
 import io.redlink.more.data.service.StudyService;
+import io.redlink.more.data.service.observations.limesurvey.LimeSurveyRequestService;
 import io.redlink.more.data.util.ParticipantUtils;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.http.MediaType;
@@ -47,12 +48,15 @@ public class RegistrationApiV1Controller implements RegistrationApi {
 
     private final StudyService studyService;
 
+    private final LimeSurveyRequestService limeSurveyRequestService;
 
-    public RegistrationApiV1Controller(MoreProperties moreProperties, RegistrationService registrationService, AuthenticationFacade authenticationFacade, StudyService studyService) {
+
+    public RegistrationApiV1Controller(MoreProperties moreProperties, RegistrationService registrationService, AuthenticationFacade authenticationFacade, StudyService studyService, LimeSurveyRequestService limeSurveyRequestService) {
         this.moreProperties = moreProperties;
         this.registrationService = registrationService;
         this.authenticationFacade = authenticationFacade;
         this.studyService = studyService;
+        this.limeSurveyRequestService = limeSurveyRequestService;
     }
 
     @Override
@@ -63,7 +67,8 @@ public class RegistrationApiV1Controller implements RegistrationApi {
         }
         List<ParticipantObservationSeed> seeds = study.get().active() ? studyService.getParticipantObservationSeeds(study.get().studyId(), study.get().participant().id()) : Collections.emptyList();
 
-        var studyDto = StudyTransformer.toDTO(study.get(), seeds, Collections.emptyList(), milestoneId -> Optional.empty());
+        var studyDto = StudyTransformer.toDTO(study.get(), seeds, Collections.emptyList(), milestoneId -> Optional.empty(),
+                limeSurveyRequestService.getPublicUrl().orElse(null));
         return ResponseEntity.ok()
                 // For better debugging: return the token for chaining
                 .header("More-Registration-Token", moreRegistrationToken)

@@ -62,6 +62,8 @@ properties:
 | `more.attachments.dir`            | `MORE_ATTACHMENTS_DIR`                              | `./data/attachments`                    | Directory holding observation attachments. Must be the same (shared) directory the Studymanager Backend writes to. |
 | `elastic.host`                    | `ELASTIC_HOST`                                      | `localhost`                             | The host of the Elasticsearch instance.                                                                            |
 | `elastic.port`                    | `ELASTIC_PORT`                                      | `9200`                                  | The port of the Elasticsearch instance.                                                                            |
+| `more.limesurvey.baseUrl`        | `LIME_BASE_URL`                                     | `https://lime.platform-test.more.redlink.io` | The URL the Data Gateway uses to connect to LimeSurvey (Remote Control API).                                  |
+| `more.limesurvey.publicUrl`      | `LIME_PUBLIC_URL`                                   | `LIME_BASE_URL`                         | The LimeSurvey URL participants open the surveys with.                                                             |
 | `spring.datasource.url`           | `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DBNAME` | `jdbc:postgresql://localhost:5432/more` | The JDBC URL of the PostgreSQL database.                                                                           |
 
 [SM-Backend]: https://github.com/MORE-Platform/more-studymanager-backend

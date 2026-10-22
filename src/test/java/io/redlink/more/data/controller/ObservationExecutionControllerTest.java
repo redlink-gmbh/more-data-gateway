@@ -1,6 +1,7 @@
 package io.redlink.more.data.controller;
 
 import io.redlink.more.data.configuration.AuthenticationFacade;
+import io.redlink.more.data.exception.NotFoundException;
 import io.redlink.more.data.model.ActiveObservation;
 import io.redlink.more.data.model.CompletedData;
 import io.redlink.more.data.model.GatewayUserDetails;
@@ -86,6 +87,35 @@ class ObservationExecutionControllerTest {
 
         assertEquals(HttpStatus.FOUND, response.getStatusCode());
         assertEquals("http://limesurvey.com", response.getHeaders().getLocation().toString());
+    }
+
+    @Test
+    void testRedirectObservation() {
+        RoutingInfo routingInfo = new RoutingInfo(1L, 1, OptionalInt.empty(), Set.of(), true, true);
+        Authentication authentication = mock(Authentication.class);
+        when(authenticationFacade.getAuthentication()).thenReturn(authentication);
+        when(authentication.getPrincipal()).thenReturn(new GatewayUserDetails("user", "pass", Set.of(), routingInfo));
+        when(observationExecutionService.getObservationUrl("1", routingInfo)).thenReturn(URI.create("http://limesurvey.com/1?token=t"));
+
+        ResponseEntity<Void> response = observationExecutionController.redirectObservation("1");
+
+        assertEquals(HttpStatus.FOUND, response.getStatusCode());
+        assertEquals("http://limesurvey.com/1?token=t", response.getHeaders().getLocation().toString());
+    }
+
+    @Test
+    void testRedirectObservationNotFound() {
+        RoutingInfo routingInfo = new RoutingInfo(1L, 1, OptionalInt.empty(), Set.of(), true, true);
+        Authentication authentication = mock(Authentication.class);
+        when(authenticationFacade.getAuthentication()).thenReturn(authentication);
+        when(authentication.getPrincipal()).thenReturn(new GatewayUserDetails("user", "pass", Set.of(), routingInfo));
+        when(observationExecutionService.getObservationUrl("1", routingInfo)).thenThrow(new NotFoundException("missing"));
+        when(request.getContextPath()).thenReturn("");
+
+        ResponseEntity<Void> response = observationExecutionController.redirectObservation("1");
+
+        assertEquals(HttpStatus.FOUND, response.getStatusCode());
+        assertTrue(response.getHeaders().getLocation().toString().endsWith("/api/v1/execution/callback/end.htm?status=404"));
     }
 
     @Test

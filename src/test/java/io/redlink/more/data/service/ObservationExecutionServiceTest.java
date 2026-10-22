@@ -250,6 +250,37 @@ class ObservationExecutionServiceTest {
         assertEquals("http://lime.test/100", url);
     }
 
+    @Test
+    void testGetObservationUrlIgnoresSchedule() {
+        RoutingInfo routingInfo = givenLimeSurveyObservation();
+
+        assertEquals(URI.create("http://lime.test/100"), observationExecutionService.getObservationUrl("1", routingInfo));
+        verifyNoInteractions(callbackStore, resyncRepository);
+    }
+
+    @Test
+    void testGetObservationUrlUnknownObservation() {
+        Instant now = Instant.now();
+        RoutingInfo routingInfo = new RoutingInfo(1L, 1, OptionalInt.empty(), Set.of(), true, true);
+        Observation observation = new Observation(1, 1, "Title", "test-type", "Info", null, null, now, now, false, false, false, Set.of());
+        Study study = new Study(1L, "Title", true, "Info", "Finish", "active", "Consent", null, null, null, null, List.of(observation), now, now, null);
+        when(studyService.getStudy(routingInfo)).thenReturn(Optional.of(Pair.of(study, Collections.emptyList())));
+
+        assertThrows(NotFoundException.class, () -> observationExecutionService.getObservationUrl("2", routingInfo));
+        assertThrows(NotFoundException.class, () -> observationExecutionService.getObservationUrl("abc", routingInfo));
+    }
+
+    @Test
+    void testGetObservationUrlInactiveStudy() {
+        Instant now = Instant.now();
+        RoutingInfo routingInfo = new RoutingInfo(1L, 1, OptionalInt.empty(), Set.of(), true, true);
+        Observation observation = new Observation(1, 1, "Title", "test-type", "Info", null, null, now, now, false, false, false, Set.of());
+        Study study = new Study(1L, "Title", true, "Info", "Finish", "closed", "Consent", null, null, null, null, List.of(observation), now, now, null);
+        when(studyService.getStudy(routingInfo)).thenReturn(Optional.of(Pair.of(study, Collections.emptyList())));
+
+        assertThrows(ForbiddenException.class, () -> observationExecutionService.getObservationUrl("1", routingInfo));
+    }
+
     private Instant limeStart;
     private Instant limeEnd;
 

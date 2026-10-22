@@ -15,12 +15,16 @@ import io.redlink.more.data.model.ParticipantObservationSeed;
 import io.redlink.more.data.model.ParticipantWithObservationProperties;
 import io.redlink.more.data.model.SimpleParticipant;
 import io.redlink.more.data.model.Study;
+import io.redlink.more.data.service.observations.limesurvey.LimeSurveyComponent;
 import io.redlink.more.data.util.RandomSchedulerUtils;
 import io.redlink.more.data.util.SchedulerUtils;
 import org.apache.commons.lang3.Range;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 
@@ -29,8 +33,11 @@ public final class StudyTransformer {
     private StudyTransformer() {
     }
 
+    /**
+     * @param limeSurveyUrl the LimeSurvey url participants open, replacing the {@code limeUrl} of lime surveys (if set)
+     */
     public static StudyDTO toDTO(Study study, List<ParticipantObservationSeed> seeds, List<CompletedData> completedData,
-                                  Function<Integer, Optional<Instant>> milestoneAnchor) {
+                                  Function<Integer, Optional<Instant>> milestoneAnchor, String limeSurveyUrl) {
         return new StudyDTO()
                 .active(study.active())
                 .studyTitle(study.title())
@@ -42,7 +49,7 @@ public final class StudyTransformer {
                 .contact(toDTO(study.contact()))
                 .start(study.startDate())
                 .end(study.endDate())
-                .observations(toDTO(seeds, study.observations(), study.participant().start(), study.participant().end(), completedData, milestoneAnchor))
+                .observations(toDTO(seeds, study.observations(), study.participant().start(), study.participant().end(), completedData, milestoneAnchor, limeSurveyUrl))
                 .version(BaseTransformers.toVersionTag(study.modified()))
                 ;
     }
@@ -74,24 +81,24 @@ public final class StudyTransformer {
     }
 
     public static List<ObservationDTO> toDTO(List<ParticipantObservationSeed> participantObservationSeeds, List<Observation> observations, Instant start, Instant end, List<CompletedData> completedData,
-                                              Function<Integer, Optional<Instant>> milestoneAnchor) {
+                                              Function<Integer, Optional<Instant>> milestoneAnchor, String limeSurveyUrl) {
         return observations.stream().map(o -> {
             var seed = participantObservationSeeds.stream()
                     .filter(s -> s.observationId() == o.observationId())
                     .findFirst()
                     .orElse(null);
-            return StudyTransformer.toDTO(seed, o, start, end, completedData.stream().filter(d -> d.observationId().equals(String.valueOf(o.observationId()))).toList(), milestoneAnchor);
+            return StudyTransformer.toDTO(seed, o, start, end, completedData.stream().filter(d -> d.observationId().equals(String.valueOf(o.observationId()))).toList(), milestoneAnchor, limeSurveyUrl);
         }).toList();
     }
 
     public static ObservationDTO toDTO(ParticipantObservationSeed participantObservationSeed, Observation observation, Instant start, Instant end, List<CompletedData> completedData,
-                                        Function<Integer, Optional<Instant>> milestoneAnchor) {
+                                        Function<Integer, Optional<Instant>> milestoneAnchor, String limeSurveyUrl) {
         ObservationDTO dto = new ObservationDTO()
                 .observationId(String.valueOf(observation.observationId()))
                 .observationType(observation.type())
                 .observationTitle(observation.title())
                 .participantInfo(observation.participantInfo())
-                ._configuration(observation.properties())
+                ._configuration(toConfiguration(observation, limeSurveyUrl))
                 .version(BaseTransformers.toVersionTag(observation.modified()))
                 .hidden(observation.hidden())
                 .noSchedule(observation.noSchedule())
@@ -126,6 +133,27 @@ public final class StudyTransformer {
                     .toList());
         }
         return dto;
+    }
+
+    /**
+     * A lime survey is opened via the gateway redirect, so the app never builds the (possibly wrong) survey url itself.
+     * The {@code limeUrl}, {@code limeSurveyId} and {@code token} properties are deprecated: they are only kept for
+     * older app versions, which build the survey url themselves.
+     */
+    private static Object toConfiguration(Observation observation, String limeSurveyUrl) {
+        if (!LimeSurveyComponent.OBSERVATION_TYPE.equals(observation.type())
+                || !(observation.properties() instanceof Map<?, ?> properties)) {
+            return observation.properties();
+        }
+        Map<Object, Object> configuration = new HashMap<>(properties);
+        if (limeSurveyUrl != null && !limeSurveyUrl.isBlank()) {
+            configuration.put(LimeSurveyComponent.LIME_SURVEY_URL_KEY, limeSurveyUrl);
+        }
+        configuration.put(LimeSurveyComponent.REDIRECT_URL_KEY, ServletUriComponentsBuilder.fromCurrentContextPath()
+                .path("/api/v1/execution/observation/{observationId}/redirect")
+                .buildAndExpand(observation.observationId())
+                .toUriString());
+        return configuration;
     }
 
     public static ObservationScheduleDTO toObservationScheduleDTO(Range<Instant> schedule) {

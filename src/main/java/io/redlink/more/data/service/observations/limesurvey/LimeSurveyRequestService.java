@@ -60,8 +60,8 @@ public class LimeSurveyRequestService {
                 .jsonrpc(LimeSurveyRequest.JsonrpcEnum._2_0);
     }
 
-    public Optional<String> getBaseUrl() {
-        return Optional.ofNullable(properties.getBaseUrl());
+    public Optional<String> getPublicUrl() {
+        return Optional.ofNullable(properties.getPublicUrl());
     }
 
     public String getLanguage(String surveyId, String sessionKey) {

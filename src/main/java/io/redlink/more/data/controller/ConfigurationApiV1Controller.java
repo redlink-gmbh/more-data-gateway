@@ -20,6 +20,7 @@ import io.redlink.more.data.service.GatewayUserDetailService;
 import io.redlink.more.data.service.ObservationExecutionService;
 import io.redlink.more.data.service.PushNotificationService;
 import io.redlink.more.data.service.StudyService;
+import io.redlink.more.data.service.observations.limesurvey.LimeSurveyRequestService;
 import io.redlink.more.data.service.milestone.ParticipantMilestoneService;
 import io.redlink.more.data.util.LoggingUtils;
 import org.springframework.http.MediaType;
@@ -48,12 +49,15 @@ public class ConfigurationApiV1Controller implements ConfigurationApi {
 
     private final ParticipantMilestoneService participantMilestoneService;
 
-    public ConfigurationApiV1Controller(AuthenticationFacade authenticationFacade, PushNotificationService pushNotificationService, StudyService studyService, ObservationExecutionService observationExecutionService, ParticipantMilestoneService participantMilestoneService) {
+    private final LimeSurveyRequestService limeSurveyRequestService;
+
+    public ConfigurationApiV1Controller(AuthenticationFacade authenticationFacade, PushNotificationService pushNotificationService, StudyService studyService, ObservationExecutionService observationExecutionService, ParticipantMilestoneService participantMilestoneService, LimeSurveyRequestService limeSurveyRequestService) {
         this.authenticationFacade = authenticationFacade;
         this.pushNotificationService = pushNotificationService;
         this.studyService = studyService;
         this.observationExecutionService = observationExecutionService;
         this.participantMilestoneService = participantMilestoneService;
+        this.limeSurveyRequestService = limeSurveyRequestService;
     }
 
     @Override
@@ -64,7 +68,7 @@ public class ConfigurationApiV1Controller implements ConfigurationApi {
             var studyData = studyService.getStudy(userDetails.getRoutingInfo());
             List<CompletedData> completedData = observationExecutionService.getCompletedData(userDetails.getRoutingInfo());
             return studyData.map(s -> StudyTransformer.toDTO(s.getLeft(), s.getRight(), completedData,
-                            milestoneAnchor(userDetails.getRoutingInfo())))
+                            milestoneAnchor(userDetails.getRoutingInfo()), limeSurveyRequestService.getPublicUrl().orElse(null)))
                     .map(ResponseEntity::ok)
                     .orElseGet(() -> ResponseEntity.notFound().build());
         }
@@ -86,7 +90,7 @@ public class ConfigurationApiV1Controller implements ConfigurationApi {
                             .findFirst()
                             .map(o -> StudyTransformer.toDTO(s.getRight(), List.of(o),
                                     s.getLeft().participant().start(), s.getLeft().participant().end(),
-                                    completedData, milestoneAnchor(routingInfo)).get(0)))
+                                    completedData, milestoneAnchor(routingInfo), limeSurveyRequestService.getPublicUrl().orElse(null)).get(0)))
                     .map(ResponseEntity::ok)
                     .orElseGet(() -> ResponseEntity.notFound().build());
         }

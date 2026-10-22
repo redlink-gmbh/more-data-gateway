@@ -94,6 +94,10 @@ components:
           type: string
         configuration:
           type: object
+          description: |
+            Observation type specific configuration. For a `lime-survey-observation` the app opens `redirectUrl`
+            (with its credentials), which redirects to the survey. Deprecated: `limeUrl`, `limeSurveyId` and `token`,
+            only kept for older app versions.
         schedule:
           type: array
           items:

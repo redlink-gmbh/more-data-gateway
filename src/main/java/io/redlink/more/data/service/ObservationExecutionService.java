@@ -87,34 +87,12 @@ public class ObservationExecutionService {
 
         LOG.info("Starting observation {} for routinginfo {}", activeObservation, routingInfo);
 
-        Optional<Pair<Study, List<ParticipantObservationSeed>>> studyResult = studyService.getStudy(routingInfo);
-        if (studyResult.isEmpty()) {
-            throw new NotFoundException("Study not found for " + routingInfo);
-        }
-
-        Study study = studyResult.get().getLeft();
-        List<ParticipantObservationSeed> seeds = studyResult.get().getRight();
-
-        String state = study.studyState();
-        if (!"active".equalsIgnoreCase(state) && !"preview".equalsIgnoreCase(state)) {
-            throw new ForbiddenException("Study is not active or in preview");
-        }
-
-        int observationIdAsInt = Integer.parseInt(observationId);
-
-        Optional<Observation> studyObservation = study.observations().stream()
-                .filter(o -> o.observationId() == observationIdAsInt)
-                .findFirst();
-
-        if (studyObservation.isEmpty()) {
-            throw new NotFoundException("Observation " + observationId + " not found in study " + study.studyId());
-        }
-        Observation observation = studyObservation.get();
-
-        ObservationComponent component = observationComponents.get(observation.type());
-        if (component == null) {
-            throw new NotFoundException("Component for observation type " + observation.type() + " not found");
-        }
+        ExecutableObservation executable = findObservation(observationId, routingInfo);
+        Study study = executable.study();
+        List<ParticipantObservationSeed> seeds = executable.seeds();
+        Observation observation = executable.observation();
+        ObservationComponent component = executable.component();
+        int observationIdAsInt = observation.observationId();
 
         ParticipantObservationSeed seed = seeds.stream()
                 .filter(s -> String.valueOf(s.observationId()).equals(observationId))
@@ -155,6 +133,58 @@ public class ObservationExecutionService {
         }
         LOG.info("Opening url `{}` for routinginfo {} and observation schedule {}", uri, routingInfo, activeObservation);
         return Optional.of(uri);
+    }
+
+    /**
+     * The url of the observation, like a lime survey, without validating a schedule - used to redirect the app,
+     * so it never needs the url or token itself.
+     */
+    public URI getObservationUrl(String observationId, RoutingInfo routingInfo) {
+        ExecutableObservation executable = findObservation(observationId, routingInfo);
+        var uri = URI.create(executable.component().produceUrl(executable.observation(), routingInfo, null, null)
+                .orElseThrow(() -> new NotFoundException("Could not produce URL for observation " + observationId)));
+        LOG.info("Redirecting routinginfo {} to url `{}` of observation {}", routingInfo, uri, observationId);
+        return uri;
+    }
+
+    private record ExecutableObservation(Study study, List<ParticipantObservationSeed> seeds,
+                                         Observation observation, ObservationComponent component) {
+    }
+
+    private ExecutableObservation findObservation(String observationId, RoutingInfo routingInfo) {
+        if (observationId.isBlank() || !StringUtils.isNumeric(observationId)) {
+            throw new NotFoundException("Observation not found!");
+        }
+        Optional<Pair<Study, List<ParticipantObservationSeed>>> studyResult = studyService.getStudy(routingInfo);
+        if (studyResult.isEmpty()) {
+            throw new NotFoundException("Study not found for " + routingInfo);
+        }
+
+        Study study = studyResult.get().getLeft();
+        List<ParticipantObservationSeed> seeds = studyResult.get().getRight();
+
+        String state = study.studyState();
+        if (!"active".equalsIgnoreCase(state) && !"preview".equalsIgnoreCase(state)) {
+            throw new ForbiddenException("Study is not active or in preview");
+        }
+
+        int observationIdAsInt = Integer.parseInt(observationId);
+
+        Optional<Observation> studyObservation = study.observations().stream()
+                .filter(o -> o.observationId() == observationIdAsInt)
+                .findFirst();
+
+        if (studyObservation.isEmpty()) {
+            throw new NotFoundException("Observation " + observationId + " not found in study " + study.studyId());
+        }
+        Observation observation = studyObservation.get();
+
+        ObservationComponent component = observationComponents.get(observation.type());
+        if (component == null) {
+            throw new NotFoundException("Component for observation type " + observation.type() + " not found");
+        }
+
+        return new ExecutableObservation(study, seeds, observation, component);
     }
 
     public Optional<URI> processCallback(Map<String, String> parameters) {

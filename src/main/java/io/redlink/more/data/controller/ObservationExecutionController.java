@@ -78,6 +78,21 @@ public class ObservationExecutionController implements ExecutionApi {
         }
     }
 
+    @Override
+    public ResponseEntity<Void> redirectObservation(String observationId) {
+        try {
+            final RoutingInfo routingInfo = getRoutingInfo()
+                    .orElseThrow(() -> new AccessDeniedException("No credentials found!"));
+            URI url = observationExecutionService.getObservationUrl(observationId, routingInfo);
+            return ResponseEntity.status(HttpStatus.FOUND).location(url).build();
+        } catch (RuntimeException e) {
+            LOG.error("Error redirecting to observation {}: {}", observationId, e.getMessage(), e);
+            URI redirectUrl = UriComponentsBuilder.fromUriString(fallbackTarget())
+                    .queryParam("status", mapToStatus(e))
+                    .build().toUri();
+            return ResponseEntity.status(HttpStatus.FOUND).location(redirectUrl).build();
+        }
+    }
 
     @Override
     public ResponseEntity<String> callback() {
