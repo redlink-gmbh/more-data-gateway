@@ -65,6 +65,19 @@ class LimeSurveyComponentTest {
     }
 
     @Test
+    void testProduceUrlPrefersPublicUrl() {
+        Map<String, Object> properties = Map.of(
+                "limeSurveyId", "123",
+                "token", "abc",
+                "limeUrl", "http://wrong.example.com"
+        );
+        Observation observation = new Observation(1, 1, "Title", "lime-survey-observation", "Info", properties, null, Instant.now(), Instant.now(), false, false, false, Set.of());
+        when(limeSurveyRequestService.getPublicUrl()).thenReturn(Optional.of("https://public.example.com"));
+
+        assertEquals(Optional.of("https://public.example.com/123?token=abc"), limeSurveyComponent.produceUrl(observation, null, null, null));
+    }
+
+    @Test
     void testProcessCallbackSuccess() throws Exception {
         Map<String, String> parameters = Map.of(
                 "token", "token123",

@@ -94,6 +94,10 @@ components:
           type: string
         configuration:
           type: object
+          description: |
+            Observation type specific configuration. For a `lime-survey-observation` the app opens `redirectUrl`
+            (with its credentials), which redirects to the survey. Deprecated: `limeUrl`, `limeSurveyId` and `token`,
+            only kept for older app versions.
         schedule:
           type: array
           items:
@@ -209,7 +213,64 @@ components:
     Id:
       type: string
 
+    ObservationAttachment:
+      description: Metadata of a file attached to an observation
+      type: object
+      properties:
+        attachmentId:
+          type: string
+          format: uuid
+        filename:
+          type: string
+        contentType:
+          type: string
+        size:
+          type: integer
+          format: int64
+          description: size in bytes
+        created:
+          type: string
+          format: date-time
+      required:
+        - attachmentId
+        - filename
+        - contentType
+        - size
+
+  parameters:
+    ObservationId:
+      name: observationId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int32
+    AttachmentId:
+      name: attachmentId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
   responses:
+    ObservationAttachmentListResponse:
+      description: The attachments of the observation
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/ObservationAttachment'
+
+    ObservationAttachmentFileResponse:
+      description: The attachment content, served with the attachment's content type
+      content:
+        '*/*':
+          schema:
+            type: string
+            format: binary
+
     StudyInfoResponse:
       description: The Study Info
       content:

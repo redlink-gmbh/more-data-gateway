@@ -13,6 +13,9 @@ tags:
   - name: Configuration
     description: |
       Accessing data like study configurations, observation data and schedules
+  - name: Attachments
+    description: |
+      Files attached to observations
 
 paths:
   /login/{more-study-id}/{more-user-data-reference}:
@@ -98,6 +101,36 @@ paths:
           description: 'Forbidden'
         '404':
           description: 'Study not found'
+
+  /observations/{observationId}/attachments:
+    get:
+      operationId: listObservationAttachments
+      description: Lists the files attached to an observation
+      tags:
+        - Attachments
+      parameters:
+        - $ref: 'BaseComponents.yaml#/components/parameters/ObservationId'
+      responses:
+        '200':
+          $ref: 'BaseComponents.yaml#/components/responses/ObservationAttachmentListResponse'
+        '403':
+          description: 'Forbidden'
+  /observations/{observationId}/attachments/{attachmentId}:
+    get:
+      operationId: downloadObservationAttachment
+      description: Downloads the content of a file attached to an observation
+      tags:
+        - Attachments
+      parameters:
+        - $ref: 'BaseComponents.yaml#/components/parameters/ObservationId'
+        - $ref: 'BaseComponents.yaml#/components/parameters/AttachmentId'
+      responses:
+        '200':
+          $ref: 'BaseComponents.yaml#/components/responses/ObservationAttachmentFileResponse'
+        '403':
+          description: 'Forbidden'
+        '404':
+          description: attachment not found
 
 components:
   parameters:

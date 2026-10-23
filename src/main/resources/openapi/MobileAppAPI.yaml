@@ -26,6 +26,9 @@ tags:
   - name: Milestones
     description: |
       Endpoints to receive participant milestones
+  - name: Attachments
+    description: |
+      Endpoints to retrieve files attached to observations
 
 externalDocs:
   url: https://github.com/MORE-Platform
@@ -317,6 +320,55 @@ paths:
           $ref: 'BaseComponents.yaml#/components/responses/UnauthorizedApiKey'
         '404':
           description: application not found
+  /observations/{observationId}:
+    get:
+      operationId: getObservation
+      description: (re)load a single observation of the study, including its schedules and configuration
+      tags:
+        - Configuration
+      parameters:
+        - $ref: 'BaseComponents.yaml#/components/parameters/ObservationId'
+      responses:
+        '200':
+          description: The observation
+          content:
+            application/json:
+              schema:
+                $ref: 'BaseComponents.yaml#/components/schemas/Observation'
+        '401':
+          $ref: 'BaseComponents.yaml#/components/responses/UnauthorizedApiKey'
+        '404':
+          description: observation not found, or study is not in state preview/active
+  /observations/{observationId}/attachments:
+    get:
+      operationId: listObservationAttachments
+      description: Lists the files attached to an observation
+      tags:
+        - Attachments
+      parameters:
+        - $ref: 'BaseComponents.yaml#/components/parameters/ObservationId'
+      responses:
+        '200':
+          $ref: 'BaseComponents.yaml#/components/responses/ObservationAttachmentListResponse'
+        '401':
+          $ref: 'BaseComponents.yaml#/components/responses/UnauthorizedApiKey'
+  /observations/{observationId}/attachments/{attachmentId}:
+    get:
+      operationId: downloadObservationAttachment
+      description: Downloads the content of a file attached to an observation
+      tags:
+        - Attachments
+      parameters:
+        - $ref: 'BaseComponents.yaml#/components/parameters/ObservationId'
+        - $ref: 'BaseComponents.yaml#/components/parameters/AttachmentId'
+      responses:
+        '200':
+          $ref: 'BaseComponents.yaml#/components/responses/ObservationAttachmentFileResponse'
+        '401':
+          $ref: 'BaseComponents.yaml#/components/responses/UnauthorizedApiKey'
+        '404':
+          description: attachment not found
+
 components:
   schemas:
     PushNotification:

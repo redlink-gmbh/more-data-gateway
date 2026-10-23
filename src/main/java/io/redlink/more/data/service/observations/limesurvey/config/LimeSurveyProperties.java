@@ -8,7 +8,10 @@ import org.springframework.context.annotation.Configuration;
 public class LimeSurveyProperties {
     private String username;
     private String password;
+    /** used by the gateway to connect to LimeSurvey */
     private String baseUrl;
+    /** opened by the participants */
+    private String publicUrl;
 
     public String getUsername() {
         return username;
@@ -32,5 +35,13 @@ public class LimeSurveyProperties {
 
     public void setBaseUrl(String baseUrl) {
         this.baseUrl = baseUrl;
+    }
+
+    public String getPublicUrl() {
+        return publicUrl;
+    }
+
+    public void setPublicUrl(String publicUrl) {
+        this.publicUrl = publicUrl;
     }
 }

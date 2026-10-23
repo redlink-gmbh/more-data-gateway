@@ -36,6 +36,22 @@ paths:
         '409':
           description: Observation with schedule already done
 
+  /observation/{observation-id}/redirect:
+    get:
+      operationId: redirectObservation
+      description: Redirects to the observation, like a lime survey, without transmitting its url or token to the client
+      tags:
+        - Execution
+      parameters:
+        - $ref: '#/components/parameters/ObservationId'
+      responses:
+        '302':
+          description: Found
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+
   /callback:
     get:
       operationId: callback

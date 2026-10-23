@@ -39,7 +39,9 @@ public class LimeSurveyComponent implements ObservationComponent {
     private static final Logger LOG = LoggerFactory.getLogger(LimeSurveyComponent.class);
     private static final String LIME_SURVEY_ID_KEY = "limeSurveyId";
     private static final String LIME_SURVEY_TOKEN_KEY = "token";
-    private static final String LIME_SURVEY_URL_KEY = "limeUrl";
+    public static final String LIME_SURVEY_URL_KEY = "limeUrl";
+    /** The gateway url the app opens, which redirects to the survey */
+    public static final String REDIRECT_URL_KEY = "redirectUrl";
     private static final String SUBMIT_DATE_KEY = "submitdate";
     public static final String SUBMITTED_KEY = "submitted";
 
@@ -121,7 +123,7 @@ public class LimeSurveyComponent implements ObservationComponent {
 
         String surveyId = asString(properties.get(LIME_SURVEY_ID_KEY));
         String surveyToken = asString(properties.get(LIME_SURVEY_TOKEN_KEY));
-        String surveyUrl = limeSurveyRequestService.getBaseUrl()
+        String surveyUrl = limeSurveyRequestService.getPublicUrl()
                 .orElse(asString(properties.get(LIME_SURVEY_URL_KEY)));
 
         return formatLimeSurveyDeepLink(surveyId, surveyToken, surveyUrl);
