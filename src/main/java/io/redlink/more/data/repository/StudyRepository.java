@@ -14,6 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.dao.IncorrectResultSizeDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -122,13 +123,13 @@ public class StudyRepository {
             FROM participant_observation_properties pop
             WHERE pop.study_id = ?
               AND pop.properties ->> 'token' = ?
-            LIMIT 1
+            LIMIT 2
             """;
     private static final String SQL_STUDY_ID_PARTICIPANT_ID_AND_OBSERVATION_ID_BY_OBSERVATION_TOKEN = """
             SELECT pop.study_id, pop.participant_id, pop.observation_id
             FROM participant_observation_properties pop
             WHERE pop.properties ->> 'token' = ?
-            LIMIT 1
+            LIMIT 2
             """;
     private static final String GET_ROUTING_INFO = """
             SELECT pt.study_id as study_id, pt.participant_id as participant_id, study_group_id,
@@ -294,7 +295,7 @@ public class StudyRepository {
                     SELECT pop.*
                     FROM participant_observation_properties AS pop
                     JOIN observations AS o
-                      ON o.observation_id = pop.observation_id
+                      ON o.study_id = pop.study_id AND o.observation_id = pop.observation_id
                     WHERE o.type LIKE :observation_type""";
 
 
@@ -378,7 +379,11 @@ public class StudyRepository {
 
             return getRoutingInfo(studyId, participantAndObservationId.getLeft())
                     .map(routingInfo -> new RoutingInfoWithObservation(routingInfo, participantAndObservationId.getRight()));
-        } catch (EmptyResultDataAccessException e) {
+        } catch (IncorrectResultSizeDataAccessException e) {
+            // the token may be stored for several observations - better no answer than one of the wrong observation
+            if (e.getActualSize() > 1) {
+                LOG.warn("Token {} is stored for several observations, can not tell which one it belongs to", token);
+            }
             return Optional.empty();
         }
     }
@@ -402,7 +407,11 @@ public class StudyRepository {
 
             return getRoutingInfo(studyParticipantAndObservationId.studyId, studyParticipantAndObservationId.participantId)
                     .map(routingInfo -> new RoutingInfoWithObservation(routingInfo, studyParticipantAndObservationId.observationId));
-        } catch (EmptyResultDataAccessException e) {
+        } catch (IncorrectResultSizeDataAccessException e) {
+            // the token may be stored for several observations - better no answer than one of the wrong observation
+            if (e.getActualSize() > 1) {
+                LOG.warn("Token {} is stored for several observations, can not tell which one it belongs to", token);
+            }
             return Optional.empty();
         }
     }
@@ -726,19 +735,9 @@ public class StudyRepository {
     }
 
     public Optional<Map<String, Object>> getParticipantWithObservationProperties(Long studyId, Integer participantId, int observationId) {
-        try {
-            return namedTemplate.query(
-                    GET_PARTICIPANT_OBSERVATIONS_PROPERTIES,
-                    new MapSqlParameterSource()
-                            .addValue("study_id", studyId)
-                            .addValue("participant_id", participantId)
-                            .addValue("observation_id", observationId),
-                    (rs, rowNum) ->
-                            (Map<String, Object>) MapperUtils.readValue(rs.getObject("properties"), Map.class)
-            ).stream().findFirst();
-        } catch (EmptyResultDataAccessException e) {
-            return Optional.empty();
-        }
+        return getParticipantProperties(studyId, participantId, observationId)
+                .filter(Map.class::isInstance)
+                .map(props -> (Map<String, Object>) props);
     }
 
     public List<ParticipantWithObservationProperties> getParticipantByGarminAccessToken(String token) {
