@@ -329,4 +329,90 @@ class LimeSurveyComponentTest {
                 routingInfo, 3, Map.of("limeSurveyId", "100", "token", "token123"), Instant.now()));
         verify(elasticService, never()).storeDataPoints(anyList(), any());
     }
+
+    @Test
+    void testProcessCallbackPrefersTheObservationNamedByLimeSurvey() throws Exception {
+        Map<String, String> parameters = Map.of(
+                "token", "token123",
+                "surveyId", "100",
+                "studyId", "96"
+        );
+        RoutingInfo routingInfo = new RoutingInfo(96L, 11, OptionalInt.empty(), Set.of(), true, true);
+
+        // the token is also stored for observation 8 - LimeSurvey knows it was created for observation 15
+        when(limeSurveyRequestService.getParticipant("token123", 100)).thenReturn(Optional.of(
+                new io.redlink.more.data.service.observations.limesurvey.model.ParticipantData(
+                        "token123", 4, "study_96-observation_15-participant_11", "more", null)));
+        when(studyService.getRoutingInfo(96L, 11)).thenReturn(Optional.of(routingInfo));
+        when(limeSurveyRequestService.getAnswer("token123", 100, 0))
+                .thenReturn(Optional.of(new java.util.HashMap<>(Map.of("id", "4", "some_key", "some_value"))));
+        ArgumentCaptor<List<DataPoint>> captor = ArgumentCaptor.forClass(List.class);
+        when(elasticService.storeDataPoints(captor.capture(), eq(routingInfo))).thenReturn(List.of("stored"));
+
+        Optional<CallbackResult> result = limeSurveyComponent.processCallback(parameters);
+        assertTrue(result.isPresent());
+        assertEquals(15, result.get().observationId());
+        assertEquals("limesurvey_15_100_4", captor.getValue().get(0).datapointId());
+        verify(studyService, never()).getRoutingInfoByToken(anyLong(), any());
+    }
+
+    @Test
+    void testProcessCallbackFallsBackToTheTokenForOldFormatParticipants() throws Exception {
+        Map<String, String> parameters = Map.of(
+                "token", "token123",
+                "surveyId", "100",
+                "studyId", "1"
+        );
+        RoutingInfo routingInfo = new RoutingInfo(1L, 1, OptionalInt.empty(), Set.of(), true, true);
+
+        when(limeSurveyRequestService.getParticipant("token123", 100)).thenReturn(Optional.of(
+                new io.redlink.more.data.service.observations.limesurvey.model.ParticipantData(
+                        "token123", 4, "1", "more", null)));
+        when(studyService.getRoutingInfoByToken(1L, "token123")).thenReturn(Optional.of(new RoutingInfoWithObservation(routingInfo, 3)));
+        when(limeSurveyRequestService.getAnswer("token123", 100, 0))
+                .thenReturn(Optional.of(new java.util.HashMap<>(Map.of("id", "4"))));
+        when(elasticService.storeDataPoints(anyList(), eq(routingInfo))).thenReturn(List.of("stored"));
+
+        assertEquals(3, limeSurveyComponent.processCallback(parameters).orElseThrow().observationId());
+    }
+
+    @Test
+    void testResyncSkipsATokenCreatedForAnotherObservation() throws Exception {
+        RoutingInfo routingInfo = new RoutingInfo(96L, 11, OptionalInt.empty(), Set.of(), true, true);
+        when(limeSurveyRequestService.getParticipant("token123", 100)).thenReturn(Optional.of(
+                new io.redlink.more.data.service.observations.limesurvey.model.ParticipantData(
+                        "token123", 4, "study_96-observation_15-participant_11", "more", null)));
+
+        assertEquals(LimeSurveyComponent.ResyncResult.NOTHING, limeSurveyComponent.resync(
+                routingInfo, 8, Map.of("limeSurveyId", "100", "token", "token123"), Instant.now()));
+        verify(limeSurveyRequestService, never()).getAnswers(any(), anyInt());
+        verify(elasticService, never()).storeDataPoints(anyList(), any());
+    }
+
+    @Test
+    void testProduceUrlRefusesATokenCreatedForAnotherObservation() {
+        Map<String, Object> properties = Map.of("limeSurveyId", "100", "token", "token123", "limeUrl", "http://lime.example.com");
+        Observation observation = new Observation(8, 1, "Title", "lime-survey-observation", "Info", properties, null, Instant.now(), Instant.now(), false, false, false, Set.of());
+        RoutingInfo routingInfo = new RoutingInfo(96L, 11, OptionalInt.empty(), Set.of(), true, true);
+        when(limeSurveyRequestService.getParticipant("token123", 100)).thenReturn(Optional.of(
+                new io.redlink.more.data.service.observations.limesurvey.model.ParticipantData(
+                        "token123", 4, "study_96-observation_15-participant_11", "more", null)));
+
+        assertTrue(limeSurveyComponent.produceUrl(observation, routingInfo, null, null).isEmpty());
+
+        Observation owner = new Observation(15, 1, "Title", "lime-survey-observation", "Info", properties, null, Instant.now(), Instant.now(), false, false, false, Set.of());
+        assertTrue(limeSurveyComponent.produceUrl(owner, routingInfo, null, null).isPresent());
+    }
+
+    @Test
+    void testResyncSkipsATokenCreatedForAnotherParticipant() throws Exception {
+        RoutingInfo routingInfo = new RoutingInfo(96L, 12, OptionalInt.empty(), Set.of(), true, true);
+        when(limeSurveyRequestService.getParticipant("token123", 100)).thenReturn(Optional.of(
+                new io.redlink.more.data.service.observations.limesurvey.model.ParticipantData(
+                        "token123", 4, "study_96-observation_15-participant_11", "more", null)));
+
+        assertEquals(LimeSurveyComponent.ResyncResult.NOTHING, limeSurveyComponent.resync(
+                routingInfo, 15, Map.of("limeSurveyId", "100", "token", "token123"), Instant.now()));
+        verify(elasticService, never()).storeDataPoints(anyList(), any());
+    }
 }

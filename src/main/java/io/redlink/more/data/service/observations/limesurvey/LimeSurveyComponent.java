@@ -35,6 +35,7 @@ import java.util.regex.Pattern;
 public class LimeSurveyComponent implements ObservationComponent {
     public static final String OBSERVATION_TYPE = "lime-survey-observation";
     private static final String LIME_SURVEY_USER_TEMPLATE = "study_%s-observation_%s-participant_%s";
+    private static final Pattern LIME_SURVEY_USER_PATTERN = Pattern.compile("^study_(\\d+)-observation_(\\d+)-participant_(\\d+)$");
 
     private static final Logger LOG = LoggerFactory.getLogger(LimeSurveyComponent.class);
     private static final String LIME_SURVEY_ID_KEY = "limeSurveyId";
@@ -66,7 +67,7 @@ public class LimeSurveyComponent implements ObservationComponent {
 
     @Override
     public Optional<String> produceUrl(Observation observation, RoutingInfo routingInfo, Instant scheduleStart, Instant scheduleEnd) {
-        return generateLimeSurveyUrl(observation);
+        return generateLimeSurveyUrl(observation, routingInfo);
     }
 
     @Override
@@ -90,9 +91,11 @@ public class LimeSurveyComponent implements ObservationComponent {
             throw new IllegalArgumentException("Necessary parameter not provided! Please provide all of these: studyID, observationId, token!");
         }
 
-        RoutingInfoWithObservation routingInfoAndObservationId = studyService.getRoutingInfoByToken(studyIdParam.get(), token)
-                .or(() -> limeSurveyRequestService.getParticipant(token, surveyId.get())
-                        .flatMap(this::lsParticipantToRoutingInfo))
+        // the LimeSurvey participant names the observation its token was created for - the token alone may be
+        // stored for several observations, so it is only the fallback for participants in the old format
+        RoutingInfoWithObservation routingInfoAndObservationId = limeSurveyRequestService.getParticipant(token, surveyId.get())
+                .flatMap(this::lsParticipantToRoutingInfo)
+                .or(() -> studyService.getRoutingInfoByToken(studyIdParam.get(), token))
                 .orElseThrow(() -> {
                     LOG.warn("Could not find participant for LimeSurvey Component: studyId={}, savedId={}, surveyId={}", studyIdParam, savedId, surveyId);
                     return new IllegalArgumentException("Could not find participant for LimeSurvey Component for provided parameters");
@@ -114,7 +117,7 @@ public class LimeSurveyComponent implements ObservationComponent {
         return Optional.empty();
     }
 
-    private Optional<String> generateLimeSurveyUrl(Observation observation) {
+    private Optional<String> generateLimeSurveyUrl(Observation observation, RoutingInfo routingInfo) {
         var props = observation.properties();
         if (!(props instanceof Map<?, ?> properties)) {
             LOG.warn("Observation properties are not a Map! {}", props);
@@ -126,6 +129,11 @@ public class LimeSurveyComponent implements ObservationComponent {
         String surveyUrl = limeSurveyRequestService.getPublicUrl()
                 .orElse(asString(properties.get(LIME_SURVEY_URL_KEY)));
 
+        // never open the response of another observation, the participant would edit its answers
+        if (surveyToken != null && surveyId != null && surveyId.matches("\\d+")
+                && !isTokenOf(surveyToken, Integer.parseInt(surveyId), routingInfo, observation.observationId())) {
+            return Optional.empty();
+        }
         return formatLimeSurveyDeepLink(surveyId, surveyToken, surveyUrl);
     }
 
@@ -222,6 +230,9 @@ public class LimeSurveyComponent implements ObservationComponent {
         String token = asString(properties.get(LIME_SURVEY_TOKEN_KEY));
         if (token == null || token.isBlank()) {
             LOG.warn("Observation {} of participant {} has no LimeSurvey token", observationId, routingInfo.participantId());
+            return ResyncResult.NOTHING;
+        }
+        if (!isTokenOf(token, surveyId, routingInfo, observationId)) {
             return ResyncResult.NOTHING;
         }
 
@@ -354,13 +365,8 @@ public class LimeSurveyComponent implements ObservationComponent {
             return Optional.empty();
         }
 
-        String pattern = LIME_SURVEY_USER_TEMPLATE
-                .replace("%s", "(\\d+)")
-                .replace("study_", "^study_")
-                .replace("-participant_", "-participant_") + "$";
-
-        Matcher matcher = Pattern.compile(pattern).matcher(firstname);
-        if (!matcher.matches()) {
+        Matcher matcher = matchLimeSurveyUser(participantData).orElse(null);
+        if (matcher == null) {
             LOG.warn("Could not map LimeSurvey firstname to RoutingInfo: {}", firstname);
             return Optional.empty();
         }
@@ -383,5 +389,36 @@ public class LimeSurveyComponent implements ObservationComponent {
         }
 
         return Optional.of(new RoutingInfoWithObservation(routingInfo, observationId));
+    }
+
+    /**
+     * Whether the LimeSurvey participant of the token was created for this study, participant and observation -
+     * the same token may be stored for other observations, too. If LimeSurvey can not tell (participants in the
+     * old format, or the lookup failed), the token is trusted as before.
+     */
+    private boolean isTokenOf(String token, int surveyId, RoutingInfo routingInfo, int observationId) {
+        Optional<Matcher> owner = limeSurveyRequestService.getParticipant(token, surveyId)
+                .flatMap(LimeSurveyComponent::matchLimeSurveyUser);
+        if (owner.isEmpty()) {
+            return true;
+        }
+        Matcher matcher = owner.get();
+        boolean isOwner = Long.parseLong(matcher.group(2)) == observationId
+                && (routingInfo == null || (Long.parseLong(matcher.group(1)) == routingInfo.studyId()
+                && Long.parseLong(matcher.group(3)) == routingInfo.participantId()));
+        if (!isOwner) {
+            LOG.warn("LimeSurvey token of survey {} stored for observation {} of {} belongs to {}, ignoring it",
+                    surveyId, observationId, routingInfo, matcher.group(0));
+        }
+        return isOwner;
+    }
+
+    /** Matches a firstname in the {@link #LIME_SURVEY_USER_TEMPLATE} format: groups study, observation, participant */
+    private static Optional<Matcher> matchLimeSurveyUser(ParticipantData participantData) {
+        if (participantData == null || participantData.firstname() == null) {
+            return Optional.empty();
+        }
+        Matcher matcher = LIME_SURVEY_USER_PATTERN.matcher(participantData.firstname());
+        return matcher.matches() ? Optional.of(matcher) : Optional.empty();
     }
 }
